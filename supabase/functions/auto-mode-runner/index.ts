@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +14,12 @@ const corsHeaders = {
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // Apply rate limiting (processing functions use moderate limits)
+  const rateLimitResponse = rateLimitMiddleware(req, RATE_LIMITS.PROCESSING);
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
