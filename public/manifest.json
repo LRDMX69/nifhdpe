@@ -1,0 +1,17 @@
+{
+  "name": "NIF Technical Operations Suite",
+  "short_name": "NIF Technical",
+  "description": "AI-driven operations management platform for HDPE & PVC pipe professionals",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#061829",
+  "theme_color": "#061829",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

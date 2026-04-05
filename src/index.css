@@ -1,0 +1,203 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes loading {
+  0% { width: 0; }
+  100% { width: 100%; }
+}
+
+@layer base {
+  :root {
+    --background: 210 10% 96%;
+    --foreground: 210 40% 8%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 210 40% 8%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 40% 8%;
+
+    --primary: 105 73% 49%;
+    --primary-foreground: 210 40% 8%;
+
+    --secondary: 210 10% 90%;
+    --secondary-foreground: 210 40% 15%;
+
+    --muted: 210 10% 92%;
+    --muted-foreground: 210 10% 45%;
+
+    --accent: 105 73% 49%;
+    --accent-foreground: 210 40% 8%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 12% 87%;
+    --input: 210 12% 87%;
+    --ring: 105 73% 49%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 207 80% 9%;
+    --sidebar-foreground: 210 10% 92%;
+    --sidebar-primary: 105 73% 49%;
+    --sidebar-primary-foreground: 207 80% 9%;
+    --sidebar-accent: 207 60% 15%;
+    --sidebar-accent-foreground: 210 10% 92%;
+    --sidebar-border: 207 50% 16%;
+    --sidebar-ring: 105 73% 49%;
+
+    --success: 105 73% 49%;
+    --success-foreground: 210 40% 8%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --nif-green: 105 73% 49%;
+    --nif-dark: 207 80% 9%;
+  }
+
+  .dark {
+    --background: 207 80% 6%;
+    --foreground: 210 10% 95%;
+
+    --card: 207 60% 10%;
+    --card-foreground: 210 10% 95%;
+
+    --popover: 207 60% 10%;
+    --popover-foreground: 210 10% 95%;
+
+    --primary: 105 73% 49%;
+    --primary-foreground: 207 80% 9%;
+
+    --secondary: 207 40% 16%;
+    --secondary-foreground: 210 10% 90%;
+
+    --muted: 207 40% 16%;
+    --muted-foreground: 210 10% 55%;
+
+    --accent: 105 73% 49%;
+    --accent-foreground: 207 80% 9%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 207 40% 18%;
+    --input: 207 40% 18%;
+    --ring: 105 73% 49%;
+
+    --sidebar-background: 207 80% 5%;
+    --sidebar-foreground: 210 10% 85%;
+    --sidebar-primary: 105 73% 49%;
+    --sidebar-primary-foreground: 207 80% 9%;
+    --sidebar-accent: 207 60% 10%;
+    --sidebar-accent-foreground: 210 10% 85%;
+    --sidebar-border: 207 50% 12%;
+    --sidebar-ring: 105 73% 49%;
+
+    --success: 105 73% 49%;
+    --success-foreground: 207 80% 9%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --nif-green: 105 73% 49%;
+    --nif-dark: 207 80% 5%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  code, pre {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Global responsive overflow prevention */
+@layer utilities {
+  .break-words-safe {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+  }
+}
+
+/* Force no horizontal scroll */
+html, body, #root {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Safe area for bottom nav on notched devices */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* GSAP animation helpers */
+.gsap-fade-up {
+  opacity: 0;
+  transform: translateY(20px);
+}
+.gsap-fade-in {
+  opacity: 0;
+}
+.gsap-scale-in {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+/* ===== PRINT ISOLATION ===== */
+@media print {
+  /* Hide everything except the printable container */
+  body * {
+    visibility: hidden;
+  }
+  .print-container, .print-container * {
+    visibility: visible !important;
+  }
+  .print-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 20mm;
+    background: white !important;
+    color: black !important;
+  }
+  /* Hide nav, sidebar, buttons in print */
+  .no-print, nav, aside, header, footer,
+  button, .print-hide {
+    display: none !important;
+  }
+  /* Ensure clean page breaks */
+  .print-container h1, .print-container h2, .print-container h3 {
+    page-break-after: avoid;
+  }
+  .print-container table {
+    page-break-inside: avoid;
+  }
+}
