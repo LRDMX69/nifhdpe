@@ -240,7 +240,7 @@ const HR = () => {
   const submitTraining = useMutation({
     mutationFn: async () => {
       if (!orgId || !user || !trainingUserId) throw new Error("Select a member");
-      const payload: Database["public"]["Tables"]["training_logs"]["Insert"] = { organization_id: orgId, user_id: trainingUserId, training_title: trainingTitle, training_type: trainingType || null, score: trainingScore ? parseInt(trainingScore) : null, notes: trainingNotes || null };
+      const payload: Database["public"]["Tables"]["training_logs"]["Insert"] = { organization_id: orgId, created_by: user.id, user_id: trainingUserId, training_title: trainingTitle, training_type: trainingType || null, score: trainingScore ? parseInt(trainingScore) : null, notes: trainingNotes || null };
       if (editingTraining) {
         const { error } = await supabase.from("training_logs").update(payload).eq("id", editingTraining.id);
         if (error) throw error;
