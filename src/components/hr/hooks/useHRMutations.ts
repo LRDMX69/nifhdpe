@@ -188,6 +188,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       const payload: Database["public"]["Tables"]["promotions"]["Insert"] = {
         organization_id: orgId,
         user_id: values.promoUserId,
+        approved_by: userId,
         previous_role: values.promoPrevRole || null,
         new_role: values.promoNewRole,
         effective_date: values.promoDate || new Date().toISOString().split("T")[0],
