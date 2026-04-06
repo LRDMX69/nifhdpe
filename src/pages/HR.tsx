@@ -272,7 +272,7 @@ const HR = () => {
   const submitDisciplinary = useMutation({
     mutationFn: async () => {
       if (!orgId || !user || !discUserId || !discDescription) throw new Error("Fill required fields");
-      const payload: Database["public"]["Tables"]["disciplinary_records"]["Insert"] = { organization_id: orgId, user_id: discUserId, severity: discSeverity, description: discDescription, action_taken: discAction || null };
+      const payload: Database["public"]["Tables"]["disciplinary_records"]["Insert"] = { organization_id: orgId, user_id: discUserId, issued_by: user.id, severity: discSeverity, description: discDescription, action_taken: discAction || null };
       if (editingDisc) {
         const { error } = await supabase.from("disciplinary_records").update(payload).eq("id", editingDisc.id);
         if (error) throw error;
