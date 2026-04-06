@@ -97,7 +97,7 @@ const HR = () => {
 
   // ID Card dialog
   const [idCardOpen, setIdCardOpen] = useState(false);
-  const [idCardUser, setIdCardUser] = useState<{ user_id: string } | null>(null);
+  const [idCardUser, setIdCardUser] = useState<{ user_id: string; role?: string } | null>(null);
   const [idCardTemp, setIdCardTemp] = useState(false);
 
   // Delete target
