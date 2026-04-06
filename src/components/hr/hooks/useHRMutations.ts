@@ -155,6 +155,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       const payload: Database["public"]["Tables"]["disciplinary_records"]["Insert"] = {
         organization_id: orgId,
         user_id: values.discUserId,
+        issued_by: userId,
         severity: values.discSeverity,
         description: values.discDescription,
         action_taken: values.discAction || null,
