@@ -56,6 +56,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       if (!orgId || !userId) throw new Error("Not authenticated");
       const payload: Database["public"]["Tables"]["recruitment"]["Insert"] = {
         organization_id: orgId,
+        created_by: userId,
         position_title: values.recruitTitle,
         department: values.recruitDept || null,
         candidate_name: values.candidateName || null,
