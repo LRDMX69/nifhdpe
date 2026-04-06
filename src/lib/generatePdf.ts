@@ -326,7 +326,7 @@ export function generatePdf(options: PdfOptions): void {
       },
       theme: "grid",
     });
-    y = (doc as any).lastAutoTable?.finalY ?? y + 10;
+    y = (doc as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y + 10;
     y += 4;
 
     // Summary rows below table

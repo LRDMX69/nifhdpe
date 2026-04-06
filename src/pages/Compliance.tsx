@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
 
 const statusConfig: Record<string, { icon: typeof CheckCircle2; class: string }> = {
   valid: { icon: CheckCircle2, class: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
@@ -31,8 +32,8 @@ const Compliance = () => {
   const canEdit = activeRole === "administrator" || activeRole === "engineer" || isMaintenance;
   const canDelete = activeRole === "administrator" || isMaintenance;
   const [open, setOpen] = useState(false);
-  const [editingDoc, setEditingDoc] = useState<any>(null);
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [editingDoc, setEditingDoc] = useState<Database["public"]["Tables"]["compliance_documents"]["Row"] | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Database["public"]["Tables"]["compliance_documents"]["Row"] | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const containerRef = useGsapAnimation("slideUp");
@@ -65,7 +66,7 @@ const Compliance = () => {
     enabled: !!orgId,
   });
 
-  const openEdit = (d: any) => {
+  const openEdit = (d: Database["public"]["Tables"]["compliance_documents"]["Row"]) => {
     setEditingDoc(d);
     setTitle(d.title); setDocType(d.doc_type); setExpiryDate(d.expiry_date ?? "");
     setProjectId(d.project_id ?? ""); setFileUrl(d.file_url); setDocStatus(d.status);
@@ -89,8 +90,8 @@ const Compliance = () => {
       const { data: urlData } = supabase.storage.from("compliance-docs").getPublicUrl(filePath);
       setFileUrl(urlData.publicUrl);
       toast({ title: "File uploaded" });
-    } catch (err: any) {
-      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } catch (err: Error | unknown) {
+      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "An error occurred", variant: "destructive" });
     } finally { setUploading(false); }
   };
 
@@ -98,10 +99,10 @@ const Compliance = () => {
     if (!orgId || !user || !title.trim() || !docType) return;
     setSaving(true);
     try {
-      const payload: any = {
+      const payload: Database["public"]["Tables"]["compliance_documents"]["Insert"] = {
         title: title.trim(), doc_type: docType, expiry_date: expiryDate || null,
         project_id: projectId && projectId !== "none" ? projectId : null,
-        file_url: fileUrl, status: docStatus as any,
+        file_url: fileUrl, status: docStatus as Database["public"]["Enums"]["compliance_status"],
       };
       if (editingDoc) {
         const { error } = await supabase.from("compliance_documents").update(payload).eq("id", editingDoc.id);
@@ -120,7 +121,7 @@ const Compliance = () => {
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
-      const { error } = await supabase.from("compliance_documents").update({ status: status as any }).eq("id", id);
+      const { error } = await supabase.from("compliance_documents").update({ status: status as Database["public"]["Enums"]["compliance_status"] }).eq("id", id);
       if (error) throw error;
       toast({ title: `Status → ${status}` });
       refetch();

@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMemo } from "react";
+import type { Database } from "@/integrations/supabase/types";
 
 const COLORS = ["hsl(105,73%,49%)", "hsl(207,80%,40%)", "hsl(38,92%,50%)", "hsl(0,72%,51%)", "hsl(210,10%,60%)"];
 
@@ -57,26 +58,26 @@ const Analytics = () => {
   });
 
   const analytics = useMemo(() => {
-    const totalRevenue = quotations.filter((q: any) => q.status === "accepted").reduce((s: number, q: any) => s + Number(q.total_amount ?? 0), 0);
-    const totalExpenses = expenses.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
-    const totalPayments = payments.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0);
+    const totalRevenue = quotations.filter((q: Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null }) => q.status === "accepted").reduce((s: number, q: Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null }) => s + Number(q.total_amount ?? 0), 0);
+    const totalExpenses = expenses.reduce((s: number, e: Database["public"]["Tables"]["expenses"]["Row"]) => s + Number(e.amount ?? 0), 0);
+    const totalPayments = payments.reduce((s: number, p: Database["public"]["Tables"]["worker_payments"]["Row"]) => s + Number(p.amount ?? 0), 0);
     const netProfit = totalRevenue - totalExpenses - totalPayments;
 
-    const sentCount = quotations.filter((q: any) => ["sent", "accepted", "rejected"].includes(q.status)).length;
-    const acceptedCount = quotations.filter((q: any) => q.status === "accepted").length;
+    const sentCount = quotations.filter((q: Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null }) => ["sent", "accepted", "rejected"].includes(q.status ?? "")).length;
+    const acceptedCount = quotations.filter((q: Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null }) => q.status === "accepted").length;
     const conversionRate = sentCount > 0 ? Math.round((acceptedCount / sentCount) * 100) : 0;
 
-    const inventoryValue = inventory.reduce((s: number, i: any) => s + (i.quantity_meters ?? 0) * (i.unit_cost ?? 0), 0);
+    const inventoryValue = inventory.reduce((s: number, i: Database["public"]["Tables"]["inventory"]["Row"]) => s + (i.quantity_meters ?? 0) * (i.unit_cost ?? 0), 0);
 
     // Monthly revenue data
     const monthlyMap = new Map<string, { revenue: number; expenses: number }>();
-    quotations.filter((q: any) => q.status === "accepted").forEach((q: any) => {
+    quotations.filter((q: Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null }) => q.status === "accepted").forEach((q: Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null }) => {
       const month = new Date(q.created_at).toLocaleString("en", { month: "short" });
       const entry = monthlyMap.get(month) ?? { revenue: 0, expenses: 0 };
       entry.revenue += Number(q.total_amount ?? 0);
       monthlyMap.set(month, entry);
     });
-    expenses.forEach((e: any) => {
+    expenses.forEach((e: Database["public"]["Tables"]["expenses"]["Row"]) => {
       const month = new Date(e.date).toLocaleString("en", { month: "short" });
       const entry = monthlyMap.get(month) ?? { revenue: 0, expenses: 0 };
       entry.expenses += Number(e.amount ?? 0);
@@ -86,7 +87,7 @@ const Analytics = () => {
 
     // Pipe usage by diameter
     const diameterMap = new Map<string, number>();
-    inventory.forEach((i: any) => {
+    inventory.forEach((i: Database["public"]["Tables"]["inventory"]["Row"]) => {
       const key = i.diameter_mm ? `${i.diameter_mm}mm` : "Other";
       diameterMap.set(key, (diameterMap.get(key) ?? 0) + Number(i.quantity_meters ?? 0));
     });
@@ -94,10 +95,10 @@ const Analytics = () => {
 
     // Quotation conversion by month
     const convMap = new Map<string, { sent: number; accepted: number }>();
-    quotations.forEach((q: any) => {
+    quotations.forEach((q: Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null }) => {
       const month = new Date(q.created_at).toLocaleString("en", { month: "short" });
       const entry = convMap.get(month) ?? { sent: 0, accepted: 0 };
-      if (["sent", "accepted", "rejected"].includes(q.status)) entry.sent++;
+      if (["sent", "accepted", "rejected"].includes(q.status ?? "")) entry.sent++;
       if (q.status === "accepted") entry.accepted++;
       convMap.set(month, entry);
     });
@@ -105,8 +106,8 @@ const Analytics = () => {
 
     // Top clients
     const clientMap = new Map<string, number>();
-    quotations.filter((q: any) => q.status === "accepted").forEach((q: any) => {
-      const name = (q as any).clients?.name ?? "Unknown";
+    quotations.filter((q: Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null }) => q.status === "accepted").forEach((q: Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null }) => {
+      const name = (q as Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null }).clients?.name ?? "Unknown";
       clientMap.set(name, (clientMap.get(name) ?? 0) + Number(q.total_amount ?? 0));
     });
     const topClients = Array.from(clientMap.entries()).map(([name, revenue]) => ({ name, revenue })).sort((a, b) => b.revenue - a.revenue).slice(0, 5);

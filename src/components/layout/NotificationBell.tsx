@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import type { Database } from "@/integrations/supabase/types";
 
 export const NotificationBell = () => {
   const { user, memberships } = useAuth();
@@ -33,13 +34,13 @@ export const NotificationBell = () => {
   });
 
   // Fetch sender profiles
-  const senderIds = [...new Set(unreadMessages.map((m: any) => m.sender_id))];
+  const senderIds = [...new Set(unreadMessages.map((m: Database["public"]["Tables"]["messages"]["Row"]) => m.sender_id))];
   const { data: senderProfiles = new Map() } = useQuery({
     queryKey: ["notif-sender-profiles", senderIds.join(",")],
     queryFn: async () => {
       if (senderIds.length === 0) return new Map();
       const { data } = await supabase.from("profiles").select("user_id, full_name").in("user_id", senderIds);
-      return new Map((data ?? []).map((p: any) => [p.user_id, p.full_name]));
+      return new Map((data ?? []).map((p: Database["public"]["Tables"]["profiles"]["Row"]) => [p.user_id, p.full_name]));
     },
     enabled: senderIds.length > 0,
   });
@@ -53,7 +54,7 @@ export const NotificationBell = () => {
         refetch();
         // Play notification sound
         try {
-          const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const ctx = new (window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.connect(gain);
@@ -84,7 +85,7 @@ export const NotificationBell = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const handleNotificationClick = async (m: any) => {
+  const handleNotificationClick = async (m: Database["public"]["Tables"]["messages"]["Row"]) => {
     // Mark as read
     await supabase.from("messages").update({ is_read: true }).eq("id", m.id);
     refetch();
@@ -120,7 +121,7 @@ export const NotificationBell = () => {
           {count === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">All caught up!</div>
           ) : (
-            unreadMessages.map((m: any) => (
+            unreadMessages.map((m: Database["public"]["Tables"]["messages"]["Row"]) => (
               <div
                 key={m.id}
                 className="px-3 py-2 hover:bg-muted/50 cursor-pointer border-b border-border/50 last:border-0"

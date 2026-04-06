@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
 
 const Inventory = () => {
   const { user, memberships, activeRole } = useAuth();
@@ -26,7 +27,7 @@ const Inventory = () => {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
+  const [editingItem, setEditingItem] = useState<Database["public"]["Tables"]["inventory"]["Row"] | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const listRef = useGsapStagger(".gsap-card", 0.05);
@@ -58,7 +59,7 @@ const Inventory = () => {
     setEditingItem(null);
   };
 
-  const openEdit = (item: any) => {
+  const openEdit = (item: Database["public"]["Tables"]["inventory"]["Row"]) => {
     setEditingItem(item);
     setItemName(item.item_name);
     setItemType(item.item_type || "hdpe");
@@ -79,7 +80,7 @@ const Inventory = () => {
       const payload = {
         organization_id: orgId,
         item_name: itemName.trim(),
-        item_type: (itemType || "hdpe") as any,
+        item_type: (itemType || "hdpe") as Database["public"]["Enums"]["pipe_type"],
         diameter_mm: diameter ? parseInt(diameter) : null,
         quantity_meters: quantity ? parseFloat(quantity) : 0,
         min_stock_level: minStock ? parseFloat(minStock) : 10,
@@ -99,8 +100,8 @@ const Inventory = () => {
       resetForm();
       setDialogOpen(false);
       refetch();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: Error | unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "An error occurred", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -116,7 +117,7 @@ const Inventory = () => {
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       setDeleteTarget(null);
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error | unknown) => toast({ title: "Error", description: err instanceof Error ? err.message : "An error occurred", variant: "destructive" }),
   });
 
   const filtered = inventory.filter((item) => {

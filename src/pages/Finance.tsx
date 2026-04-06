@@ -20,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { stripMarkdown } from "@/lib/stripMarkdown";
+import type { Database } from "@/integrations/supabase/types";
 
 const PAYMENT_TYPES = ["salary", "overtime", "fuel", "maintenance", "bonus", "transport", "vendor"] as const;
 const EXPENSE_CATEGORIES = ["labor", "fuel", "transport", "materials", "equipment", "other"] as const;
@@ -32,8 +33,8 @@ const Finance = () => {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: "expense" | "payment" } | null>(null);
-  const [editingExpense, setEditingExpense] = useState<any>(null);
-  const [editingPayment, setEditingPayment] = useState<any>(null);
+  const [editingExpense, setEditingExpense] = useState<Database["public"]["Tables"]["expenses"]["Row"] | null>(null);
+  const [editingPayment, setEditingPayment] = useState<Database["public"]["Tables"]["worker_payments"]["Row"] | null>(null);
   const containerRef = useGsapAnimation("slideUp");
 
   // Payment form
@@ -131,13 +132,13 @@ const Finance = () => {
   const resetPaymentForm = () => { setPayType(""); setPayAmount(""); setPayDesc(""); setPayUserId(""); setPayDate(new Date().toISOString().split("T")[0]); setEditingPayment(null); };
   const resetExpenseForm = () => { setExpCategory(""); setExpAmount(""); setExpDesc(""); setExpDate(new Date().toISOString().split("T")[0]); setEditingExpense(null); };
 
-  const openEditPayment = (p: any) => {
+  const openEditPayment = (p: Database["public"]["Tables"]["worker_payments"]["Row"]) => {
     setEditingPayment(p); setPayType(p.type); setPayAmount(p.amount.toString());
     setPayDesc(p.description ?? ""); setPayDate(p.date); setPayUserId(p.user_id ?? "");
     setPaymentOpen(true);
   };
 
-  const openEditExpense = (e: any) => {
+  const openEditExpense = (e: Database["public"]["Tables"]["expenses"]["Row"]) => {
     setEditingExpense(e); setExpCategory(e.category); setExpAmount(e.amount.toString());
     setExpDesc(e.description ?? ""); setExpDate(e.date);
     setExpenseOpen(true);
@@ -147,8 +148,8 @@ const Finance = () => {
     if (!payType || !payAmount || !user || !orgId) return;
     setSaving(true);
     try {
-      const payload: any = {
-        type: payType as any, amount: parseFloat(payAmount),
+      const payload: Database["public"]["Tables"]["worker_payments"]["Insert"] = {
+        type: payType as Database["public"]["Enums"]["payment_type"], amount: parseFloat(payAmount),
         description: payDesc || null, date: payDate, user_id: payUserId || null,
       };
       if (editingPayment) {
@@ -171,8 +172,8 @@ const Finance = () => {
     if (!expCategory || !expAmount || !user || !orgId) return;
     setSaving(true);
     try {
-      const payload: any = {
-        category: expCategory as any, amount: parseFloat(expAmount),
+      const payload: Database["public"]["Tables"]["expenses"]["Insert"] = {
+        category: expCategory as Database["public"]["Enums"]["expense_category"], amount: parseFloat(expAmount),
         description: expDesc || null, date: expDate,
       };
       if (editingExpense) {
@@ -224,13 +225,13 @@ const Finance = () => {
           { header: "Description", dataKey: "description" },
           { header: "Amount (₦)", dataKey: "amount" },
         ],
-        rows: expenses.slice(0, 50).map((e: any) => ({
+        rows: expenses.slice(0, 50).map((e: Database["public"]["Tables"]["expenses"]["Row"]) => ({
           date: e.date, category: e.category,
           description: e.description || "—",
           amount: Number(e.amount).toLocaleString(),
         })),
         summary: [
-          { label: "Total Expenses", value: formatCurrency(expenses.reduce((s: number, e: any) => s + Number(e.amount), 0)) },
+          { label: "Total Expenses", value: formatCurrency(expenses.reduce((s: number, e: Database["public"]["Tables"]["expenses"]["Row"]) => s + Number(e.amount), 0)) },
         ],
       } : undefined,
       stampType: "finance",
@@ -359,7 +360,7 @@ const Finance = () => {
                   <TableHead>Date</TableHead><TableHead>Category</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-[40px]"></TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {expenses.map((e: any) => (
+                  {expenses.map((e: Database["public"]["Tables"]["expenses"]["Row"]) => (
                     <TableRow key={e.id}>
                       <TableCell className="text-sm">{e.date}</TableCell>
                       <TableCell><Badge variant="outline" className="capitalize">{e.category}</Badge></TableCell>
@@ -393,7 +394,7 @@ const Finance = () => {
                   <TableHead>Date</TableHead><TableHead>Employee</TableHead><TableHead>Type</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-[40px]"></TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {payments.map((p: any) => (
+                  {payments.map((p: Database["public"]["Tables"]["worker_payments"]["Row"]) => (
                     <TableRow key={p.id}>
                       <TableCell className="text-sm">{p.date}</TableCell>
                       <TableCell className="text-sm">{p.user_id ? getMemberName(p.user_id) : "—"}</TableCell>

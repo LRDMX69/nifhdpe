@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAiAssistant } from "@/hooks/useAiAssistant";
+import type { Database } from "@/integrations/supabase/types";
 
 const statusColors: Record<string, string> = {
   identified: "bg-blue-500/10 text-blue-400 border-blue-500/20",
@@ -31,7 +32,7 @@ const Opportunities = () => {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("all");
   const [scanning, setScanning] = useState(false);
-  const [viewingOpp, setViewingOpp] = useState<any>(null);
+  const [viewingOpp, setViewingOpp] = useState<Database["public"]["Tables"]["opportunities"]["Row"] | null>(null);
   const { response: proposalEmail, loading: generatingEmail, error: emailError, ask: askAi, reset: resetAi } = useAiAssistant({ context: "opportunities" });
   const containerRef = useGsapAnimation("slideUp");
 
@@ -65,10 +66,10 @@ const Opportunities = () => {
     },
   });
 
-  const filtered = filter === "all" ? opportunities : opportunities.filter((o: any) => o.status === filter);
-  const totalValue = opportunities.reduce((s: number, o: any) => s + (o.estimated_value || 0), 0);
-  const activeBids = opportunities.filter((o: any) => o.status === "bidding").length;
-  const wonCount = opportunities.filter((o: any) => o.status === "won").length;
+  const filtered = filter === "all" ? opportunities : opportunities.filter((o: Database["public"]["Tables"]["opportunities"]["Row"]) => o.status === filter);
+  const totalValue = opportunities.reduce((s: number, o: Database["public"]["Tables"]["opportunities"]["Row"]) => s + (o.estimated_value || 0), 0);
+  const activeBids = opportunities.filter((o: Database["public"]["Tables"]["opportunities"]["Row"]) => o.status === "bidding").length;
+  const wonCount = opportunities.filter((o: Database["public"]["Tables"]["opportunities"]["Row"]) => o.status === "won").length;
 
   const handleRefreshIntelligence = async () => {
     setScanning(true);
@@ -97,8 +98,8 @@ const Opportunities = () => {
       setOpen(false);
       setTitle(""); setSource(""); setValue(""); setDeadline(""); setDescription("");
       refetch();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: Error | unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "An error occurred", variant: "destructive" });
     }
   };
 
@@ -124,7 +125,7 @@ const Opportunities = () => {
           </Button>
           <Button variant="outline" size="sm" className="print-hide" onClick={() => {
             import("@/lib/generatePdf").then(({ generatePdf }) => {
-              generatePdf({ title: "Opportunities Pipeline", content: opportunities.map(o => `${(o as any).title} — ${(o as any).status} — ${(o as any).estimated_value ? `₦${Number((o as any).estimated_value).toLocaleString()}` : "TBD"}`).join("\n"), stampType: "admin" });
+              generatePdf({ title: "Opportunities Pipeline", content: opportunities.map(o => `${o.title} — ${o.status} — ${o.estimated_value ? `₦${Number(o.estimated_value).toLocaleString()}` : "TBD"}`).join("\n"), stampType: "admin" });
             });
           }}>
             <Printer className="h-4 w-4 mr-1" /><span className="hidden sm:inline">Print</span>
@@ -309,7 +310,7 @@ const Opportunities = () => {
             No opportunities found. Add one manually or refresh intelligence.
           </CardContent></Card>
         )}
-        {filtered.map((o: any) => {
+        {filtered.map((o: Database["public"]["Tables"]["opportunities"]["Row"]) => {
           const info = parseContactInfo(o.description ?? "");
           return (
             <Card key={o.id} className="hover:border-primary/30 transition-colors cursor-pointer" onClick={() => setViewingOpp(o)}>

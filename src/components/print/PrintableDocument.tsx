@@ -37,8 +37,8 @@ const extractTextFromChildren = (children: ReactNode): string => {
   if (typeof children === "number") return String(children);
   if (!children) return "";
   if (Array.isArray(children)) return children.map(extractTextFromChildren).join("\n");
-  if (typeof children === "object" && "props" in children) {
-    const props = (children as any).props;
+  if (typeof children === "object" && "props" in (children as object)) {
+    const props = (children as { props?: { children?: ReactNode } }).props;
     if (props?.children) return extractTextFromChildren(props.children);
   }
   return "";

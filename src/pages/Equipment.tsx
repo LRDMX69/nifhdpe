@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
 // generatePdf loaded dynamically
 
 const statusColors: Record<string, string> = {
@@ -31,10 +32,10 @@ const Equipment = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
-  const [editingEquip, setEditingEquip] = useState<any>(null);
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [editingEquip, setEditingEquip] = useState<Database["public"]["Tables"]["equipment"]["Row"] | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Database["public"]["Tables"]["equipment"]["Row"] | null>(null);
   const [requestOpen, setRequestOpen] = useState(false);
-  const [selectedEquipment, setSelectedEquipment] = useState<any>(null);
+  const [selectedEquipment, setSelectedEquipment] = useState<Database["public"]["Tables"]["equipment"]["Row"] | null>(null);
   const [requestReason, setRequestReason] = useState("");
   const [requestProject, setRequestProject] = useState("");
   const containerRef = useGsapAnimation("slideUp");
@@ -75,7 +76,7 @@ const Equipment = () => {
     enabled: !!orgId,
   });
 
-  const openEdit = (e: any) => {
+  const openEdit = (e: Database["public"]["Tables"]["equipment"]["Row"]) => {
     setEditingEquip(e);
     setNewName(e.name); setNewType(e.type ?? ""); setNewSerial(e.serial_number ?? "");
     setNewHours(e.usage_hours?.toString() ?? ""); setNewMaintDate(e.next_maintenance_date ?? "");
@@ -93,10 +94,10 @@ const Equipment = () => {
   const saveEquipment = useMutation({
     mutationFn: async () => {
       if (!orgId || !user) throw new Error("Not authenticated");
-      const payload: any = {
+      const payload: Database["public"]["Tables"]["equipment"]["Insert"] = {
         name: newName, type: newType || null, serial_number: newSerial || null,
         usage_hours: newHours ? parseFloat(newHours) : 0, next_maintenance_date: newMaintDate || null,
-        status: newStatus as any,
+        status: newStatus as Database["public"]["Enums"]["equipment_status"],
       };
       if (editingEquip) {
         const { error } = await supabase.from("equipment").update(payload).eq("id", editingEquip.id);
@@ -129,7 +130,7 @@ const Equipment = () => {
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
-      const { error } = await supabase.from("equipment").update({ status: status as any }).eq("id", id);
+      const { error } = await supabase.from("equipment").update({ status: status as Database["public"]["Enums"]["equipment_status"] }).eq("id", id);
       if (error) throw error;
       toast({ title: `Status → ${status.replace("_", " ")}` });
       queryClient.invalidateQueries({ queryKey: ["equipment"] });
@@ -176,7 +177,7 @@ const Equipment = () => {
           { header: "Hours", dataKey: "hours" },
           { header: "Site", dataKey: "site" },
         ],
-        rows: equipment.map((e: any) => ({
+        rows: equipment.map((e: Database["public"]["Tables"]["equipment"]["Row"] & { projects?: { name: string } | null }) => ({
           name: e.name, type: e.type ?? "N/A", serial: e.serial_number ?? "N/A",
           status: e.status, hours: e.usage_hours ?? 0, site: e.projects?.name ?? "N/A",
         })),
@@ -187,9 +188,9 @@ const Equipment = () => {
 
   const stats = [
     { label: "Total", value: equipment.length, icon: Wrench },
-    { label: "In Use", value: equipment.filter((e: any) => e.status === "in_use").length, icon: MapPin },
-    { label: "Available", value: equipment.filter((e: any) => e.status === "available").length, icon: Clock },
-    { label: "Maintenance", value: equipment.filter((e: any) => e.status === "maintenance").length, icon: AlertCircle },
+    { label: "In Use", value: equipment.filter((e: Database["public"]["Tables"]["equipment"]["Row"]) => e.status === "in_use").length, icon: MapPin },
+    { label: "Available", value: equipment.filter((e: Database["public"]["Tables"]["equipment"]["Row"]) => e.status === "available").length, icon: Clock },
+    { label: "Maintenance", value: equipment.filter((e: Database["public"]["Tables"]["equipment"]["Row"]) => e.status === "maintenance").length, icon: AlertCircle },
   ];
 
   return (
@@ -251,7 +252,7 @@ const Equipment = () => {
               </div>
               <div className="space-y-2"><Label>Project (optional)</Label>
                 <Select value={requestProject} onValueChange={setRequestProject}><SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
-                  <SelectContent>{projects.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                  <SelectContent>{projects.map((p: Database["public"]["Tables"]["projects"]["Row"]) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2"><Label>Reason</Label><Textarea value={requestReason} onChange={e => setRequestReason(e.target.value)} placeholder="Why?" rows={3} /></div>
@@ -274,13 +275,13 @@ const Equipment = () => {
         ))}
       </div>
 
-      {isAdmin && requests.filter((r: any) => r.status === "pending").length > 0 && (
+      {isAdmin && requests.filter((r: Database["public"]["Tables"]["equipment_requests"]["Row"] & { equipment?: { name: string } | null }) => r.status === "pending").length > 0 && (
         <Card className="border-warning/30">
           <CardHeader className="pb-2"><CardTitle className="text-sm text-warning flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" /> Pending Requests ({requests.filter((r: any) => r.status === "pending").length})
+            <AlertCircle className="h-4 w-4" /> Pending Requests ({requests.filter((r: Database["public"]["Tables"]["equipment_requests"]["Row"] & { equipment?: { name: string } | null }) => r.status === "pending").length})
           </CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            {requests.filter((r: any) => r.status === "pending").map((r: any) => (
+            {requests.filter((r: Database["public"]["Tables"]["equipment_requests"]["Row"] & { equipment?: { name: string } | null }) => r.status === "pending").map((r: Database["public"]["Tables"]["equipment_requests"]["Row"] & { equipment?: { name: string } | null }) => (
               <div key={r.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg bg-muted/30">
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{r.equipment?.name ?? "Equipment"}</p>
@@ -298,7 +299,7 @@ const Equipment = () => {
 
       {isLoading && <p className="text-sm text-muted-foreground">Loading equipment...</p>}
       <div className="space-y-2">
-        {equipment.map((e: any) => (
+        {equipment.map((e: Database["public"]["Tables"]["equipment"]["Row"] & { projects?: { name: string } | null }) => (
           <Card key={e.id} className="hover:border-primary/20 transition-colors">
             <CardContent className="p-3 sm:p-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">

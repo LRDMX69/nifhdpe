@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
 
 const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   planning: "outline", in_progress: "default", on_hold: "secondary", completed: "default", cancelled: "destructive",
@@ -36,8 +37,8 @@ const Projects = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<any>(null);
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [editingProject, setEditingProject] = useState<Database["public"]["Tables"]["projects"]["Row"] | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Database["public"]["Tables"]["projects"]["Row"] | null>(null);
   const listRef = useGsapStagger(".gsap-card", 0.06);
   const orgId = memberships[0]?.organization_id;
   const canEdit = ["administrator", "engineer", "technician", "finance"].includes(activeRole ?? "") || isMaintenance;
@@ -107,20 +108,34 @@ const Projects = () => {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!orgId || !user || !newName.trim()) throw new Error("Missing required fields");
-      const payload: any = {
+      const payload: Database["public"]["Tables"]["projects"]["Update"] = {
         name: newName, description: newDesc || null, budget: newBudget ? parseFloat(newBudget) : null,
         start_date: newStart || null, end_date: newEnd || null, client_id: newClientId || null,
-        status: newStatus as any, progress_percent: newProgress, project_head_id: newHeadId || null,
+        status: newStatus as Database["public"]["Enums"]["project_status"], progress_percent: newProgress, project_head_id: newHeadId || null,
         team_member_ids: newTeamIds.length > 0 ? newTeamIds : null,
       };
 
       let projectId: string;
       if (editingProject) {
-        const { error } = await supabase.from("projects").update(payload).eq("id", editingProject.id);
+        const { error } = await supabase.from("projects").update(payload as Database["public"]["Tables"]["projects"]["Update"]).eq("id", editingProject.id);
         if (error) throw error;
         projectId = editingProject.id;
       } else {
-        const { data, error } = await supabase.from("projects").insert({ ...payload, organization_id: orgId, created_by: user.id }).select("id").single();
+        const insertPayload = {
+          name: newName,
+          description: newDesc || null,
+          budget: newBudget ? parseFloat(newBudget) : null,
+          start_date: newStart || null,
+          end_date: newEnd || null,
+          client_id: newClientId || null,
+          status: newStatus as Database["public"]["Enums"]["project_status"],
+          progress_percent: newProgress,
+          project_head_id: newHeadId || null,
+          team_member_ids: newTeamIds.length > 0 ? newTeamIds : null,
+          organization_id: orgId,
+          created_by: user.id,
+        };
+        const { data, error } = await supabase.from("projects").insert(insertPayload).select("id").single();
         if (error) throw error;
         projectId = data.id;
       }
@@ -151,7 +166,7 @@ const Projects = () => {
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error | unknown) => toast({ title: "Error", description: err instanceof Error ? err.message : "An error occurred", variant: "destructive" }),
   });
 
   const handleDelete = async () => {
@@ -162,29 +177,29 @@ const Projects = () => {
       toast({ title: "Project deleted" });
       setDeleteTarget(null);
       queryClient.invalidateQueries({ queryKey: ["projects"] });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: Error | unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "An error occurred", variant: "destructive" });
     }
   };
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
-      const { error } = await supabase.from("projects").update({ status: status as any }).eq("id", id);
+      const { error } = await supabase.from("projects").update({ status: status as Database["public"]["Enums"]["project_status"] }).eq("id", id);
       if (error) throw error;
       toast({ title: `Status → ${statusLabels[status]}` });
       queryClient.invalidateQueries({ queryKey: ["projects"] });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: Error | unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "An error occurred", variant: "destructive" });
     }
   };
 
-  const filtered = projects.filter((p: any) => {
+  const filtered = projects.filter((p: Database["public"]["Tables"]["projects"]["Row"] & { clients?: { name: string } | null }) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || (p.clients?.name ?? "").toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || p.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
-  const getMemberName = (userId: string) => members.find((m: any) => m.user_id === userId)?.full_name ?? "Unknown";
+  const getMemberName = (userId: string) => members.find((m: Database["public"]["Tables"]["profiles"]["Row"]) => m.user_id === userId)?.full_name ?? "Unknown";
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
@@ -200,7 +215,7 @@ const Projects = () => {
               <div className="space-y-2 sm:col-span-2"><Label>Project Name *</Label><Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Lekki Phase 2 Water Supply" /></div>
               <div className="space-y-2"><Label>Client</Label>
                 <Select value={newClientId} onValueChange={setNewClientId}><SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
-                  <SelectContent>{clients.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                  <SelectContent>{clients.map((c: Database["public"]["Tables"]["clients"]["Row"]) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2"><Label>Budget (₦)</Label><Input type="number" value={newBudget} onChange={e => setNewBudget(e.target.value)} placeholder="0" /></div>
@@ -217,14 +232,14 @@ const Projects = () => {
               </div>
               <div className="space-y-2 sm:col-span-2"><Label>Project Head</Label>
                 <Select value={newHeadId} onValueChange={setNewHeadId}><SelectTrigger><SelectValue placeholder="Assign project head" /></SelectTrigger>
-                  <SelectContent>{members.map((m: any) => <SelectItem key={m.user_id} value={m.user_id}>{m.full_name ?? "Unknown"}</SelectItem>)}</SelectContent>
+                  <SelectContent>{members.map((m: Database["public"]["Tables"]["profiles"]["Row"]) => <SelectItem key={m.user_id} value={m.user_id}>{m.full_name ?? "Unknown"}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               {/* Team Members Multi-Select */}
               <div className="space-y-2 sm:col-span-2">
                 <Label className="flex items-center gap-1"><Users className="h-4 w-4" /> Team Members</Label>
                 <div className="border border-border rounded-md p-3 max-h-40 overflow-y-auto space-y-1">
-                  {members.length === 0 ? <p className="text-xs text-muted-foreground">No members available</p> : members.map((m: any) => (
+                  {members.length === 0 ? <p className="text-xs text-muted-foreground">No members available</p> : members.map((m: Database["public"]["Tables"]["profiles"]["Row"]) => (
                     <div key={m.user_id} className="flex items-center gap-2">
                       <Checkbox
                         id={`team-${m.user_id}`}
@@ -277,7 +292,7 @@ const Projects = () => {
         {filtered.length === 0 && !isLoading && (
           <Card className="col-span-full"><CardContent className="p-8 text-center text-muted-foreground">No projects found.</CardContent></Card>
         )}
-        {filtered.map((project: any) => {
+        {filtered.map((project: Database["public"]["Tables"]["projects"]["Row"] & { clients?: { name: string } | null }) => {
           const teamIds: string[] = Array.isArray(project.team_member_ids) ? project.team_member_ids : [];
           return (
             <Card key={project.id} className="gsap-card border-border/50 hover:border-primary/20 transition-all hover:shadow-md">
