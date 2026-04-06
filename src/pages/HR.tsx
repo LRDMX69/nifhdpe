@@ -289,7 +289,7 @@ const HR = () => {
     mutationFn: async () => {
       if (!orgId || !user || !promoUserId || !promoNewRole) throw new Error("Fill required fields");
       const payload: Database["public"]["Tables"]["promotions"]["Insert"] = {
-        organization_id: orgId, user_id: promoUserId,
+        organization_id: orgId, user_id: promoUserId, approved_by: user.id,
         previous_role: promoPrevRole || null, new_role: promoNewRole,
         effective_date: promoDate || new Date().toISOString().split("T")[0],
         reason: promoReason || null,
