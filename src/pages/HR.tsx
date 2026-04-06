@@ -2,23 +2,25 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { useAuth } from "@/contexts/AuthContext";
-import { CalendarDays, Award, Users, Plus, Loader2, GraduationCap, ShieldAlert, Star, Briefcase, CreditCard, DollarSign } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { CalendarDays, Award, Users, Clock, AlertTriangle, Plus, Loader2, TrendingDown, GraduationCap, ShieldAlert, Star, Briefcase, MoreVertical, Pencil, Trash2, CreditCard, DollarSign } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useGsapFadeUp } from "@/hooks/useGsapAnimation";
 import { CheckInWidget } from "@/components/CheckInWidget";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import type { Database } from "@/integrations/supabase/types";
-import { useHRData, useHRMutations, AttendanceTab, LeavesTab, PayrollTab, IDCardsTab, PerformanceTab, RecruitmentTab, TrainingTab, SkillsTab, DisciplinaryTab, PromotionsTab, RecordActions } from "@/components/hr";
-import { generateIdCard } from "@/lib/generateIdCard";
 
 const HR = () => {
   const { user, memberships, activeRole, isMaintenance } = useAuth();
@@ -95,7 +97,7 @@ const HR = () => {
 
   // ID Card dialog
   const [idCardOpen, setIdCardOpen] = useState(false);
-  const [idCardUser, setIdCardUser] = useState<{ user_id: string } | null>(null);
+  const [idCardUser, setIdCardUser] = useState<{ user_id: string; role?: string } | null>(null);
   const [idCardTemp, setIdCardTemp] = useState(false);
 
   // Delete target
@@ -222,7 +224,7 @@ const HR = () => {
   const submitRecruitment = useMutation({
     mutationFn: async () => {
       if (!orgId || !user) throw new Error("Not authenticated");
-      const payload: Database["public"]["Tables"]["recruitment"]["Insert"] = { organization_id: orgId, position_title: recruitTitle, department: recruitDept || null, candidate_name: candidateName || null, candidate_email: candidateEmail || null, candidate_phone: candidatePhone || null };
+      const payload: Database["public"]["Tables"]["recruitment"]["Insert"] = { organization_id: orgId, created_by: user.id, position_title: recruitTitle, department: recruitDept || null, candidate_name: candidateName || null, candidate_email: candidateEmail || null, candidate_phone: candidatePhone || null };
       if (editingRecruit) {
         const { error } = await supabase.from("recruitment").update(payload).eq("id", editingRecruit.id);
         if (error) throw error;
@@ -238,7 +240,7 @@ const HR = () => {
   const submitTraining = useMutation({
     mutationFn: async () => {
       if (!orgId || !user || !trainingUserId) throw new Error("Select a member");
-      const payload: Database["public"]["Tables"]["training_logs"]["Insert"] = { organization_id: orgId, user_id: trainingUserId, training_title: trainingTitle, training_type: trainingType || null, score: trainingScore ? parseInt(trainingScore) : null, notes: trainingNotes || null };
+      const payload: Database["public"]["Tables"]["training_logs"]["Insert"] = { organization_id: orgId, created_by: user.id, user_id: trainingUserId, training_title: trainingTitle, training_type: trainingType || null, score: trainingScore ? parseInt(trainingScore) : null, notes: trainingNotes || null };
       if (editingTraining) {
         const { error } = await supabase.from("training_logs").update(payload).eq("id", editingTraining.id);
         if (error) throw error;
@@ -270,7 +272,7 @@ const HR = () => {
   const submitDisciplinary = useMutation({
     mutationFn: async () => {
       if (!orgId || !user || !discUserId || !discDescription) throw new Error("Fill required fields");
-      const payload: Database["public"]["Tables"]["disciplinary_records"]["Insert"] = { organization_id: orgId, user_id: discUserId, severity: discSeverity, description: discDescription, action_taken: discAction || null };
+      const payload: Database["public"]["Tables"]["disciplinary_records"]["Insert"] = { organization_id: orgId, user_id: discUserId, issued_by: user.id, severity: discSeverity, description: discDescription, action_taken: discAction || null };
       if (editingDisc) {
         const { error } = await supabase.from("disciplinary_records").update(payload).eq("id", editingDisc.id);
         if (error) throw error;
@@ -287,7 +289,7 @@ const HR = () => {
     mutationFn: async () => {
       if (!orgId || !user || !promoUserId || !promoNewRole) throw new Error("Fill required fields");
       const payload: Database["public"]["Tables"]["promotions"]["Insert"] = {
-        organization_id: orgId, user_id: promoUserId,
+        organization_id: orgId, user_id: promoUserId, approved_by: user.id,
         previous_role: promoPrevRole || null, new_role: promoNewRole,
         effective_date: promoDate || new Date().toISOString().split("T")[0],
         reason: promoReason || null,

@@ -56,6 +56,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       if (!orgId || !userId) throw new Error("Not authenticated");
       const payload: Database["public"]["Tables"]["recruitment"]["Insert"] = {
         organization_id: orgId,
+        created_by: userId,
         position_title: values.recruitTitle,
         department: values.recruitDept || null,
         candidate_name: values.candidateName || null,
@@ -89,6 +90,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       if (!orgId || !userId || !values.trainingUserId) throw new Error("Select a member");
       const payload: Database["public"]["Tables"]["training_logs"]["Insert"] = {
         organization_id: orgId,
+        created_by: userId,
         user_id: values.trainingUserId,
         training_title: values.trainingTitle,
         training_type: values.trainingType || null,
@@ -153,6 +155,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       const payload: Database["public"]["Tables"]["disciplinary_records"]["Insert"] = {
         organization_id: orgId,
         user_id: values.discUserId,
+        issued_by: userId,
         severity: values.discSeverity,
         description: values.discDescription,
         action_taken: values.discAction || null,
@@ -185,6 +188,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       const payload: Database["public"]["Tables"]["promotions"]["Insert"] = {
         organization_id: orgId,
         user_id: values.promoUserId,
+        approved_by: userId,
         previous_role: values.promoPrevRole || null,
         new_role: values.promoNewRole,
         effective_date: values.promoDate || new Date().toISOString().split("T")[0],
