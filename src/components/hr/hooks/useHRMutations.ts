@@ -90,6 +90,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       if (!orgId || !userId || !values.trainingUserId) throw new Error("Select a member");
       const payload: Database["public"]["Tables"]["training_logs"]["Insert"] = {
         organization_id: orgId,
+        created_by: userId,
         user_id: values.trainingUserId,
         training_title: values.trainingTitle,
         training_type: values.trainingType || null,
