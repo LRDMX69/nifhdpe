@@ -224,7 +224,7 @@ const HR = () => {
   const submitRecruitment = useMutation({
     mutationFn: async () => {
       if (!orgId || !user) throw new Error("Not authenticated");
-      const payload: Database["public"]["Tables"]["recruitment"]["Insert"] = { organization_id: orgId, position_title: recruitTitle, department: recruitDept || null, candidate_name: candidateName || null, candidate_email: candidateEmail || null, candidate_phone: candidatePhone || null };
+      const payload: Database["public"]["Tables"]["recruitment"]["Insert"] = { organization_id: orgId, created_by: user.id, position_title: recruitTitle, department: recruitDept || null, candidate_name: candidateName || null, candidate_email: candidateEmail || null, candidate_phone: candidatePhone || null };
       if (editingRecruit) {
         const { error } = await supabase.from("recruitment").update(payload).eq("id", editingRecruit.id);
         if (error) throw error;
