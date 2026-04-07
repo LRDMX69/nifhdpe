@@ -7,19 +7,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const MAX_EXECUTION_MS = 5 * 60 * 1000; // 5 minutes max
+
 /**
- * Auto-Mode Runner: When auto_mode is enabled for an org, this function
- * runs all department automations + central monitor automatically.
- * Called by cron or manually by admin.
+ * Auto-Mode Runner: Runs all department automations + central monitor.
+ * Enforces a 5-minute execution window — skips remaining tasks if exceeded.
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  // Apply rate limiting (processing functions use moderate limits)
   const rateLimitResponse = rateLimitMiddleware(req, RATE_LIMITS.PROCESSING);
-  if (rateLimitResponse) {
-    return rateLimitResponse;
-  }
+  if (rateLimitResponse) return rateLimitResponse;
+
+  const startTime = Date.now();
+  const isTimeExceeded = () => Date.now() - startTime > MAX_EXECUTION_MS;
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -28,7 +29,6 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Find all orgs with auto-mode enabled
     const { data: autoModeOrgs } = await supabase
       .from("auto_mode_settings")
       .select("organization_id")
@@ -40,55 +40,65 @@ serve(async (req) => {
       });
     }
 
-    const results: Array<{ org: string; departments: string[]; flags: number }> = [];
+    const results: Array<{ org: string; departments: string[]; skipped: string[]; flags: number }> = [];
+
+    const callWithTimeout = async (url: string, body: Record<string, unknown>): Promise<boolean> => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000); // 60s per call max
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+        return res.ok;
+      } catch (e) {
+        console.error(`Call failed: ${url}`, e);
+        return false;
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
 
     for (const org of autoModeOrgs) {
+      if (isTimeExceeded()) {
+        results.push({ org: org.organization_id, departments: [], skipped: ["ALL — time exceeded"], flags: 0 });
+        continue;
+      }
+
       const orgId = org.organization_id;
-      const departments = ["finance", "hr", "warehouse", "engineering"];
       const completedDepts: string[] = [];
+      const skippedDepts: string[] = [];
 
       // Run central monitor
-      try {
-        await fetch(`${SUPABASE_URL}/functions/v1/central-ai-monitor`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ organization_id: orgId }),
-        });
-        completedDepts.push("central-monitor");
-      } catch (e) {
-        console.error(`Central monitor failed for ${orgId}:`, e);
-      }
+      if (!isTimeExceeded()) {
+        const ok = await callWithTimeout(`${SUPABASE_URL}/functions/v1/central-ai-monitor`, { organization_id: orgId });
+        if (ok) completedDepts.push("central-monitor"); else skippedDepts.push("central-monitor");
+      } else { skippedDepts.push("central-monitor"); }
 
-      // Run message content moderation
-      try {
-        await fetch(`${SUPABASE_URL}/functions/v1/message-moderation`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ organization_id: orgId }),
-        });
-        completedDepts.push("message-moderation");
-      } catch (e) {
-        console.error(`Message moderation failed for ${orgId}:`, e);
-      }
+      // Run message moderation
+      if (!isTimeExceeded()) {
+        const ok = await callWithTimeout(`${SUPABASE_URL}/functions/v1/message-moderation`, { organization_id: orgId });
+        if (ok) completedDepts.push("message-moderation"); else skippedDepts.push("message-moderation");
+      } else { skippedDepts.push("message-moderation"); }
 
       // Run each department automation
+      const departments = ["finance", "hr", "warehouse", "engineering"];
       for (const dept of departments) {
-        try {
-          await fetch(`${SUPABASE_URL}/functions/v1/department-automation`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ organization_id: orgId, department: dept }),
-          });
-          completedDepts.push(dept);
-        } catch (e) {
-          console.error(`Dept ${dept} failed for ${orgId}:`, e);
+        if (isTimeExceeded()) {
+          skippedDepts.push(dept);
+          continue;
         }
+        const ok = await callWithTimeout(`${SUPABASE_URL}/functions/v1/department-automation`, { organization_id: orgId, department: dept });
+        if (ok) completedDepts.push(dept); else skippedDepts.push(dept);
       }
 
-      results.push({ org: orgId, departments: completedDepts, flags: 0 });
+      results.push({ org: orgId, departments: completedDepts, skipped: skippedDepts, flags: 0 });
     }
 
-    return new Response(JSON.stringify({ success: true, results }), {
+    const elapsed = Date.now() - startTime;
+    return new Response(JSON.stringify({ success: true, results, elapsed_ms: elapsed, time_limit_ms: MAX_EXECUTION_MS }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
