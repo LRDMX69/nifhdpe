@@ -97,6 +97,10 @@ const Logistics = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!orgId || !user || !destination.trim()) return;
+    if (!destLat || !destLng) {
+      toast({ title: "Coordinates required", description: "Enter destination latitude and longitude for GPS delivery verification.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const payload: any = {
