@@ -864,6 +864,8 @@ const HR = () => {
           </Card></TabsContent>
         )}
       </Tabs>
+
+      {isHrOrAdmin && <HolidayManager />}
     </div>
   );
 };
