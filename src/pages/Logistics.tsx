@@ -258,8 +258,8 @@ const Logistics = () => {
               <div className="space-y-2"><Label>Destination *</Label><Input placeholder="Delivery address" value={destination} onChange={(e) => setDestination(e.target.value)} required /></div>
               <div className="space-y-2"><Label>State</Label><Input placeholder="e.g. Lagos" value={destState} onChange={(e) => setDestState(e.target.value)} /></div>
               <div className="space-y-2"><Label>Site Name</Label><Input placeholder="Site / Company name" value={siteName} onChange={(e) => setSiteName(e.target.value)} /></div>
-              <div className="space-y-2"><Label>Latitude (optional)</Label><Input type="number" step="any" placeholder="6.5244" value={destLat} onChange={(e) => setDestLat(e.target.value)} /></div>
-              <div className="space-y-2"><Label>Longitude (optional)</Label><Input type="number" step="any" placeholder="3.3792" value={destLng} onChange={(e) => setDestLng(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Latitude *</Label><Input type="number" step="any" placeholder="6.5244" value={destLat} onChange={(e) => setDestLat(e.target.value)} required /></div>
+              <div className="space-y-2"><Label>Longitude *</Label><Input type="number" step="any" placeholder="3.3792" value={destLng} onChange={(e) => setDestLng(e.target.value)} required /></div>
               <div className="space-y-2"><Label>Vehicle</Label><Input placeholder="Vehicle & plate" value={vehicle} onChange={(e) => setVehicle(e.target.value)} /></div>
               <div className="space-y-2"><Label>Driver</Label><Input placeholder="Driver name" value={driver} onChange={(e) => setDriver(e.target.value)} /></div>
               <div className="space-y-2"><Label>Delivery Date</Label><Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} /></div>
