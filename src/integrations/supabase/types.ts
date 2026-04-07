@@ -838,13 +838,53 @@ export type Database = {
           },
         ]
       }
+      holidays: {
+        Row: {
+          created_at: string
+          created_by: string
+          date: string
+          id: string
+          is_extended: boolean
+          name: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          date: string
+          id?: string
+          is_extended?: boolean
+          name: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          date?: string
+          id?: string
+          is_extended?: boolean
+          name?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holidays_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory: {
         Row: {
+          box_id: string | null
           created_at: string
           diameter_mm: number | null
           id: string
           item_name: string
           item_type: Database["public"]["Enums"]["pipe_type"] | null
+          location_id: string | null
           min_stock_level: number | null
           notes: string | null
           organization_id: string
@@ -856,11 +896,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          box_id?: string | null
           created_at?: string
           diameter_mm?: number | null
           id?: string
           item_name: string
           item_type?: Database["public"]["Enums"]["pipe_type"] | null
+          location_id?: string | null
           min_stock_level?: number | null
           notes?: string | null
           organization_id: string
@@ -872,11 +914,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          box_id?: string | null
           created_at?: string
           diameter_mm?: number | null
           id?: string
           item_name?: string
           item_type?: Database["public"]["Enums"]["pipe_type"] | null
+          location_id?: string | null
           min_stock_level?: number | null
           notes?: string | null
           organization_id?: string
@@ -888,6 +932,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "inventory_box_id_fkey"
+            columns: ["box_id"]
+            isOneToOne: false
+            referencedRelation: "storage_boxes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "storage_locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inventory_organization_id_fkey"
             columns: ["organization_id"]
@@ -1713,6 +1771,80 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "recruitment_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      storage_boxes: {
+        Row: {
+          box_code: string
+          created_at: string
+          id: string
+          label: string | null
+          location_id: string
+          organization_id: string
+        }
+        Insert: {
+          box_code: string
+          created_at?: string
+          id?: string
+          label?: string | null
+          location_id: string
+          organization_id: string
+        }
+        Update: {
+          box_code?: string
+          created_at?: string
+          id?: string
+          label?: string | null
+          location_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storage_boxes_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "storage_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "storage_boxes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      storage_locations: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storage_locations_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
