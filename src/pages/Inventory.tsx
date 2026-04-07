@@ -7,11 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Package, AlertTriangle, Loader2, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Loader2, Pencil, Trash2, MapPin } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";
 import { AiInsightPanel } from "@/components/AiInsightPanel";
+import { InventoryFinder } from "@/components/InventoryFinder";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -40,13 +41,44 @@ const Inventory = () => {
   const [unitCost, setUnitCost] = useState("");
   const [supplier, setSupplier] = useState("");
   const [supplierPhone, setSupplierPhone] = useState("");
+  const [locationId, setLocationId] = useState("");
+  const [boxId, setBoxId] = useState("");
+
+  // Storage management dialogs
+  const [locDialogOpen, setLocDialogOpen] = useState(false);
+  const [locName, setLocName] = useState("");
+  const [locDesc, setLocDesc] = useState("");
+  const [boxDialogOpen, setBoxDialogOpen] = useState(false);
+  const [boxCode, setBoxCode] = useState("");
+  const [boxLabel, setBoxLabel] = useState("");
+  const [boxLocId, setBoxLocId] = useState("");
 
   const { data: inventory = [], isLoading, refetch } = useQuery({
     queryKey: ["inventory", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data, error } = await supabase.from("inventory").select("*").eq("organization_id", orgId).order("item_name");
+      const { data, error } = await supabase.from("inventory").select("*, storage_locations(name), storage_boxes(box_code, label)").eq("organization_id", orgId).order("item_name");
       if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: locations = [], refetch: refetchLocs } = useQuery({
+    queryKey: ["storage-locations", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase.from("storage_locations").select("*").eq("organization_id", orgId).order("name");
+      return data ?? [];
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: boxes = [], refetch: refetchBoxes } = useQuery({
+    queryKey: ["storage-boxes", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase.from("storage_boxes").select("*, storage_locations(name)").eq("organization_id", orgId).order("box_code");
       return data ?? [];
     },
     enabled: !!orgId,
@@ -55,6 +87,7 @@ const Inventory = () => {
   const resetForm = () => {
     setItemName(""); setItemType(""); setDiameter(""); setQuantity("");
     setMinStock(""); setUnitCost(""); setSupplier(""); setSupplierPhone("");
+    setLocationId(""); setBoxId("");
     setEditingItem(null);
   };
 
@@ -68,6 +101,8 @@ const Inventory = () => {
     setUnitCost(item.unit_cost?.toString() || "");
     setSupplier(item.supplier || "");
     setSupplierPhone(item.supplier_phone || "");
+    setLocationId(item.location_id || "");
+    setBoxId(item.box_id || "");
     setDialogOpen(true);
   };
 
@@ -76,16 +111,18 @@ const Inventory = () => {
     if (!orgId || !user || !itemName.trim()) return;
     setSaving(true);
     try {
-      const payload = {
+      const payload: any = {
         organization_id: orgId,
         item_name: itemName.trim(),
-        item_type: (itemType || "hdpe") as any,
+        item_type: (itemType || "hdpe"),
         diameter_mm: diameter ? parseInt(diameter) : null,
         quantity_meters: quantity ? parseFloat(quantity) : 0,
         min_stock_level: minStock ? parseFloat(minStock) : 10,
         unit_cost: unitCost ? parseFloat(unitCost) : 0,
         supplier: supplier || null,
         supplier_phone: supplierPhone || null,
+        location_id: locationId || null,
+        box_id: boxId || null,
       };
       if (editingItem) {
         const { error } = await supabase.from("inventory").update(payload).eq("id", editingItem.id);
@@ -106,6 +143,24 @@ const Inventory = () => {
     }
   };
 
+  const addLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orgId || !locName.trim()) return;
+    const { error } = await supabase.from("storage_locations").insert({ organization_id: orgId, name: locName.trim(), description: locDesc || null });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Location added" });
+    setLocName(""); setLocDesc(""); setLocDialogOpen(false); refetchLocs();
+  };
+
+  const addBox = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orgId || !boxCode.trim() || !boxLocId) return;
+    const { error } = await supabase.from("storage_boxes").insert({ organization_id: orgId, box_code: boxCode.trim(), label: boxLabel || null, location_id: boxLocId });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Box added" });
+    setBoxCode(""); setBoxLabel(""); setBoxLocId(""); setBoxDialogOpen(false); refetchBoxes();
+  };
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("inventory").delete().eq("id", id);
@@ -119,50 +174,101 @@ const Inventory = () => {
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  const filtered = inventory.filter((item) => {
+  const filtered = inventory.filter((item: any) => {
     const matchesSearch = item.item_name.toLowerCase().includes(search.toLowerCase()) || (item.supplier ?? "").toLowerCase().includes(search.toLowerCase());
     const matchesType = typeFilter === "all" || item.item_type === typeFilter;
     return matchesSearch && matchesType;
   });
 
-  const lowStockCount = inventory.filter((i) => (i.quantity_meters ?? 0) < (i.min_stock_level ?? 0)).length;
-  const totalValue = inventory.reduce((s, i) => s + (i.quantity_meters ?? 0) * (i.unit_cost ?? 0), 0);
+  const lowStockCount = inventory.filter((i: any) => (i.quantity_meters ?? 0) < (i.min_stock_level ?? 0)).length;
+  const totalValue = inventory.reduce((s: number, i: any) => s + (i.quantity_meters ?? 0) * (i.unit_cost ?? 0), 0);
 
   if (isLoading) {
     return <div className="p-6 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
+  const filteredBoxes = locationId ? boxes.filter((b: any) => b.location_id === locationId) : boxes;
+
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <PageHeader title="Inventory" description="Track pipe and fittings stock">
-        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Item</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>{editingItem ? "Edit Item" : "Add Inventory Item"}</DialogTitle></DialogHeader>
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2 sm:col-span-2"><Label>Item Name *</Label><Input placeholder="e.g. HDPE Pipe 110mm" value={itemName} onChange={(e) => setItemName(e.target.value)} required /></div>
-                <div className="space-y-2"><Label>Type</Label>
-                  <Select value={itemType} onValueChange={setItemType}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent><SelectItem value="hdpe">HDPE</SelectItem><SelectItem value="pvc">PVC</SelectItem><SelectItem value="custom">Custom</SelectItem></SelectContent>
-                  </Select>
+        <div className="flex gap-2 flex-wrap">
+          {canEdit && (
+            <>
+              <Dialog open={locDialogOpen} onOpenChange={setLocDialogOpen}>
+                <DialogTrigger asChild><Button size="sm" variant="outline"><MapPin className="h-3.5 w-3.5 mr-1" /> Location</Button></DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Add Storage Location</DialogTitle></DialogHeader>
+                  <form className="space-y-4" onSubmit={addLocation}>
+                    <div className="space-y-2"><Label>Name *</Label><Input placeholder="e.g. Rack A, Zone 1" value={locName} onChange={(e) => setLocName(e.target.value)} required /></div>
+                    <div className="space-y-2"><Label>Description</Label><Input placeholder="Optional description" value={locDesc} onChange={(e) => setLocDesc(e.target.value)} /></div>
+                    <Button type="submit">Save</Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+              <Dialog open={boxDialogOpen} onOpenChange={setBoxDialogOpen}>
+                <DialogTrigger asChild><Button size="sm" variant="outline"><Package className="h-3.5 w-3.5 mr-1" /> Box</Button></DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Add Storage Box</DialogTitle></DialogHeader>
+                  <form className="space-y-4" onSubmit={addBox}>
+                    <div className="space-y-2"><Label>Box Code *</Label><Input placeholder="e.g. BX-001" value={boxCode} onChange={(e) => setBoxCode(e.target.value)} required /></div>
+                    <div className="space-y-2"><Label>Label</Label><Input placeholder="Optional label" value={boxLabel} onChange={(e) => setBoxLabel(e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Location *</Label>
+                      <Select value={boxLocId} onValueChange={setBoxLocId}><SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
+                        <SelectContent>{locations.map((l: any) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <Button type="submit">Save</Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
+          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Add Item</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogHeader><DialogTitle>{editingItem ? "Edit Item" : "Add Inventory Item"}</DialogTitle></DialogHeader>
+              <form className="space-y-4" onSubmit={handleSubmit}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2 sm:col-span-2"><Label>Item Name *</Label><Input placeholder="e.g. HDPE Pipe 110mm" value={itemName} onChange={(e) => setItemName(e.target.value)} required /></div>
+                  <div className="space-y-2"><Label>Type</Label>
+                    <Select value={itemType} onValueChange={setItemType}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent><SelectItem value="hdpe">HDPE</SelectItem><SelectItem value="pvc">PVC</SelectItem><SelectItem value="custom">Custom</SelectItem></SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2"><Label>Diameter (mm)</Label><Input type="number" placeholder="110" value={diameter} onChange={(e) => setDiameter(e.target.value)} /></div>
+                  <div className="space-y-2"><Label>Quantity (meters/pcs)</Label><Input type="number" placeholder="100" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></div>
+                  <div className="space-y-2"><Label>Min Stock Level</Label><Input type="number" placeholder="50" value={minStock} onChange={(e) => setMinStock(e.target.value)} /></div>
+                  <div className="space-y-2"><Label>Unit Cost (₦)</Label><Input type="number" placeholder="3500" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} /></div>
+                  <div className="space-y-2"><Label>Supplier</Label><Input placeholder="Supplier name" value={supplier} onChange={(e) => setSupplier(e.target.value)} /></div>
+                  <div className="space-y-2"><Label>Supplier Phone</Label><Input placeholder="+234..." value={supplierPhone} onChange={(e) => setSupplierPhone(e.target.value)} /></div>
+                  <div className="space-y-2"><Label>Storage Location</Label>
+                    <Select value={locationId} onValueChange={(v) => { setLocationId(v); setBoxId(""); }}><SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None</SelectItem>
+                        {locations.map((l: any) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2"><Label>Storage Box</Label>
+                    <Select value={boxId} onValueChange={setBoxId}><SelectTrigger><SelectValue placeholder="Select box" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None</SelectItem>
+                        {filteredBoxes.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.box_code} {b.label ? `(${b.label})` : ""}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="space-y-2"><Label>Diameter (mm)</Label><Input type="number" placeholder="110" value={diameter} onChange={(e) => setDiameter(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Quantity (meters/pcs)</Label><Input type="number" placeholder="100" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Min Stock Level</Label><Input type="number" placeholder="50" value={minStock} onChange={(e) => setMinStock(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Unit Cost (₦)</Label><Input type="number" placeholder="3500" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Supplier</Label><Input placeholder="Supplier name" value={supplier} onChange={(e) => setSupplier(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Supplier Phone</Label><Input placeholder="+234..." value={supplierPhone} onChange={(e) => setSupplierPhone(e.target.value)} /></div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" type="button" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</Button>
-                <Button type="submit" disabled={saving}>{saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}{editingItem ? "Update" : "Save"}</Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" type="button" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</Button>
+                  <Button type="submit" disabled={saving}>{saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}{editingItem ? "Update" : "Save"}</Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </PageHeader>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -179,6 +285,8 @@ const Inventory = () => {
           <p className="text-xl sm:text-2xl font-bold text-primary">{formatCurrency(totalValue)}</p>
         </CardContent></Card>
       </div>
+
+      <InventoryFinder />
 
       <AiInsightPanel context="inventory" title="Inventory AI" suggestions={["Demand forecast for next month", "Detect abnormal usage", "Suggest reorder quantities", "Low stock risk analysis"]} data={inventory} />
 
@@ -204,8 +312,10 @@ const Inventory = () => {
             {inventory.length === 0 ? "No inventory items yet. Add your first item above." : "No items match your search."}
           </CardContent></Card>
         )}
-        {filtered.map((item) => {
+        {filtered.map((item: any) => {
           const isLow = (item.quantity_meters ?? 0) < (item.min_stock_level ?? 0);
+          const locName = item.storage_locations?.name;
+          const boxCode = item.storage_boxes?.box_code;
           return (
             <Card key={item.id} className={`gsap-card border-border/50 transition-all hover:shadow-sm ${isLow ? "border-l-2 border-l-destructive" : ""}`}>
               <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-2">
@@ -216,6 +326,11 @@ const Inventory = () => {
                   <div className="min-w-0">
                     <p className="font-medium text-sm truncate">{item.item_name}</p>
                     <p className="text-xs text-muted-foreground">{item.supplier ?? "No supplier"} · {item.diameter_mm ?? "—"}mm · {formatCurrency(item.unit_cost ?? 0)}/unit</p>
+                    {locName && (
+                      <p className="text-xs text-primary flex items-center gap-1 mt-0.5">
+                        <MapPin className="h-3 w-3" /> {locName}{boxCode ? ` → ${boxCode}` : ""}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
