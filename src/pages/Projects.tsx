@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Calendar, Loader2, MoreVertical, Pencil, Trash2, Users } from "lucide-react";
+import { Plus, Search, Calendar, Loader2, MoreVertical, Pencil, Trash2, Users, MapPin } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";
@@ -53,6 +53,9 @@ const Projects = () => {
   const [newProgress, setNewProgress] = useState(0);
   const [newHeadId, setNewHeadId] = useState("");
   const [newTeamIds, setNewTeamIds] = useState<string[]>([]);
+  const [newProjectLat, setNewProjectLat] = useState("");
+  const [newProjectLng, setNewProjectLng] = useState("");
+  const [newRadius, setNewRadius] = useState("500");
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ["projects", orgId],
@@ -90,6 +93,8 @@ const Projects = () => {
     setNewStart(p.start_date ?? ""); setNewEnd(p.end_date ?? ""); setNewClientId(p.client_id ?? "");
     setNewStatus(p.status); setNewProgress(p.progress_percent ?? 0); setNewHeadId(p.project_head_id ?? "");
     setNewTeamIds(Array.isArray(p.team_member_ids) ? p.team_member_ids : []);
+    setNewProjectLat(p.project_lat?.toString() ?? ""); setNewProjectLng(p.project_lng?.toString() ?? "");
+    setNewRadius(p.radius_meters?.toString() ?? "500");
     setDialogOpen(true);
   };
 
@@ -97,6 +102,7 @@ const Projects = () => {
     setEditingProject(null);
     setNewName(""); setNewDesc(""); setNewBudget(""); setNewStart(""); setNewEnd(""); setNewClientId("");
     setNewStatus("planning"); setNewProgress(0); setNewHeadId(""); setNewTeamIds([]);
+    setNewProjectLat(""); setNewProjectLng(""); setNewRadius("500");
     setDialogOpen(true);
   };
 
@@ -112,6 +118,9 @@ const Projects = () => {
         start_date: newStart || null, end_date: newEnd || null, client_id: newClientId || null,
         status: newStatus as any, progress_percent: newProgress, project_head_id: newHeadId || null,
         team_member_ids: newTeamIds.length > 0 ? newTeamIds : null,
+        project_lat: newProjectLat ? parseFloat(newProjectLat) : null,
+        project_lng: newProjectLng ? parseFloat(newProjectLng) : null,
+        radius_meters: newRadius ? parseInt(newRadius) : 500,
       };
 
       let projectId: string;
@@ -239,6 +248,16 @@ const Projects = () => {
               </div>
             </div>
             <div className="space-y-2"><Label>Description</Label><Textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Project scope..." rows={3} /></div>
+            {/* Project Site GPS for Check-In */}
+            <div className="space-y-2 border-t border-border pt-3">
+              <Label className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><MapPin className="h-3.5 w-3.5" /> Site GPS (for Check-In)</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1"><Label className="text-xs">Latitude</Label><Input type="number" step="any" value={newProjectLat} onChange={e => setNewProjectLat(e.target.value)} placeholder="e.g. 6.5520" /></div>
+                <div className="space-y-1"><Label className="text-xs">Longitude</Label><Input type="number" step="any" value={newProjectLng} onChange={e => setNewProjectLng(e.target.value)} placeholder="e.g. 3.3670" /></div>
+                <div className="space-y-1"><Label className="text-xs">Radius (m)</Label><Input type="number" value={newRadius} onChange={e => setNewRadius(e.target.value)} placeholder="500" /></div>
+              </div>
+              <p className="text-[10px] text-muted-foreground">Workers assigned here can check in from this site location</p>
+            </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" type="button" onClick={() => setDialogOpen(false)}>Cancel</Button>
               <Button onClick={() => saveMutation.mutate()} disabled={!newName.trim() || saveMutation.isPending}>

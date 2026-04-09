@@ -1479,7 +1479,10 @@ export type Database = {
           organization_id: string
           progress_percent: number | null
           project_head_id: string | null
+          project_lat: number | null
+          project_lng: number | null
           quotation_id: string | null
+          radius_meters: number | null
           start_date: string | null
           status: Database["public"]["Enums"]["project_status"]
           team_member_ids: Json | null
@@ -1498,7 +1501,10 @@ export type Database = {
           organization_id: string
           progress_percent?: number | null
           project_head_id?: string | null
+          project_lat?: number | null
+          project_lng?: number | null
           quotation_id?: string | null
+          radius_meters?: number | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           team_member_ids?: Json | null
@@ -1517,7 +1523,10 @@ export type Database = {
           organization_id?: string
           progress_percent?: number | null
           project_head_id?: string | null
+          project_lat?: number | null
+          project_lng?: number | null
           quotation_id?: string | null
+          radius_meters?: number | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
           team_member_ids?: Json | null
@@ -1957,12 +1966,14 @@ export type Database = {
           claim_type: string
           created_at: string
           description: string | null
+          file_url: string | null
           id: string
           organization_id: string
           project_id: string | null
           reviewed_by: string | null
           status: string
           updated_at: string
+          uploaded_at: string | null
           user_id: string
         }
         Insert: {
@@ -1972,12 +1983,14 @@ export type Database = {
           claim_type?: string
           created_at?: string
           description?: string | null
+          file_url?: string | null
           id?: string
           organization_id: string
           project_id?: string | null
           reviewed_by?: string | null
           status?: string
           updated_at?: string
+          uploaded_at?: string | null
           user_id: string
         }
         Update: {
@@ -1987,12 +2000,14 @@ export type Database = {
           claim_type?: string
           created_at?: string
           description?: string | null
+          file_url?: string | null
           id?: string
           organization_id?: string
           project_id?: string | null
           reviewed_by?: string | null
           status?: string
           updated_at?: string
+          uploaded_at?: string | null
           user_id?: string
         }
         Relationships: [
