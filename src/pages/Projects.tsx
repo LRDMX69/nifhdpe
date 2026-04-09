@@ -102,6 +102,7 @@ const Projects = () => {
     setEditingProject(null);
     setNewName(""); setNewDesc(""); setNewBudget(""); setNewStart(""); setNewEnd(""); setNewClientId("");
     setNewStatus("planning"); setNewProgress(0); setNewHeadId(""); setNewTeamIds([]);
+    setNewProjectLat(""); setNewProjectLng(""); setNewRadius("500");
     setDialogOpen(true);
   };
 
