@@ -53,6 +53,9 @@ const Projects = () => {
   const [newProgress, setNewProgress] = useState(0);
   const [newHeadId, setNewHeadId] = useState("");
   const [newTeamIds, setNewTeamIds] = useState<string[]>([]);
+  const [newProjectLat, setNewProjectLat] = useState("");
+  const [newProjectLng, setNewProjectLng] = useState("");
+  const [newRadius, setNewRadius] = useState("500");
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ["projects", orgId],
