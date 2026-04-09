@@ -118,6 +118,9 @@ const Projects = () => {
         start_date: newStart || null, end_date: newEnd || null, client_id: newClientId || null,
         status: newStatus as any, progress_percent: newProgress, project_head_id: newHeadId || null,
         team_member_ids: newTeamIds.length > 0 ? newTeamIds : null,
+        project_lat: newProjectLat ? parseFloat(newProjectLat) : null,
+        project_lng: newProjectLng ? parseFloat(newProjectLng) : null,
+        radius_meters: newRadius ? parseInt(newRadius) : 500,
       };
 
       let projectId: string;
