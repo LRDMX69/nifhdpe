@@ -39,9 +39,8 @@ export async function showNotification(title: string, body: string, data?: Recor
         body,
         icon: "/placeholder.svg",
         badge: "/placeholder.svg",
-        vibrate: [200, 100, 200],
         data,
-      });
+      } as NotificationOptions);
       return true;
     } catch (e) {
       console.warn("SW notification failed, trying fallback:", e);
