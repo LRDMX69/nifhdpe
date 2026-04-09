@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Calendar, Loader2, MoreVertical, Pencil, Trash2, Users } from "lucide-react";
+import { Plus, Search, Calendar, Loader2, MoreVertical, Pencil, Trash2, Users, MapPin } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";
