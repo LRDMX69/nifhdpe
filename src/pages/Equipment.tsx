@@ -296,10 +296,10 @@ const Equipment = () => {
           <DialogHeader><DialogTitle>Escalate Request</DialogTitle></DialogHeader>
           {escalateRequest && (() => {
             const project = projects.find((p: any) => p.id === escalateRequest.project_id);
-            const teamIds: string[] = project ? [
+            const teamIds = project ? [
               ...(project.project_head_id ? [project.project_head_id] : []),
-              ...(Array.isArray(project.team_member_ids) ? project.team_member_ids : []),
-            ].filter((id: string) => id !== escalateRequest.requested_by) : [];
+              ...(Array.isArray(project.team_member_ids) ? (project.team_member_ids as string[]) : []),
+            ].filter((id) => id !== escalateRequest.requested_by) : [];
             const teamMembers = orgProfiles.filter((p: any) => teamIds.includes(p.user_id));
             return (
               <div className="space-y-4">
