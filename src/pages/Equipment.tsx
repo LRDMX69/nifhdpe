@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Wrench, Clock, MapPin, AlertCircle, CheckCircle2, XCircle, Loader2, Send, MoreVertical, Pencil, Trash2, FileDown } from "lucide-react";
+import { Plus, Wrench, Clock, MapPin, AlertCircle, CheckCircle2, XCircle, Loader2, Send, MoreVertical, Pencil, Trash2, FileDown, Phone, MessageSquare, Users } from "lucide-react";
 import { useGsapAnimation } from "@/hooks/useGsapAnimation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +37,7 @@ const Equipment = () => {
   const [selectedEquipment, setSelectedEquipment] = useState<any>(null);
   const [requestReason, setRequestReason] = useState("");
   const [requestProject, setRequestProject] = useState("");
+  const [escalateRequest, setEscalateRequest] = useState<any>(null);
   const containerRef = useGsapAnimation("slideUp");
   const orgId = memberships[0]?.organization_id;
   const isAdmin = activeRole === "administrator" || isMaintenance;
