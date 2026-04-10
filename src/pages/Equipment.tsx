@@ -62,8 +62,23 @@ const Equipment = () => {
   });
 
   const { data: projects = [] } = useQuery({
-    queryKey: ["projects-list-eq"],
-    queryFn: async () => { const { data } = await supabase.from("projects").select("id, name").order("name"); return data ?? []; },
+    queryKey: ["projects-list-eq", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase.from("projects").select("id, name, team_member_ids, project_head_id").eq("organization_id", orgId).order("name");
+      return data ?? [];
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: orgProfiles = [] } = useQuery({
+    queryKey: ["org-profiles-eq", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase.from("profiles").select("user_id, full_name, phone").eq("organization_id", orgId);
+      return data ?? [];
+    },
+    enabled: !!orgId,
   });
 
   const { data: requests = [] } = useQuery({
