@@ -255,7 +255,7 @@ const Inventory = () => {
                   <div className="space-y-2"><Label>Storage Box</Label>
                     <Select value={boxId} onValueChange={setBoxId}><SelectTrigger><SelectValue placeholder="Select box" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {filteredBoxes.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.box_code} {b.label ? `(${b.label})` : ""}</SelectItem>)}
                       </SelectContent>
                     </Select>
