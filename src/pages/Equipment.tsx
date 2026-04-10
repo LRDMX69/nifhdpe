@@ -366,7 +366,7 @@ const Equipment = () => {
                     <Button size="sm" variant="outline" className="h-7 text-xs text-primary" onClick={() => updateRequest.mutate({ id: r.id, status: "approved" })}><CheckCircle2 className="h-3 w-3 mr-1" />Approve</Button>
                     <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => updateRequest.mutate({ id: r.id, status: "denied" })}><XCircle className="h-3 w-3 mr-1" />Deny</Button>
                     {isStale && (
-                      <Button size="sm" variant="outline" className="h-7 text-xs text-amber-500" onClick={() => setEscalateRequest(r)}>
+                      <Button size="sm" variant="outline" className="h-7 text-xs text-warning" onClick={() => setEscalateRequest(r)}>
                         <Users className="h-3 w-3 mr-1" />Escalate
                       </Button>
                     )}
