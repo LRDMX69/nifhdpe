@@ -101,8 +101,8 @@ const Inventory = () => {
     setUnitCost(item.unit_cost?.toString() || "");
     setSupplier(item.supplier || "");
     setSupplierPhone(item.supplier_phone || "");
-    setLocationId(item.location_id || "");
-    setBoxId(item.box_id || "");
+    setLocationId(item.location_id || "none");
+    setBoxId(item.box_id || "none");
     setDialogOpen(true);
   };
 
@@ -121,8 +121,8 @@ const Inventory = () => {
         unit_cost: unitCost ? parseFloat(unitCost) : 0,
         supplier: supplier || null,
         supplier_phone: supplierPhone || null,
-        location_id: locationId || null,
-        box_id: boxId || null,
+        location_id: locationId && locationId !== "none" ? locationId : null,
+        box_id: boxId && boxId !== "none" ? boxId : null,
       };
       if (editingItem) {
         const { error } = await supabase.from("inventory").update(payload).eq("id", editingItem.id);
@@ -247,7 +247,7 @@ const Inventory = () => {
                   <div className="space-y-2"><Label>Storage Location</Label>
                     <Select value={locationId} onValueChange={(v) => { setLocationId(v); setBoxId(""); }}><SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+        <SelectItem value="none">None</SelectItem>
                         {locations.map((l: any) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
@@ -255,7 +255,7 @@ const Inventory = () => {
                   <div className="space-y-2"><Label>Storage Box</Label>
                     <Select value={boxId} onValueChange={setBoxId}><SelectTrigger><SelectValue placeholder="Select box" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {filteredBoxes.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.box_code} {b.label ? `(${b.label})` : ""}</SelectItem>)}
                       </SelectContent>
                     </Select>

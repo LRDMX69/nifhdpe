@@ -305,7 +305,7 @@ export const CheckInWidget = () => {
               </p>
               {!hasAnyLocation && (
                 <p className="text-xs text-destructive flex items-center gap-1 mt-0.5">
-                  <AlertCircle className="h-3 w-3" /> No check-in location configured
+                  <AlertCircle className="h-3 w-3" /> No check-in location configured. Admin: go to Settings → set office coordinates.
                 </p>
               )}
               {assignedProjects.length > 0 && !todayAttendance && (

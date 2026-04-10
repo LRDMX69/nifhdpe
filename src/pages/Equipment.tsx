@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Wrench, Clock, MapPin, AlertCircle, CheckCircle2, XCircle, Loader2, Send, MoreVertical, Pencil, Trash2, FileDown } from "lucide-react";
+import { Plus, Wrench, Clock, MapPin, AlertCircle, CheckCircle2, XCircle, Loader2, Send, MoreVertical, Pencil, Trash2, FileDown, Phone, MessageSquare, Users } from "lucide-react";
 import { useGsapAnimation } from "@/hooks/useGsapAnimation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +37,7 @@ const Equipment = () => {
   const [selectedEquipment, setSelectedEquipment] = useState<any>(null);
   const [requestReason, setRequestReason] = useState("");
   const [requestProject, setRequestProject] = useState("");
+  const [escalateRequest, setEscalateRequest] = useState<any>(null);
   const containerRef = useGsapAnimation("slideUp");
   const orgId = memberships[0]?.organization_id;
   const isAdmin = activeRole === "administrator" || isMaintenance;
@@ -61,8 +62,23 @@ const Equipment = () => {
   });
 
   const { data: projects = [] } = useQuery({
-    queryKey: ["projects-list-eq"],
-    queryFn: async () => { const { data } = await supabase.from("projects").select("id, name").order("name"); return data ?? []; },
+    queryKey: ["projects-list-eq", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase.from("projects").select("id, name, team_member_ids, project_head_id").eq("organization_id", orgId).order("name");
+      return data ?? [];
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: orgProfiles = [] } = useQuery({
+    queryKey: ["org-profiles-eq", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase.from("profiles").select("user_id, full_name, phone").eq("organization_id", orgId);
+      return data ?? [];
+    },
+    enabled: !!orgId,
   });
 
   const { data: requests = [] } = useQuery({
@@ -274,24 +290,90 @@ const Equipment = () => {
         ))}
       </div>
 
+      {/* Escalation Dialog */}
+      <Dialog open={!!escalateRequest} onOpenChange={(open) => !open && setEscalateRequest(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Escalate Request</DialogTitle></DialogHeader>
+          {escalateRequest && (() => {
+            const project = projects.find((p: any) => p.id === escalateRequest.project_id);
+            const teamIds = project ? [
+              ...(project.project_head_id ? [project.project_head_id] : []),
+              ...(Array.isArray(project.team_member_ids) ? (project.team_member_ids as string[]) : []),
+            ].filter((id) => id !== escalateRequest.requested_by) : [];
+            const teamMembers = orgProfiles.filter((p: any) => teamIds.includes(p.user_id));
+            return (
+              <div className="space-y-4">
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-sm font-medium">{escalateRequest.equipment?.name}</p>
+                  <p className="text-xs text-muted-foreground">Requested by: {orgProfiles.find((p: any) => p.user_id === escalateRequest.requested_by)?.full_name ?? "Unknown"}</p>
+                  {escalateRequest.reason && <p className="text-xs text-muted-foreground mt-1">{escalateRequest.reason}</p>}
+                </div>
+                <p className="text-sm text-muted-foreground">The requester has not responded. You can contact other team members on this project:</p>
+                {teamMembers.length > 0 ? (
+                  <div className="space-y-2">
+                    {teamMembers.map((m: any) => (
+                      <div key={m.user_id} className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted/30">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{m.full_name}</p>
+                          {m.phone && <p className="text-xs text-muted-foreground">{m.phone}</p>}
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          {m.phone && (
+                            <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
+                              <a href={`tel:${m.phone}`}><Phone className="h-3 w-3 mr-1" />Call</a>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No other team members found for this project.</p>
+                )}
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => { updateRequest.mutate({ id: escalateRequest.id, status: "approved" }); setEscalateRequest(null); }}>
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" />Approve Anyway
+                  </Button>
+                  <Button variant="destructive" className="flex-1" onClick={() => { updateRequest.mutate({ id: escalateRequest.id, status: "denied" }); setEscalateRequest(null); }}>
+                    <XCircle className="h-3.5 w-3.5 mr-1" />Deny
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
       {isAdmin && requests.filter((r: any) => r.status === "pending").length > 0 && (
         <Card className="border-warning/30">
           <CardHeader className="pb-2"><CardTitle className="text-sm text-warning flex items-center gap-2">
             <AlertCircle className="h-4 w-4" /> Pending Requests ({requests.filter((r: any) => r.status === "pending").length})
           </CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            {requests.filter((r: any) => r.status === "pending").map((r: any) => (
-              <div key={r.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg bg-muted/30">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{r.equipment?.name ?? "Equipment"}</p>
-                  {r.reason && <p className="text-xs text-muted-foreground">{r.reason}</p>}
+            {requests.filter((r: any) => r.status === "pending").map((r: any) => {
+              const ageMs = Date.now() - new Date(r.created_at).getTime();
+              const isStale = ageMs > 2 * 60 * 60 * 1000; // 2 hours old
+              return (
+                <div key={r.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg bg-muted/30">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{r.equipment?.name ?? "Equipment"}</p>
+                    {r.reason && <p className="text-xs text-muted-foreground">{r.reason}</p>}
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(r.created_at).toLocaleString()} {isStale && <span className="text-destructive font-medium"> — No response</span>}
+                    </p>
+                  </div>
+                  <div className="flex gap-1 shrink-0 flex-wrap">
+                    <Button size="sm" variant="outline" className="h-7 text-xs text-primary" onClick={() => updateRequest.mutate({ id: r.id, status: "approved" })}><CheckCircle2 className="h-3 w-3 mr-1" />Approve</Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => updateRequest.mutate({ id: r.id, status: "denied" })}><XCircle className="h-3 w-3 mr-1" />Deny</Button>
+                    {isStale && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs text-warning" onClick={() => setEscalateRequest(r)}>
+                        <Users className="h-3 w-3 mr-1" />Escalate
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-1 shrink-0">
-                  <Button size="sm" variant="outline" className="h-7 text-xs text-primary" onClick={() => updateRequest.mutate({ id: r.id, status: "approved" })}><CheckCircle2 className="h-3 w-3 mr-1" />Approve</Button>
-                  <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => updateRequest.mutate({ id: r.id, status: "denied" })}><XCircle className="h-3 w-3 mr-1" />Deny</Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       )}
