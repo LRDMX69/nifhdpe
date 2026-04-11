@@ -84,7 +84,10 @@ const Login = () => {
     } else {
       const { error } = await signIn(email, password);
       if (error) {
-        toast({ title: "Sign in failed", description: error.message, variant: "destructive" });
+        let msg = error.message;
+        if (msg.includes("Invalid login")) msg = "Invalid email or password. Please try again.";
+        if (msg.includes("Email not confirmed")) msg = "Please verify your email before signing in. Check your inbox.";
+        toast({ title: "Sign in failed", description: msg, variant: "destructive" });
       }
     }
     setSubmitting(false);

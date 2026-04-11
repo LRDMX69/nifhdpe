@@ -40,7 +40,6 @@ const stampLabels: Record<string, string> = {
   general: "COMPANY SEAL",
 };
 
-/** Strip markdown for clean PDF output */
 const stripMd = (text: string): string =>
   text
     .replace(/#{1,6}\s?/g, "")
@@ -61,11 +60,11 @@ const stripMd = (text: string): string =>
 const COMPANY = "NIF Technical Services";
 const TAGLINE = "HDPE Pipe Infrastructure Specialists";
 const CONTACT = "Lagos, Nigeria | info@nifhdpe.com | +234 XXX XXX XXXX";
-const GREEN: [number, number, number] = [63, 167, 68];
+const BLUE: [number, number, number] = [22, 27, 74];
+const GREEN: [number, number, number] = [107, 171, 59];
 const DARK: [number, number, number] = [10, 22, 40];
 const STAMP_RED: [number, number, number] = [180, 30, 30];
 
-/** Load image as base64 data URL */
 async function loadImageAsBase64(url: string): Promise<string | null> {
   try {
     const response = await fetch(url, { mode: "cors" });
@@ -82,37 +81,63 @@ async function loadImageAsBase64(url: string): Promise<string | null> {
   }
 }
 
-function drawLetterhead(doc: jsPDF, margin: number, pageW: number, logoData?: string | null): number {
-  let y = margin;
+/** Draw branded header banner: blue-to-green gradient rectangle ~70% width, top center, with bottom-right corner cut */
+function drawHeaderBanner(doc: jsPDF, pageW: number, logoData?: string | null): number {
+  const bannerW = pageW * 0.72;
+  const bannerH = 22;
+  const bannerX = (pageW - bannerW) / 2;
+  const bannerY = 8;
+  const cutSize = 10;
 
-  // Logo if available
-  let textStartX = margin;
+  // Draw blue-to-green banner with cut corner using polygon
+  // Main rectangle minus bottom-right corner cut
+  doc.setFillColor(...BLUE);
+  doc.triangle(
+    bannerX, bannerY,
+    bannerX + bannerW * 0.55, bannerY,
+    bannerX + bannerW * 0.55, bannerY + bannerH,
+    "F"
+  );
+  doc.rect(bannerX, bannerY, bannerW * 0.55, bannerH, "F");
+
+  doc.setFillColor(...GREEN);
+  doc.rect(bannerX + bannerW * 0.45, bannerY, bannerW * 0.55, bannerH, "F");
+
+  // Blend middle zone
+  doc.setFillColor(55, 85, 65);
+  doc.rect(bannerX + bannerW * 0.45, bannerY, bannerW * 0.10, bannerH, "F");
+
+  // Cut bottom-right corner
+  doc.setFillColor(255, 255, 255);
+  doc.triangle(
+    bannerX + bannerW, bannerY + bannerH,
+    bannerX + bannerW - cutSize, bannerY + bannerH,
+    bannerX + bannerW, bannerY + bannerH - cutSize,
+    "F"
+  );
+
+  // Company name centered on banner
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(255, 255, 255);
+  doc.text(COMPANY.toUpperCase(), pageW / 2, bannerY + 9, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.text(TAGLINE, pageW / 2, bannerY + 14, { align: "center" });
+
+  doc.setFontSize(5.5);
+  doc.setTextColor(220, 220, 220);
+  doc.text(CONTACT, pageW / 2, bannerY + 18, { align: "center" });
+
+  // Logo in top-right corner
   if (logoData) {
     try {
-      doc.addImage(logoData, "PNG", margin, y - 5, 14, 14);
-      textStartX = margin + 17;
-    } catch {
-      // Skip logo on error
-    }
+      doc.addImage(logoData, "PNG", pageW - 28, bannerY - 2, 18, 18);
+    } catch { /* skip */ }
   }
 
-  doc.setFontSize(18);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...DARK);
-  doc.text(COMPANY, textStartX, y);
-  y += 5;
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(100, 100, 100);
-  doc.text(TAGLINE, textStartX, y);
-  y += 3.5;
-  doc.text(CONTACT, textStartX, y);
-  y += 2;
-  doc.setDrawColor(...GREEN);
-  doc.setLineWidth(0.8);
-  doc.line(margin, y, pageW - margin, y);
-  y += 8;
-  return y;
+  return bannerY + bannerH + 8;
 }
 
 function drawContinuationHeader(doc: jsPDF, margin: number, pageW: number, pageNum: number, totalPages: number): number {
@@ -136,45 +161,41 @@ function checkPageBreak(doc: jsPDF, y: number, needed: number, margin: number): 
   return y;
 }
 
-/** Draw a professional circular company stamp */
 function drawCircularStamp(doc: jsPDF, x: number, y: number, stampType: string) {
   const radius = 18;
   const label = stampLabels[stampType] || "APPROVED";
-  const cx = x;
-  const cy = y;
 
   doc.setDrawColor(...STAMP_RED);
   doc.setLineWidth(1.2);
-  doc.circle(cx, cy, radius);
+  doc.circle(x, y, radius);
   doc.setLineWidth(0.5);
-  doc.circle(cx, cy, radius - 2.5);
+  doc.circle(x, y, radius - 2.5);
 
   doc.setFontSize(5.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...STAMP_RED);
-  doc.text(COMPANY.toUpperCase(), cx, cy - radius + 6, { align: "center" });
+  doc.text(COMPANY.toUpperCase(), x, y - radius + 6, { align: "center" });
 
   doc.setDrawColor(...STAMP_RED);
   doc.setLineWidth(0.3);
-  doc.line(cx - 12, cy - 5, cx + 12, cy - 5);
-  doc.line(cx - 12, cy + 5, cx + 12, cy + 5);
+  doc.line(x - 12, y - 5, x + 12, y - 5);
+  doc.line(x - 12, y + 5, x + 12, y + 5);
 
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...STAMP_RED);
-  doc.text(label, cx, cy + 1.5, { align: "center" });
+  doc.text(label, x, y + 1.5, { align: "center" });
 
   const dateStr = new Date().toLocaleDateString("en-NG", { year: "numeric", month: "short", day: "numeric" });
   doc.setFontSize(5);
   doc.setFont("helvetica", "normal");
-  doc.text(dateStr, cx, cy + 10, { align: "center" });
+  doc.text(dateStr, x, y + 10, { align: "center" });
 
   doc.setFontSize(6);
-  doc.text("★", cx - 14, cy + 1.5, { align: "center" });
-  doc.text("★", cx + 14, cy + 1.5, { align: "center" });
+  doc.text("★", x - 14, y + 1.5, { align: "center" });
+  doc.text("★", x + 14, y + 1.5, { align: "center" });
 }
 
-/** Parse flat content into structured sections */
 function parseContentIntoSections(content: string): ContentSection[] {
   const clean = stripMd(content);
   const lines = clean.split("\n");
@@ -184,15 +205,9 @@ function parseContentIntoSections(content: string): ContentSection[] {
   let bodyLines: string[] = [];
 
   const flushSection = () => {
-    if (bodyLines.length > 0) {
-      currentSection.body = bodyLines.join("\n");
-    }
-    if (currentBullets.length > 0) {
-      currentSection.bullets = [...currentBullets];
-    }
-    if (currentSection.heading || currentSection.body || currentSection.bullets) {
-      sections.push({ ...currentSection });
-    }
+    if (bodyLines.length > 0) currentSection.body = bodyLines.join("\n");
+    if (currentBullets.length > 0) currentSection.bullets = [...currentBullets];
+    if (currentSection.heading || currentSection.body || currentSection.bullets) sections.push({ ...currentSection });
     currentSection = {};
     bodyLines = [];
     currentBullets = [];
@@ -201,10 +216,8 @@ function parseContentIntoSections(content: string): ContentSection[] {
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-
     const isHeading = (trimmed === trimmed.toUpperCase() && trimmed.length > 3 && /[A-Z]/.test(trimmed)) ||
       (trimmed.endsWith(":") && trimmed.length < 60);
-
     if (isHeading) {
       flushSection();
       currentSection.heading = trimmed.replace(/:$/, "");
@@ -215,29 +228,17 @@ function parseContentIntoSections(content: string): ContentSection[] {
     }
   }
   flushSection();
-
   return sections.length > 0 ? sections : [{ body: clean }];
 }
 
 export async function generatePdf(options: PdfOptions): Promise<void> {
   const {
-    title,
-    content,
-    contentSections,
-    tableData,
-    stampType,
-    showSignature = true,
-    senderName,
-    senderDepartment,
-    documentId,
-    logoUrl,
+    title, content, contentSections, tableData, stampType,
+    showSignature = true, senderName, senderDepartment, documentId, logoUrl,
   } = options;
 
-  // Load logo if URL provided
   let logoData: string | null = null;
-  if (logoUrl) {
-    logoData = await loadImageAsBase64(logoUrl);
-  }
+  if (logoUrl) logoData = await loadImageAsBase64(logoUrl);
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
@@ -245,9 +246,10 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   const margin = 20;
   const contentW = pageW - margin * 2;
 
-  let y = drawLetterhead(doc, margin, pageW, logoData);
+  // Branded header banner
+  let y = drawHeaderBanner(doc, pageW, logoData);
 
-  // --- DOC META ---
+  // Doc meta
   const docId = documentId || `DOC-${Date.now().toString(36).toUpperCase()}`;
   const printDate = new Date().toLocaleDateString("en-NG", { year: "numeric", month: "long", day: "numeric" });
   doc.setFontSize(8);
@@ -256,7 +258,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   doc.text(`Date: ${printDate}`, pageW - margin, y, { align: "right" });
   y += 7;
 
-  // --- SENDER INFO ---
+  // Sender info
   if (senderName || senderDepartment) {
     doc.setDrawColor(...GREEN);
     doc.setLineWidth(0.5);
@@ -271,7 +273,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
     y += 16;
   }
 
-  // --- TITLE ---
+  // Title
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...DARK);
@@ -282,7 +284,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   doc.line(margin, y, margin + 40, y);
   y += 8;
 
-  // --- CONTENT SECTIONS ---
+  // Content sections
   const sections = contentSections || (content ? parseContentIntoSections(content) : []);
 
   for (const section of sections) {
@@ -294,7 +296,6 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       doc.text(section.heading, margin, y);
       y += 6;
     }
-
     if (section.body) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
@@ -307,7 +308,6 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       }
       y += 2;
     }
-
     if (section.bullets && section.bullets.length > 0) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9.5);
@@ -327,7 +327,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
     }
   }
 
-  // --- TABLE DATA ---
+  // Table data
   if (tableData) {
     y = checkPageBreak(doc, y, 30, margin);
     autoTable(doc, {
@@ -335,22 +335,9 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       head: [tableData.columns.map(c => c.header)],
       body: tableData.rows.map(row => tableData.columns.map(c => String(row[c.dataKey] ?? ""))),
       margin: { left: margin, right: margin },
-      styles: {
-        fontSize: 8.5,
-        cellPadding: 3,
-        textColor: [30, 30, 30],
-        lineColor: [220, 220, 220],
-        lineWidth: 0.2,
-      },
-      headStyles: {
-        fillColor: DARK,
-        textColor: [255, 255, 255],
-        fontStyle: "bold",
-        fontSize: 8.5,
-      },
-      alternateRowStyles: {
-        fillColor: [248, 248, 248],
-      },
+      styles: { fontSize: 8.5, cellPadding: 3, textColor: [30, 30, 30], lineColor: [220, 220, 220], lineWidth: 0.2 },
+      headStyles: { fillColor: BLUE as any, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.5 },
+      alternateRowStyles: { fillColor: [248, 248, 248] },
       theme: "grid",
     });
     y = (doc as any).lastAutoTable?.finalY ?? y + 10;
@@ -375,20 +362,15 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
     }
   }
 
-  // --- SIGNATURE BLOCK ---
+  // Signature block
   if (showSignature) {
     const sigBlockHeight = 20;
-    if (y + sigBlockHeight + 30 > pageH) {
-      doc.addPage();
-      y = 30;
-    }
+    if (y + sigBlockHeight + 30 > pageH) { doc.addPage(); y = 30; }
     y = Math.max(y + 15, pageH - 45);
-
     doc.setDrawColor(50, 50, 50);
     doc.setLineWidth(0.3);
     const sigW = contentW / 3 - 10;
-    const labels = ["Prepared By", "Approved By", "Date"];
-    labels.forEach((label, i) => {
+    ["Prepared By", "Approved By", "Date"].forEach((label, i) => {
       const x = margin + i * (sigW + 15);
       doc.line(x, y, x + sigW, y);
       doc.setFontSize(7);
@@ -398,7 +380,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
     y += 10;
   }
 
-  // --- STAMP ---
+  // Stamp
   if (stampType) {
     const stampX = pageW - margin - 20;
     const stampY = Math.min(y + 5, pageH - 30);
@@ -406,19 +388,14 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
     y = stampY + 22;
   }
 
-  // --- WATERMARK & CONTINUATION HEADERS ---
+  // Continuation headers & footer
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    if (i > 1) {
-      drawContinuationHeader(doc, margin, pageW, i, pageCount);
-    }
+    if (i > 1) drawContinuationHeader(doc, margin, pageW, i, pageCount);
     doc.setFontSize(6);
     doc.setTextColor(200, 200, 200);
-    doc.text(
-      `Generated by NIF Technical Services System — ${new Date().toISOString()}`,
-      pageW - margin, pageH - 8, { align: "right" }
-    );
+    doc.text(`Generated by NIF Technical Services System — ${new Date().toISOString()}`, pageW - margin, pageH - 8, { align: "right" });
     doc.text(`Page ${i} of ${pageCount}`, margin, pageH - 8);
   }
 
