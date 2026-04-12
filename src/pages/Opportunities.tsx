@@ -124,7 +124,30 @@ const Opportunities = () => {
           </Button>
           <Button variant="outline" size="sm" className="print-hide" onClick={() => {
             import("@/lib/generatePdf").then(({ generatePdf }) => {
-              generatePdf({ title: "Opportunities Pipeline", content: opportunities.map(o => `${(o as any).title} — ${(o as any).status} — ${(o as any).estimated_value ? `₦${Number((o as any).estimated_value).toLocaleString()}` : "TBD"}`).join("\n"), stampType: "admin" });
+              generatePdf({
+                title: "Opportunities Pipeline",
+                tableData: {
+                  columns: [
+                    { header: "Opportunity Title", dataKey: "title" },
+                    { header: "Source", dataKey: "source" },
+                    { header: "Status", dataKey: "status" },
+                    { header: "Value (₦)", dataKey: "value" },
+                    { header: "Deadline", dataKey: "deadline" },
+                  ],
+                  rows: opportunities.map(o => ({
+                    title: (o as any).title,
+                    source: (o as any).source || "—",
+                    status: (o as any).status || "—",
+                    value: (o as any).estimated_value ? Number((o as any).estimated_value).toLocaleString() : "TBD",
+                    deadline: (o as any).deadline || "—",
+                  })),
+                  summary: [
+                    { label: "Total Opportunities", value: String(opportunities.length) },
+                    { label: "Total Pipeline Value", value: `₦${totalValue.toLocaleString()}` },
+                  ]
+                },
+                stampType: "admin",
+              });
             });
           }}>
             <Printer className="h-4 w-4 mr-1" /><span className="hidden sm:inline">Print</span>
@@ -152,16 +175,16 @@ const Opportunities = () => {
         </div>
       </PageHeader>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "Pipeline Value", value: formatCurrency(totalValue), icon: TrendingUp },
           { label: "Active Bids", value: String(activeBids), icon: Target },
           { label: "Won", value: String(wonCount), icon: Award },
           { label: "Total Tracked", value: String(opportunities.length), icon: Calendar },
         ].map(s => (
-          <Card key={s.label}><CardContent className="p-3 sm:p-4">
+          <Card key={s.label} className="border-border/50 shadow-sm"><CardContent className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
-              <div className="min-w-0"><p className="text-[10px] sm:text-xs text-muted-foreground truncate">{s.label}</p><p className="text-lg sm:text-2xl font-bold truncate">{s.value}</p></div>
+              <div className="min-w-0"><p className="text-[10px] sm:text-xs text-muted-foreground truncate font-medium">{s.label}</p><p className="text-lg sm:text-2xl font-bold truncate text-foreground">{s.value}</p></div>
               <s.icon className="h-5 w-5 sm:h-8 sm:w-8 text-primary opacity-60 shrink-0" />
             </div>
           </CardContent></Card>
@@ -199,7 +222,7 @@ const Opportunities = () => {
             <DialogHeader>
               <DialogTitle className="break-words-safe">{viewingOpp.title}</DialogTitle>
             </DialogHeader>
-            <div className="print-container space-y-4">
+            <div className="print-container space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
               <div className="hidden print:block mb-4">
                 <h2 className="text-xl font-bold">NIF Technical — Opportunity Brief</h2>
                 <p className="text-sm">{new Date().toLocaleDateString()}</p>
@@ -208,21 +231,66 @@ const Opportunities = () => {
                 const info = parseContactInfo(viewingOpp.description ?? "");
                 return (
                   <>
-                    <p className="text-sm break-words-safe">{info.description}</p>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div><span className="text-muted-foreground">Source:</span> {viewingOpp.source ?? "—"}</div>
-                      <div><span className="text-muted-foreground">Value:</span> {viewingOpp.estimated_value ? formatCurrency(viewingOpp.estimated_value) : "—"}</div>
-                      <div><span className="text-muted-foreground">Deadline:</span> {viewingOpp.deadline ?? "—"}</div>
-                      <div><span className="text-muted-foreground">Capital Required:</span> {viewingOpp.capital_estimate ? formatCurrency(viewingOpp.capital_estimate) : "—"}</div>
-                      <div><span className="text-muted-foreground">Competition:</span> {viewingOpp.competition_intensity ?? "—"}</div>
-                      <div><span className="text-muted-foreground">Win Probability:</span> {viewingOpp.success_probability != null ? `${viewingOpp.success_probability}%` : "—"}</div>
+                    <div className="grid grid-cols-2 gap-3 text-xs sm:text-sm">
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <p className="text-muted-foreground">Source</p>
+                        <p className="font-bold truncate">{viewingOpp.source || "—"}</p>
+                      </div>
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <p className="text-muted-foreground">Value</p>
+                        <p className="font-bold text-primary truncate">{viewingOpp.estimated_value ? formatCurrency(viewingOpp.estimated_value) : "TBD"}</p>
+                      </div>
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <p className="text-muted-foreground">Deadline</p>
+                        <p className="font-bold truncate">{viewingOpp.deadline || "—"}</p>
+                      </div>
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <p className="text-muted-foreground">Status</p>
+                        <Badge className={statusColors[viewingOpp.status] || "capitalize"} variant="outline">{viewingOpp.status}</Badge>
+                      </div>
                     </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {viewingOpp.relevance_score != null && (
+                        <div className="bg-primary/5 border border-primary/10 rounded-lg p-2 text-center">
+                          <p className="text-[10px] text-muted-foreground uppercase">Relevance</p>
+                          <p className="text-sm font-bold">{viewingOpp.relevance_score}/10</p>
+                        </div>
+                      )}
+                      {viewingOpp.success_probability != null && (
+                        <div className="bg-primary/5 border border-primary/10 rounded-lg p-2 text-center">
+                          <p className="text-[10px] text-muted-foreground uppercase">Win Prob.</p>
+                          <p className="text-sm font-bold text-primary">{viewingOpp.success_probability}%</p>
+                        </div>
+                      )}
+                      {viewingOpp.competition_intensity && (
+                        <div className="bg-primary/5 border border-primary/10 rounded-lg p-2 text-center">
+                          <p className="text-[10px] text-muted-foreground uppercase">Competition</p>
+                          <p className="text-sm font-bold capitalize">{viewingOpp.competition_intensity}</p>
+                        </div>
+                      )}
+                      {viewingOpp.capital_estimate && (
+                        <div className="bg-primary/5 border border-primary/10 rounded-lg p-2 text-center">
+                          <p className="text-[10px] text-muted-foreground uppercase">Capital Est.</p>
+                          <p className="text-sm font-bold truncate">{formatCurrency(viewingOpp.capital_estimate)}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {info.description && (
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Description</p>
+                        <p className="text-sm text-foreground leading-relaxed break-words-safe whitespace-pre-wrap">{info.description}</p>
+                      </div>
+                    )}
+                    
                     {info.contact && (
                       <div className="bg-muted/30 rounded-lg p-3 text-sm">
-                        <p className="font-medium flex items-center gap-1"><Phone className="h-3 w-3" /> Contact</p>
+                        <p className="font-medium flex items-center gap-1"><Phone className="h-3 w-3" /> Contact Info</p>
                         <p className="text-muted-foreground break-words-safe">{info.contact}</p>
                       </div>
                     )}
+                    
                     {info.submission && (
                       <div className="bg-muted/30 rounded-lg p-3 text-sm">
                         <p className="font-medium flex items-center gap-1"><Mail className="h-3 w-3" /> How to Apply</p>
@@ -232,7 +300,7 @@ const Opportunities = () => {
                     {viewingOpp.bid_strategy && (
                       <div className="bg-primary/5 rounded-lg p-3 text-sm border border-primary/20">
                         <p className="font-medium text-primary">AI Bid Strategy</p>
-                        <p className="break-words-safe">{viewingOpp.bid_strategy}</p>
+                        <p className="break-words-safe italic">{viewingOpp.bid_strategy}</p>
                       </div>
                     )}
                   </>
@@ -245,7 +313,30 @@ const Opportunities = () => {
                   const info = parseContactInfo(viewingOpp.description ?? "");
                   generatePdf({
                     title: `Opportunity Brief: ${viewingOpp.title}`,
-                    content: `Source: ${viewingOpp.source ?? "—"}\nValue: ${viewingOpp.estimated_value ? `₦${Number(viewingOpp.estimated_value).toLocaleString()}` : "TBD"}\nDeadline: ${viewingOpp.deadline ?? "—"}\nWin Probability: ${viewingOpp.success_probability != null ? `${viewingOpp.success_probability}%` : "—"}\n\n${info.description ?? ""}\n\n${viewingOpp.bid_strategy ? `AI Strategy: ${viewingOpp.bid_strategy}` : ""}`,
+                    contentSections: [
+                      {
+                        heading: "Opportunity Overview",
+                        bullets: [
+                          `Source: ${viewingOpp.source || "—"}`,
+                          `Value: ${viewingOpp.estimated_value ? `₦${Number(viewingOpp.estimated_value).toLocaleString()}` : "TBD"}`,
+                          `Deadline: ${viewingOpp.deadline || "—"}`,
+                          `Status: ${viewingOpp.status || "—"}`,
+                        ]
+                      },
+                      {
+                        heading: "Strategic Assessment",
+                        bullets: [
+                          `Win Probability: ${viewingOpp.success_probability != null ? `${viewingOpp.success_probability}%` : "—"}`,
+                          `Relevance Score: ${viewingOpp.relevance_score != null ? `${viewingOpp.relevance_score}/10` : "—"}`,
+                          `Competition: ${viewingOpp.competition_intensity || "—"}`,
+                          `Capital Required: ${viewingOpp.capital_estimate ? `₦${Number(viewingOpp.capital_estimate).toLocaleString()}` : "—"}`,
+                        ]
+                      },
+                      ...(info.description ? [{ heading: "Description", body: info.description }] : []),
+                      ...(info.contact ? [{ heading: "Contact Information", body: info.contact }] : []),
+                      ...(info.submission ? [{ heading: "Submission Instructions", body: info.submission }] : []),
+                      ...(viewingOpp.bid_strategy ? [{ heading: "AI Bid Strategy", body: viewingOpp.bid_strategy }] : []),
+                    ],
                     stampType: "admin",
                   });
                 });

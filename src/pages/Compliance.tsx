@@ -198,16 +198,16 @@ const Compliance = () => {
           </AlertDialogFooter></AlertDialogContent>
       </AlertDialog>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: "Valid", value: validCount, icon: CheckCircle2, color: "text-emerald-400" },
           { label: "Pending", value: pendingCount, icon: Clock, color: "text-amber-400" },
           { label: "Expired", value: expiredCount, icon: AlertTriangle, color: "text-red-400" },
         ].map(s => (
-          <Card key={s.label}><CardContent className="p-4">
+          <Card key={s.label} className="border-border/50 shadow-sm"><CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div><p className="text-xs text-muted-foreground">{s.label}</p><p className="text-2xl font-bold">{s.value}</p></div>
-              <s.icon className={`h-8 w-8 ${s.color} opacity-60`} />
+              <div className="min-w-0"><p className="text-xs text-muted-foreground truncate font-medium">{s.label}</p><p className="text-2xl font-bold truncate text-foreground">{s.value}</p></div>
+              <s.icon className={`h-8 w-8 ${s.color} opacity-60 shrink-0`} />
             </div>
           </CardContent></Card>
         ))}

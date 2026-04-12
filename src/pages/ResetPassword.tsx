@@ -17,6 +17,7 @@ const ResetPassword = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+<<<<<<< Updated upstream
     // Supabase sends recovery tokens via URL hash fragment, not query params.
     // The onAuthStateChange listener picks it up automatically.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
@@ -43,6 +44,24 @@ const ResetPassword = () => {
       clearTimeout(timeout);
     };
   }, []);
+=======
+    // Supabase PKCE flow might put the token in the hash or handle it via setSession
+    // We should check if we're authenticated or have a recovery session
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      // If we have a session and it's a recovery flow, we're good
+      if (!session && !searchParams.get("access_token") && !window.location.hash.includes("access_token=")) {
+        toast({
+          title: "Invalid reset link",
+          description: "Please request a new password reset link or check your email again.",
+          variant: "destructive",
+        });
+        navigate("/login");
+      }
+    };
+    checkSession();
+  }, [searchParams, toast, navigate]);
+>>>>>>> Stashed changes
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,8 +78,15 @@ const ResetPassword = () => {
 
     setLoading(true);
     try {
+<<<<<<< Updated upstream
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
+=======
+      // Update the user's password. Supabase handles the session from the recovery link automatically if valid.
+      const { error } = await supabase.auth.updateUser({
+        password: password,
+      });
+>>>>>>> Stashed changes
 
       toast({ title: "Password reset successful", description: "Your password has been updated. Redirecting to login..." });
       await supabase.auth.signOut();

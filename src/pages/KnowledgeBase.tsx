@@ -178,10 +178,12 @@ const KnowledgeBase = () => {
       </div>
 
       <Tabs defaultValue="all" className="space-y-4">
-        <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="all">All</TabsTrigger>
-          {CATEGORIES.map(c => <TabsTrigger key={c.id} value={c.id}>{c.label}</TabsTrigger>)}
-        </TabsList>
+        <div className="w-full overflow-x-auto pb-1 scrollbar-hide">
+          <TabsList className="flex w-max min-w-full justify-start bg-transparent p-0 gap-1 h-auto">
+            <TabsTrigger value="all" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">All</TabsTrigger>
+            {CATEGORIES.map(c => <TabsTrigger key={c.id} value={c.id} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground whitespace-nowrap">{c.label}</TabsTrigger>)}
+          </TabsList>
+        </div>
         {["all", ...CATEGORIES.map(c => c.id)].map(tab => (
           <TabsContent key={tab} value={tab} className="space-y-4">
             {filtered.filter(a => tab === "all" || a.category === tab).map(a => (

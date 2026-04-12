@@ -279,11 +279,11 @@ const Equipment = () => {
         </DialogContent>
       </Dialog>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-3">
         {stats.map(s => (
-          <Card key={s.label}><CardContent className="p-3 sm:p-4">
+          <Card key={s.label} className="border-border/50 shadow-sm"><CardContent className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
-              <div className="min-w-0"><p className="text-[10px] sm:text-xs text-muted-foreground truncate">{s.label}</p><p className="text-lg sm:text-2xl font-bold">{s.value}</p></div>
+              <div className="min-w-0"><p className="text-[10px] sm:text-xs text-muted-foreground truncate font-medium">{s.label}</p><p className="text-lg sm:text-2xl font-bold truncate text-foreground">{s.value}</p></div>
               <s.icon className="h-5 w-5 sm:h-8 sm:w-8 text-primary opacity-60 shrink-0" />
             </div>
           </CardContent></Card>

@@ -248,14 +248,14 @@ const AdminDashboard = () => {
         </Card>
       )}
 
-      <div ref={statsRef} className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div ref={statsRef} className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-5 gap-3">
         {stats.map((stat) => (
-          <Card key={stat.label} className="gsap-card border-border/50 hover:border-primary/30 transition-colors cursor-pointer" onClick={stat.onClick}>
-            <CardContent className="p-3 sm:pt-4 sm:pb-4">
+          <Card key={stat.label} className="gsap-card border-border/50 hover:border-primary/30 transition-colors cursor-pointer shadow-sm" onClick={stat.onClick}>
+            <CardContent className="p-3 sm:p-4">
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{stat.label}</p>
-                  <p className="text-lg sm:text-xl font-bold mt-1 truncate">{stat.value}</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate font-medium">{stat.label}</p>
+                  <p className="text-lg sm:text-xl font-bold mt-1 truncate text-foreground">{stat.value}</p>
                 </div>
                 <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0"><stat.icon className="h-4 w-4" /></div>
               </div>

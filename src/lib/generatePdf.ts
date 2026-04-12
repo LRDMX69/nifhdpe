@@ -59,6 +59,7 @@ const stripMd = (text: string): string =>
 
 const COMPANY = "NIF Technical Services";
 const TAGLINE = "HDPE Pipe Infrastructure Specialists";
+<<<<<<< Updated upstream
 const CONTACT = "Lagos, Nigeria | info@nifhdpe.com | +234 XXX XXX XXXX";
 const BLUE: [number, number, number] = [22, 27, 74];
 const GREEN: [number, number, number] = [107, 171, 59];
@@ -138,6 +139,108 @@ function drawHeaderBanner(doc: jsPDF, pageW: number, logoData?: string | null): 
   }
 
   return bannerY + bannerH + 8;
+=======
+const CONTACT = "Lagos, Nigeria | info@nifhdpe.com | +234 800 000 0000"; // Fixed placeholder
+const GREEN: [number, number, number] = [63, 167, 68];
+const BLUE: [number, number, number] = [10, 22, 40]; // Using DARK as BLUE
+const DARK: [number, number, number] = [10, 22, 40];
+const STAMP_RED: [number, number, number] = [180, 30, 30];
+
+function drawLetterhead(doc: jsPDF, margin: number, pageW: number): number {
+  // 1. Draw Geometric Banner Background (Horizontal Rectangle Banner at TOP CENTER)
+  const bannerW = pageW * 0.7;
+  const bannerH = 22;
+  const bannerX = (pageW - bannerW) / 2;
+  const bannerY = 8;
+  const cutDepth = bannerW * 0.55; // Slightly more than half depth for the diagonal cut
+
+  // The split and cut follow the same diagonal line
+  // Left Side (BLUE)
+  doc.setFillColor(...BLUE);
+  doc.setDrawColor(...BLUE);
+  // Shape: top-left -> top-right-split -> bottom-cut-start -> bottom-left
+  // The split line is from (bannerX + bannerW - cutDepth, bannerY + bannerH) to (bannerX + bannerW, bannerY)
+  doc.triangle(
+    bannerX, bannerY, // Top-left
+    bannerX + bannerW, bannerY, // Top-right
+    bannerX, bannerY + bannerH, // Bottom-left
+    "F"
+  );
+  doc.rect(bannerX, bannerY, bannerW - cutDepth, bannerH, "F"); // Fill the left part
+  // Actually, let's use a polygon for precision to avoid overlapping or gaps
+  // Left Polygon (Blue)
+  doc.path([
+    { op: "m", c: [bannerX, bannerY] }, // Move to top-left
+    { op: "l", c: [bannerX + bannerW, bannerY] }, // Line to top-right
+    { op: "l", c: [bannerX + bannerW - cutDepth, bannerY + bannerH] }, // Line to bottom-cut-start (diagonal)
+    { op: "l", c: [bannerX, bannerY + bannerH] }, // Line to bottom-left
+    { op: "h", c: [] } // Close
+  ], "F");
+
+  // Right Side (GREEN) - Diagonal Split, Sharp Separation
+  doc.setFillColor(...GREEN);
+  // Right Polygon (Green)
+  // This starts where the blue ends to ensure ZERO blur/gap
+  doc.path([
+    { op: "m", c: [bannerX + bannerW, bannerY] }, // Top-right
+    { op: "l", c: [bannerX + bannerW, bannerY + bannerH] }, // Vertical down (right edge) - but we need the cut!
+    // Wait, the requirement says "bottom-right corner is NOT normal, it must be cut inward diagonally"
+    // So the banner doesn't go all the way to bannerX + bannerW at the bottom.
+    // The cut goes from bottom edge -> diagonally inward toward the center.
+  ], "F");
+
+  // Re-drawing both sides with the cut in mind:
+  // LEFT side (BLUE)
+  doc.setFillColor(...BLUE);
+  doc.path([
+    { op: "m", c: [bannerX, bannerY] },
+    { op: "l", c: [bannerX + (bannerW * 0.6), bannerY] }, // Split point at top
+    { op: "l", c: [bannerX + (bannerW * 0.6) - 20, bannerY + bannerH] }, // Split point at bottom (diagonal)
+    { op: "l", c: [bannerX, bannerY + bannerH] },
+    { op: "h", c: [] }
+  ], "F");
+
+  // RIGHT side (GREEN)
+  doc.setFillColor(...GREEN);
+  doc.path([
+    { op: "m", c: [bannerX + (bannerW * 0.6), bannerY] }, // Top split point
+    { op: "l", c: [bannerX + bannerW, bannerY] }, // Top-right
+    { op: "l", c: [bannerX + bannerW - cutDepth, bannerY + bannerH] }, // BOTTOM-RIGHT CUT INWARD DIAGONALLY
+    { op: "l", c: [bannerX + (bannerW * 0.6) - 20, bannerY + bannerH] }, // Bottom split point
+    { op: "h", c: [] }
+  ], "F");
+
+  // 2. Logo + Header Layout (Beside the rectangle, not inside)
+  let y = margin + 5;
+  // Placeholder for Logo (Top-Left)
+  doc.setFillColor(...BLUE);
+  doc.rect(margin, y - 5, 12, 12, "F"); // Logo box
+  doc.setFontSize(10);
+  doc.setTextColor(255, 255, 255);
+  doc.text("NIF", margin + 2, y + 2);
+
+  // Company Name beside it
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...DARK);
+  doc.text(COMPANY, margin + 15, y);
+  
+  y += 6;
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 100, 100);
+  doc.text(TAGLINE, margin + 15, y);
+  
+  y += 4;
+  doc.text(CONTACT, margin + 15, y);
+  
+  y += 5;
+  doc.setDrawColor(...GREEN);
+  doc.setLineWidth(0.8);
+  doc.line(margin, y, pageW - margin, y);
+  y += 10;
+  return y;
+>>>>>>> Stashed changes
 }
 
 function drawContinuationHeader(doc: jsPDF, margin: number, pageW: number, pageNum: number, totalPages: number): number {

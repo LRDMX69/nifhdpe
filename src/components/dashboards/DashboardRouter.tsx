@@ -34,19 +34,19 @@ const DashboardRouter = () => {
     : activeRole ? dashboardMap[activeRole] : null;
 
   return (
-    <div className="p-4 sm:p-6 space-y-4">
+    <div className="p-3 sm:p-6 space-y-4 max-w-7xl mx-auto">
       {/* Role switcher for multi-role users */}
       {memberships.length > 1 && !isMaintenance && (
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">View as:</span>
-          <div className="flex gap-1">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 pb-2">
+          <span className="text-xs sm:text-sm text-muted-foreground">Switch Role:</span>
+          <div className="flex flex-wrap gap-1.5">
             {memberships.map((m) => (
               <Button
                 key={m.role}
                 variant={activeRole === m.role ? "default" : "outline"}
                 size="sm"
                 onClick={() => switchRole(m.role)}
-                className="text-xs"
+                className="h-7 px-3 text-[10px] sm:text-xs"
               >
                 {ROLE_LABELS[m.role] ?? m.role}
               </Button>

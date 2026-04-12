@@ -114,11 +114,13 @@ const AppSettings = () => {
       <PageHeader title="Settings" description="Organization and user settings" />
 
       <Tabs defaultValue="team" className="space-y-4">
-        <TabsList className="w-full grid grid-cols-3 sm:w-auto sm:inline-flex">
-          <TabsTrigger value="organization" className="gap-1 text-xs sm:text-sm"><Building2 className="h-3 w-3 hidden sm:block" /> Organization</TabsTrigger>
-          <TabsTrigger value="team" className="gap-1 text-xs sm:text-sm"><Users className="h-3 w-3 hidden sm:block" /> Team</TabsTrigger>
-          <TabsTrigger value="profile" className="gap-1 text-xs sm:text-sm"><Shield className="h-3 w-3 hidden sm:block" /> Profile</TabsTrigger>
-        </TabsList>
+        <div className="w-full overflow-x-auto pb-1 scrollbar-hide">
+          <TabsList className="flex w-max min-w-full sm:w-auto sm:inline-flex bg-muted/50 p-1 gap-1">
+            <TabsTrigger value="organization" className="gap-1 text-xs sm:text-sm whitespace-nowrap"><Building2 className="h-3 w-3 hidden sm:block" /> Organization</TabsTrigger>
+            <TabsTrigger value="team" className="gap-1 text-xs sm:text-sm whitespace-nowrap"><Users className="h-3 w-3 hidden sm:block" /> Team</TabsTrigger>
+            <TabsTrigger value="profile" className="gap-1 text-xs sm:text-sm whitespace-nowrap"><Shield className="h-3 w-3 hidden sm:block" /> Profile</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="organization" className="space-y-4">
           <Card className="border-border/50">

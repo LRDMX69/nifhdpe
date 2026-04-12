@@ -526,18 +526,20 @@ const HR = () => {
       </Dialog>
 
       <Tabs defaultValue={isHrOrAdmin ? "attendance" : "leaves"} className="space-y-4">
-        <TabsList className="w-full overflow-x-auto flex flex-nowrap h-auto justify-start">
-          {isHrOrAdmin && <TabsTrigger value="attendance">Attendance</TabsTrigger>}
-          <TabsTrigger value="leaves">Leaves</TabsTrigger>
-          {isHrOrAdmin && <TabsTrigger value="payroll">Payroll</TabsTrigger>}
-          {isHrOrAdmin && <TabsTrigger value="idcards">ID Cards</TabsTrigger>}
-          {isHrOrAdmin && <TabsTrigger value="performance">Performance</TabsTrigger>}
-          {isHrOrAdmin && <TabsTrigger value="recruitment">Recruitment</TabsTrigger>}
-          {isHrOrAdmin && <TabsTrigger value="training">Training</TabsTrigger>}
-          {isHrOrAdmin && <TabsTrigger value="skills">Skills</TabsTrigger>}
-          {isHrOrAdmin && <TabsTrigger value="disciplinary">Disciplinary</TabsTrigger>}
-          {isHrOrAdmin && <TabsTrigger value="promotions">Promotions</TabsTrigger>}
-        </TabsList>
+        <div className="w-full overflow-x-auto pb-2 scrollbar-hide">
+          <TabsList className="flex w-max min-w-full h-auto justify-start bg-transparent p-0 gap-1">
+            {isHrOrAdmin && <TabsTrigger value="attendance" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Attendance</TabsTrigger>}
+            <TabsTrigger value="leaves" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Leaves</TabsTrigger>
+            {isHrOrAdmin && <TabsTrigger value="payroll" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Payroll</TabsTrigger>}
+            {isHrOrAdmin && <TabsTrigger value="idcards" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">ID Cards</TabsTrigger>}
+            {isHrOrAdmin && <TabsTrigger value="performance" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Performance</TabsTrigger>}
+            {isHrOrAdmin && <TabsTrigger value="recruitment" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Recruitment</TabsTrigger>}
+            {isHrOrAdmin && <TabsTrigger value="training" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Training</TabsTrigger>}
+            {isHrOrAdmin && <TabsTrigger value="skills" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Skills</TabsTrigger>}
+            {isHrOrAdmin && <TabsTrigger value="disciplinary" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Disciplinary</TabsTrigger>}
+            {isHrOrAdmin && <TabsTrigger value="promotions" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Promotions</TabsTrigger>}
+          </TabsList>
+        </div>
 
         {/* ATTENDANCE TAB */}
         {isHrOrAdmin && (

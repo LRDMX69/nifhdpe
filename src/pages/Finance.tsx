@@ -298,17 +298,17 @@ const Finance = () => {
           </AlertDialogFooter></AlertDialogContent>
       </AlertDialog>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Total Revenue", value: formatCurrency(financials.totalRevenue), icon: DollarSign, color: "text-primary" },
           { label: "Total Costs", value: formatCurrency(financials.totalExpenses), icon: TrendingDown, color: "text-red-400" },
           { label: "Net Profit", value: formatCurrency(financials.netProfit), icon: TrendingUp, color: "text-emerald-400" },
           { label: "Payments (Total)", value: formatCurrency(financials.totalPayments), icon: CreditCard, color: "text-blue-400" },
         ].map(s => (
-          <Card key={s.label}><CardContent className="p-4">
+          <Card key={s.label} className="border-border/50 shadow-sm"><CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div><p className="text-xs text-muted-foreground">{s.label}</p><p className="text-xl md:text-2xl font-bold">{s.value}</p></div>
-              <s.icon className={`h-8 w-8 ${s.color} opacity-60`} />
+              <div className="min-w-0"><p className="text-xs text-muted-foreground truncate font-medium">{s.label}</p><p className="text-xl md:text-2xl font-bold truncate text-foreground">{s.value}</p></div>
+              <s.icon className={`h-8 w-8 ${s.color} opacity-60 shrink-0`} />
             </div>
           </CardContent></Card>
         ))}
@@ -325,7 +325,11 @@ const Finance = () => {
       )}
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="expenses">Expenses</TabsTrigger><TabsTrigger value="payments">Payments</TabsTrigger></TabsList>
+        <TabsList className="w-full justify-start overflow-x-auto bg-transparent p-0 gap-1 h-auto scrollbar-hide">
+          <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Overview</TabsTrigger>
+          <TabsTrigger value="expenses" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Expenses</TabsTrigger>
+          <TabsTrigger value="payments" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Payments</TabsTrigger>
+        </TabsList>
 
         <TabsContent value="overview">
           <Card><CardHeader><CardTitle className="text-base">Revenue vs Expenses</CardTitle></CardHeader>
@@ -351,33 +355,35 @@ const Finance = () => {
 
         <TabsContent value="expenses">
           <Card><CardHeader><CardTitle className="text-base">Logged Expenses</CardTitle></CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 overflow-x-auto">
               {expenses.length === 0 ? (
                 <p className="p-6 text-center text-muted-foreground">No expenses logged yet.</p>
               ) : (
-                <Table><TableHeader><TableRow>
-                  <TableHead>Date</TableHead><TableHead>Category</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-[40px]"></TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {expenses.map((e: any) => (
-                    <TableRow key={e.id}>
-                      <TableCell className="text-sm">{e.date}</TableCell>
-                      <TableCell><Badge variant="outline" className="capitalize">{e.category}</Badge></TableCell>
-                      <TableCell className="text-sm">{e.description || "—"}</TableCell>
-                      <TableCell className="text-right font-medium">{formatCurrency(e.amount)}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical className="h-3.5 w-3.5" /></Button></DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEditExpense(e)}><Pencil className="h-3.5 w-3.5 mr-2" />Edit</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget({ id: e.id, type: "expense" })}><Trash2 className="h-3.5 w-3.5 mr-2" />Delete</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody></Table>
+                <div className="min-w-[600px]">
+                  <Table><TableHeader><TableRow>
+                    <TableHead>Date</TableHead><TableHead>Category</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-[40px]"></TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {expenses.map((e: any) => (
+                      <TableRow key={e.id}>
+                        <TableCell className="text-sm">{e.date}</TableCell>
+                        <TableCell><Badge variant="outline" className="capitalize">{e.category}</Badge></TableCell>
+                        <TableCell className="text-sm max-w-[200px] truncate" title={e.description || ""}>{e.description || "—"}</TableCell>
+                        <TableCell className="text-right font-medium">{formatCurrency(e.amount)}</TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical className="h-3.5 w-3.5" /></Button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEditExpense(e)}><Pencil className="h-3.5 w-3.5 mr-2" />Edit</DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget({ id: e.id, type: "expense" })}><Trash2 className="h-3.5 w-3.5 mr-2" />Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody></Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -385,34 +391,36 @@ const Finance = () => {
 
         <TabsContent value="payments">
           <Card><CardHeader><CardTitle className="text-base">Worker Payments</CardTitle></CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 overflow-x-auto">
               {payments.length === 0 ? (
                 <p className="p-6 text-center text-muted-foreground">No payments logged yet.</p>
               ) : (
-                <Table><TableHeader><TableRow>
-                  <TableHead>Date</TableHead><TableHead>Employee</TableHead><TableHead>Type</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-[40px]"></TableHead>
-                </TableRow></TableHeader>
-                <TableBody>
-                  {payments.map((p: any) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="text-sm">{p.date}</TableCell>
-                      <TableCell className="text-sm">{p.user_id ? getMemberName(p.user_id) : "—"}</TableCell>
-                      <TableCell><Badge variant="outline" className="capitalize">{p.type}</Badge></TableCell>
-                      <TableCell className="text-sm">{p.description || "—"}</TableCell>
-                      <TableCell className="text-right font-medium">{formatCurrency(p.amount)}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical className="h-3.5 w-3.5" /></Button></DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEditPayment(p)}><Pencil className="h-3.5 w-3.5 mr-2" />Edit</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget({ id: p.id, type: "payment" })}><Trash2 className="h-3.5 w-3.5 mr-2" />Delete</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody></Table>
+                <div className="min-w-[700px]">
+                  <Table><TableHeader><TableRow>
+                    <TableHead>Date</TableHead><TableHead>Employee</TableHead><TableHead>Type</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-[40px]"></TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {payments.map((p: any) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="text-sm">{p.date}</TableCell>
+                        <TableCell className="text-sm">{p.user_id ? getMemberName(p.user_id) : "—"}</TableCell>
+                        <TableCell><Badge variant="outline" className="capitalize">{p.type}</Badge></TableCell>
+                        <TableCell className="text-sm max-w-[200px] truncate" title={p.description || ""}>{p.description || "—"}</TableCell>
+                        <TableCell className="text-right font-medium">{formatCurrency(p.amount)}</TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical className="h-3.5 w-3.5" /></Button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEditPayment(p)}><Pencil className="h-3.5 w-3.5 mr-2" />Edit</DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget({ id: p.id, type: "payment" })}><Trash2 className="h-3.5 w-3.5 mr-2" />Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody></Table>
+                </div>
               )}
             </CardContent>
           </Card>
