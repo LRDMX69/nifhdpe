@@ -1,16 +1,20 @@
-import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 
 interface RecordActionsProps {
-  item: { id: string };
-  table: string;
-  label: string;
+  item?: { id: string };
   onEdit: () => void;
-  onDelete?: (id: string, table: string, label: string) => void;
+  onDelete: () => void;
 }
 
-export const RecordActions = ({ item, table, label, onEdit, onDelete }: RecordActionsProps) => (
+export const RecordActions = ({ onEdit, onDelete }: RecordActionsProps) => (
   <DropdownMenu>
     <DropdownMenuTrigger asChild>
       <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
@@ -23,10 +27,7 @@ export const RecordActions = ({ item, table, label, onEdit, onDelete }: RecordAc
         Edit
       </DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuItem 
-        className="text-destructive" 
-        onClick={() => onDelete?.(item.id, table, label)}
-      >
+      <DropdownMenuItem className="text-destructive" onClick={onDelete}>
         <Trash2 className="h-3.5 w-3.5 mr-2" />
         Delete
       </DropdownMenuItem>

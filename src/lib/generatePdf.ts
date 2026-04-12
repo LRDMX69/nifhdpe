@@ -66,59 +66,64 @@ const DARK: [number, number, number] = [10, 22, 40];
 const STAMP_RED: [number, number, number] = [180, 30, 30];
 
 function drawLetterhead(doc: jsPDF, margin: number, pageW: number): number {
-  // 1. Draw Geometric Banner Background (Horizontal Rectangle Banner at TOP CENTER)
-  const bannerW = pageW * 0.7;
-  const bannerH = 22;
+  // 1. Draw Geometric Banner Background (z-indexed behind content)
+  const bannerW = pageW * 0.7; // ~70% width
+  const bannerH = 20; 
   const bannerX = (pageW - bannerW) / 2;
-  const bannerY = 8;
-  const cutDepth = bannerW * 0.55; // Slightly more than half depth for the diagonal cut
+  const bannerY = 5;
+  const cutX = bannerX + (bannerW * 0.45); // 55% cut inward from right
+  const splitTopX = bannerX + (bannerW * 0.8); // Diagonal split sloping opposite to cut
 
-  // The split and cut follow the same diagonal line
-  // LEFT side (BLUE)
+  // Draw Blue Section (Left)
   doc.setFillColor(...BLUE);
   doc.path([
     { op: "m", c: [bannerX, bannerY] },
-    { op: "l", c: [bannerX + (bannerW * 0.6), bannerY] }, // Split point at top
-    { op: "l", c: [bannerX + (bannerW * 0.6) - 20, bannerY + bannerH] }, // Split point at bottom (diagonal)
+    { op: "l", c: [splitTopX, bannerY] },
+    { op: "l", c: [cutX, bannerY + bannerH] },
     { op: "l", c: [bannerX, bannerY + bannerH] },
     { op: "h", c: [] }
   ], "F");
 
-  // RIGHT side (GREEN)
+  // Draw Green Section (Right)
   doc.setFillColor(...GREEN);
   doc.path([
-    { op: "m", c: [bannerX + (bannerW * 0.6), bannerY] }, // Top split point
-    { op: "l", c: [bannerX + bannerW, bannerY] }, // Top-right
-    { op: "l", c: [bannerX + bannerW - cutDepth, bannerY + bannerH] }, // BOTTOM-RIGHT CUT INWARD DIAGONALLY
-    { op: "l", c: [bannerX + (bannerW * 0.6) - 20, bannerY + bannerH] }, // Bottom split point
+    { op: "m", c: [splitTopX, bannerY] },
+    { op: "l", c: [bannerX + bannerW, bannerY] },
+    { op: "l", c: [cutX, bannerY + bannerH] },
     { op: "h", c: [] }
   ], "F");
 
-  // 2. Logo + Header Layout (Beside the rectangle, not inside)
-  let y = margin + 5;
-  // Placeholder for Logo (Top-Left)
+  // 2. App Icon + Letterhead (Top-Left, independent of rectangle)
+  let y = margin + 2;
+  
+  // App ICON (Simplified version)
   doc.setFillColor(...BLUE);
-  doc.rect(margin, y - 5, 12, 12, "F"); // Logo box
-  doc.setFontSize(10);
+  doc.rect(margin, y - 5, 12, 12, "F"); 
+  doc.setFontSize(7);
   doc.setTextColor(255, 255, 255);
-  doc.text("NIF", margin + 2, y + 2);
+  doc.setFont("helvetica", "bold");
+  doc.text("TECHNICAL", margin + 6, y - 1, { align: "center", angle: 90 }); // Vertical "TECHNICAL"
+  doc.setFontSize(10);
+  doc.text("NIF", margin + 2, y + 2.5);
 
-  // Company Name beside it
+  // Letterhead text immediately beside icon
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...DARK);
-  doc.text(COMPANY, margin + 15, y);
+  doc.text("NIF", margin + 18, y);
+  doc.setTextColor(...GREEN);
+  doc.text("TECHNICAL", margin + 30, y);
   
   y += 6;
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 100, 100);
-  doc.text(TAGLINE, margin + 15, y);
+  doc.text(TAGLINE, margin + 18, y);
   
   y += 4;
-  doc.text(CONTACT, margin + 15, y);
+  doc.text(CONTACT, margin + 18, y);
   
-  y += 5;
+  y += 10; // Extra padding
   doc.setDrawColor(...GREEN);
   doc.setLineWidth(0.8);
   doc.line(margin, y, pageW - margin, y);
@@ -241,8 +246,8 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
 
   // Try server-side enqueue first to avoid heavy client work.
   try {
-    const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL;
-    const SUPABASE_PUB = (import.meta as any).env?.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const SUPABASE_URL = (import.meta as unknown as { env: Record<string, string | undefined> }).env.VITE_SUPABASE_URL;
+    const SUPABASE_PUB = (import.meta as unknown as { env: Record<string, string | undefined> }).env.VITE_SUPABASE_PUBLISHABLE_KEY;
     if (SUPABASE_URL && SUPABASE_PUB) {
       const resp = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/generate-pdf`, {
         method: "POST",
@@ -383,11 +388,12 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       body: tableData.rows.map(row => tableData.columns.map(c => String(row[c.dataKey] ?? ""))),
       margin: { left: margin, right: margin },
       styles: { fontSize: 8.5, cellPadding: 3, textColor: [30, 30, 30], lineColor: [220, 220, 220], lineWidth: 0.2 },
-      headStyles: { fillColor: BLUE as any, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.5 },
+      headStyles: { fillColor: BLUE as [number, number, number], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.5 },
       alternateRowStyles: { fillColor: [248, 248, 248] },
       theme: "grid",
     });
-    y = (doc as any).lastAutoTable?.finalY ?? y + 10;
+    // @ts-expect-error - autoTable adds lastAutoTable to jsPDF instance
+    y = doc.lastAutoTable?.finalY ?? y + 10;
     y += 4;
 
     if (tableData.summary) {

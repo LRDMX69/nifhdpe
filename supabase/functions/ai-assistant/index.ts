@@ -1,6 +1,9 @@
+// @ts-expect-error
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-expect-error
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
+import { validateUser } from "../_shared/auth.ts";
 import { captureException, handleErrorResponse } from "../_shared/errorHandler.ts";
 
 const corsHeaders = {
@@ -92,7 +95,7 @@ function sanitizePrompt(raw: unknown): string | null {
   return s;
 }
 
-function validateRequestBody(body: any) {
+function validateRequestBody(body: Record<string, unknown>): { ok: false; reason: string } | { ok: true; context: keyof typeof SYSTEM_PROMPTS; prompt: string; data: unknown } {
   if (!body || typeof body !== "object") return { ok: false, reason: "invalid_json" };
   const { context, prompt, data } = body;
   if (!context || typeof context !== "string" || !ALLOWED_CONTEXTS.has(context)) return { ok: false, reason: "invalid_context" };
@@ -106,10 +109,12 @@ function validateRequestBody(body: any) {
   } catch (_err) {
     return { ok: false, reason: "invalid_data" };
   }
-  return { ok: true, context, prompt: sanitizedPrompt, data };
+  return { ok: true, context: context as keyof typeof SYSTEM_PROMPTS, prompt: sanitizedPrompt, data };
 }
 async function callGemini(systemPrompt: string, userMessage: string, stream: boolean, context: string) {
+  // @ts-expect-error
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  // @ts-expect-error
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
   // Prefer Lovable AI gateway (free, no rate limits)
@@ -178,7 +183,7 @@ async function callGemini(systemPrompt: string, userMessage: string, stream: boo
   });
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -191,16 +196,26 @@ serve(async (req) => {
 
   try {
     const raw = await req.json();
+    
+    // Validate that the user is authorized for this organization
+    if (raw.organization_id) {
+      await validateUser(req, raw.organization_id as string);
+    }
     const validation = validateRequestBody(raw);
     if (!validation.ok) {
-      logger.warn("ai-assistant: invalid request", validation.reason);
-      return new Response(JSON.stringify({ error: "invalid_request", reason: validation.reason }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      logger.warn("ai-assistant: invalid request", (validation as { reason: string }).reason);
+      return new Response(JSON.stringify({ error: "invalid_request", reason: (validation as { reason: string }).reason }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { context, prompt, data } = validation;
-    const systemPrompt = SYSTEM_PROMPTS[context] || SYSTEM_PROMPTS.general;
-    const userMessage = data
-      ? `Here is the relevant data:\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\`\n\nUser query: ${prompt}`
+    const { context, prompt, data } = validation as { ok: true; context: keyof typeof SYSTEM_PROMPTS; prompt: string; data: unknown };
+    const systemPrompt: string = SYSTEM_PROMPTS[context] || SYSTEM_PROMPTS.general;
+    
+    // Harden against indirect prompt injection by using strict XML-style delimiters 
+    // and sanitizing strings within the data object
+    const safeData = data ? JSON.parse(JSON.stringify(data).replace(/<\/?script/gi, "")) : null;
+    
+    const userMessage = safeData
+      ? `[SYSTEM_DATA_LOADED]\n<context_data>\n${JSON.stringify(safeData, null, 2)}\n</context_data>\n\n[USER_QUERY]\n${prompt}`
       : prompt;
 
     const response = await callGemini(systemPrompt, userMessage, true, context);

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { logger } from "@/lib/logger";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
+interface Message {
+  id: string;
+  subject: string | null;
+  body: string;
+  sender_id: string;
+  message_type: string;
+  created_at: string;
+  is_read: boolean;
+  recipient_id: string | null;
+}
+
+interface Profile {
+  user_id: string;
+  full_name: string | null;
+}
+
 export const NotificationBell = () => {
   const { user, memberships } = useAuth();
   const orgId = memberships[0]?.organization_id;
@@ -14,7 +31,7 @@ export const NotificationBell = () => {
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
-  const { data: unreadMessages = [], refetch } = useQuery({
+  const { data: unreadMessages = [], refetch } = useQuery<Message[]>({
     queryKey: ["unread-notifications", orgId, user?.id],
     queryFn: async () => {
       if (!orgId || !user) return [];
@@ -26,20 +43,20 @@ export const NotificationBell = () => {
         .or(`recipient_id.eq.${user.id},message_type.eq.broadcast`)
         .order("created_at", { ascending: false })
         .limit(10);
-      return data ?? [];
+      return (data as Message[]) ?? [];
     },
     enabled: !!orgId && !!user,
     refetchInterval: 15000,
   });
 
   // Fetch sender profiles
-  const senderIds = [...new Set(unreadMessages.map((m: any) => m.sender_id))];
-  const { data: senderProfiles = new Map() } = useQuery({
+  const senderIds = [...new Set(unreadMessages.map((m) => m.sender_id))];
+  const { data: senderProfiles = new Map<string, string>() } = useQuery({
     queryKey: ["notif-sender-profiles", senderIds.join(",")],
     queryFn: async () => {
-      if (senderIds.length === 0) return new Map();
+      if (senderIds.length === 0) return new Map<string, string>();
       const { data } = await supabase.from("profiles").select("user_id, full_name").in("user_id", senderIds);
-      return new Map((data ?? []).map((p: any) => [p.user_id, p.full_name]));
+      return new Map<string, string>((data ?? []).map((p) => [p.user_id, p.full_name ?? "Unknown"]));
     },
     enabled: senderIds.length > 0,
   });
@@ -51,9 +68,14 @@ export const NotificationBell = () => {
       .channel("notif-bell-global")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
         refetch();
+        // Trigger system notification if app is in background OR even if open as requested
+        import("@/lib/pushNotifications").then(({ showNotification }) => {
+          showNotification(payload.new.subject || "New Message", payload.new.body, { messageId: payload.new.id });
+        });
+        
         // Play notification sound
         try {
-          const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.connect(gain);
@@ -69,7 +91,9 @@ export const NotificationBell = () => {
             osc2.start();
             osc2.stop(ctx.currentTime + 0.1);
           }, 150);
-        } catch {}
+        } catch (error) {
+          logger.error("Failed to play notification sound:", error);
+        }
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -84,7 +108,7 @@ export const NotificationBell = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const handleNotificationClick = async (m: any) => {
+  const handleNotificationClick = async (m: Message) => {
     // Mark as read
     await supabase.from("messages").update({ is_read: true }).eq("id", m.id);
     refetch();
@@ -120,7 +144,7 @@ export const NotificationBell = () => {
           {count === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">All caught up!</div>
           ) : (
-            unreadMessages.map((m: any) => (
+            unreadMessages.map((m) => (
               <div
                 key={m.id}
                 className="px-3 py-2 hover:bg-muted/50 cursor-pointer border-b border-border/50 last:border-0"

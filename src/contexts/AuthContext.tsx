@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { logger } from "@/lib/logger";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -34,7 +35,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -44,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [isMaintenance, setIsMaintenance] = useState(false);
 
-  const fetchUserData = async (userId: string) => {
+  const fetchUserData = useCallback(async (userId: string) => {
     try {
       // Check if maintenance admin
       const { data: maintenanceCheck } = await supabase
@@ -73,10 +74,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq("user_id", userId);
 
       if (membershipData && membershipData.length > 0) {
-        const mapped = membershipData.map((m: any) => ({
+        const mapped: UserMembership[] = membershipData.map((m) => ({
           organization_id: m.organization_id,
           role: m.role,
-          organization_name: m.organizations?.name ?? "",
+          organization_name: (m.organizations as unknown as { name: string })?.name ?? "",
         }));
         setMemberships(mapped);
         // Set the first organization as active if not already set
@@ -100,10 +101,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           organization_name: "System",
         }]);
       }
-    } catch {
-      // User might not have profile/membership yet
+    } catch (error) {
+      logger.error("Error fetching user data/memberships:", error);
     }
-  };
+  }, [activeOrganizationId]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -134,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchUserData]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });

@@ -15,6 +15,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/constants";
+import type { Database } from "@/integrations/supabase/types";
+
+type WorkerClaim = Database["public"]["Tables"]["worker_claims"]["Row"];
+type Profile = { user_id: string; full_name: string | null; avatar_url: string | null };
 
 const claimCategories = [
   "Personal Funds Used", "Equipment Purchase", "Fuel Expense",
@@ -63,7 +67,7 @@ const WorkerClaims = () => {
     queryFn: async () => {
       if (!orgId) return new Map();
       const { data } = await supabase.from("profiles").select("user_id, full_name, avatar_url").eq("organization_id", orgId);
-      return new Map((data ?? []).map((p: any) => [p.user_id, p]));
+      return new Map((data ?? []).map((p: Profile) => [p.user_id, p]));
     },
     enabled: !!orgId && (isAdmin || isFinance),
   });
@@ -73,7 +77,7 @@ const WorkerClaims = () => {
     queryFn: async () => {
       if (!orgId) return new Map();
       const { data } = await supabase.rpc("get_visible_members", { _org_id: orgId });
-      return new Map((data ?? []).map((m: any) => [m.user_id, m.role]));
+      return new Map((data ?? []).map((m: { user_id: string; role: string }) => [m.user_id, m.role]));
     },
     enabled: !!orgId && (isAdmin || isFinance),
   });
@@ -88,11 +92,11 @@ const WorkerClaims = () => {
         const ext = selectedFile.name.split(".").pop() || "jpg";
         const filePath = `${orgId}/${user.id}/${Date.now()}.${ext}`;
         const { error: uploadErr } = await supabase.storage
-          .from("claim-attachments")
+          .from("claims-proof")
           .upload(filePath, selectedFile);
         if (uploadErr) throw new Error("File upload failed: " + uploadErr.message);
 
-        const { data: urlData } = supabase.storage.from("claim-attachments").getPublicUrl(filePath);
+        const { data: urlData } = supabase.storage.from("claims-proof").getPublicUrl(filePath);
         const fileUrl = urlData?.publicUrl || filePath;
 
         const { error } = await supabase.from("worker_claims").insert({
@@ -104,7 +108,7 @@ const WorkerClaims = () => {
           description,
           file_url: fileUrl,
           uploaded_at: new Date().toISOString(),
-        } as any);
+        } as unknown as Database["public"]["Tables"]["worker_claims"]["Insert"]);
         if (error) throw error;
       } finally {
         setUploading(false);
@@ -116,26 +120,32 @@ const WorkerClaims = () => {
       setCategory(""); setAmount(""); setDescription(""); setSelectedFile(null);
       queryClient.invalidateQueries({ queryKey: ["worker-claims"] });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const updateClaim = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from("worker_claims").update({ status, reviewed_by: user?.id } as any).eq("id", id);
+      const { error } = await supabase.from("worker_claims").update({ status, reviewed_by: user?.id } as Database["public"]["Tables"]["worker_claims"]["Update"]).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       toast({ title: "Claim updated" });
       queryClient.invalidateQueries({ queryKey: ["worker-claims"] });
     },
+    onSettled: (_, error, __) => {
+      if (!error) {
+        queryClient.invalidateQueries({ queryKey: ["unread-notifications", orgId, user.id] });
+        queryClient.invalidateQueries({ queryKey: ["messages", orgId, user.id] });
+      }
+    },
   });
 
-  const handleExportClaim = async (c: any) => {
+  const handleExportClaim = async (c: WorkerClaim) => {
     const { generatePdf } = await import("@/lib/generatePdf");
     const claimProfile = profileMap.get(c.user_id);
     
     // Add proof image to PDF if it exists
-    const sections: any[] = [
+    const sections: { heading?: string; body?: string; bullets?: string[] }[] = [
       { heading: "Claim Details", bullets: [
         `Type: ${c.claim_type}`,
         `Category: ${c.category}`,
@@ -149,8 +159,8 @@ const WorkerClaims = () => {
 
     // Note: jspdf doesn't directly handle URLs well in this simple wrapper without more complex logic, 
     // but we add a note about the attachment.
-    if (c.proof_url) {
-      sections.push({ heading: "Attachments", body: "Verification proof image was submitted with this claim." });
+    if (c.file_url) {
+      sections.push({ heading: "Attachments", body: `Verification proof: ${c.file_url}` });
     }
 
     generatePdf({
@@ -162,8 +172,8 @@ const WorkerClaims = () => {
     });
   };
 
-  const pendingCount = claims.filter((c: any) => c.status === "pending" || c.status === "flagged").length;
-  const totalAmount = claims.filter((c: any) => c.status === "approved").reduce((s: number, c: any) => s + (c.amount || 0), 0);
+  const pendingCount = claims.filter((c: WorkerClaim) => c.status === "pending" || c.status === "flagged").length;
+  const totalAmount = claims.filter((c: WorkerClaim) => c.status === "approved").reduce((s: number, c: WorkerClaim) => s + (c.amount || 0), 0);
   const getInitials = (name: string) => (name || "?").split(" ").map((n: string) => n[0]).join("").slice(0, 2);
   const isImageUrl = (url: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
 
@@ -246,7 +256,7 @@ const WorkerClaims = () => {
         {claims.length === 0 && !isLoading && (
           <Card><CardContent className="p-8 text-center text-muted-foreground">No claims yet.</CardContent></Card>
         )}
-        {claims.map((c: any) => {
+        {claims.map((c: WorkerClaim) => {
           const claimProfile = profileMap.get(c.user_id);
           const claimRole = membershipMap.get(c.user_id);
           const hasImage = c.file_url && isImageUrl(c.file_url);

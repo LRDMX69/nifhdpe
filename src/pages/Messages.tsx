@@ -92,8 +92,8 @@ const Messages = () => {
           .eq("recipient_id", user.id)
           .eq("is_read", false);
         if (!error) {
+          queryClient.invalidateQueries({ queryKey: ["unread-notifications", orgId, user.id] });
           queryClient.invalidateQueries({ queryKey: ["messages", orgId, user.id] });
-          queryClient.invalidateQueries({ queryKey: ["unread-msg-count", orgId, user?.id] });
         }
       } catch (e) {
         // best effort

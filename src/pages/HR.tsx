@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { HolidayManager } from "@/components/HolidayManager";
+import { RecordActions } from "@/components/hr/RecordActions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { HolidayManager } from "@/components/HolidayManager";
 import { useAuth } from "@/contexts/AuthContext";
 import { CalendarDays, Award, Users, Clock, AlertTriangle, Plus, Loader2, TrendingDown, GraduationCap, ShieldAlert, Star, Briefcase, MoreVertical, Pencil, Trash2, CreditCard, DollarSign } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -158,7 +159,7 @@ const HR = () => {
     queryFn: async () => {
       if (!orgId) return new Map();
       const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, avatar_url").eq("organization_id", orgId);
-      return new Map((profiles ?? []).map((p: { user_id: string; full_name: string; avatar_url: string | null }) => [p.user_id, p]));
+      return new Map((profiles ?? []).map((p) => [p.user_id, p]));
     },
     enabled: !!orgId,
   });
@@ -211,7 +212,7 @@ const HR = () => {
       if (error) throw error;
     },
     onSuccess: () => { toast({ title: "Leave request submitted" }); setLeaveOpen(false); setStartDate(""); setEndDate(""); setLeaveReason(""); queryClient.invalidateQueries({ queryKey: ["leave-requests"] }); },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const updateLeave = useMutation({
@@ -415,17 +416,7 @@ const HR = () => {
     return { totalThisMonth, count: monthPayments.length, total: salaryPayments.length };
   })();
 
-  /** Reusable actions dropdown for HR records */
-  const RecordActions = ({ item, table, label, onEdit }: { item: { id: string }; table: string; label: string; onEdit: () => void }) => (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 shrink-0"><MoreVertical className="h-3.5 w-3.5" /></Button></DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={onEdit}><Pencil className="h-3.5 w-3.5 mr-2" />Edit</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget({ id: item.id, table, label })}><Trash2 className="h-3.5 w-3.5 mr-2" />Delete</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+
 
   const roleOptions = ["administrator","engineer","technician","warehouse","finance","hr","reception_sales","knowledge_manager","siwes_trainee","it_student","nysc_member"];
 
@@ -553,7 +544,7 @@ const HR = () => {
             )}
             <Card className="border-border/50"><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-base flex items-center gap-2"><Users className="h-5 w-5 text-primary" /> Attendance Records</CardTitle><Input type="date" value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)} className="w-auto text-sm" /></CardHeader><CardContent>
               {allAttendance.length === 0 ? <p className="text-sm text-muted-foreground">No records today.</p> : (
-                <div className="space-y-2">{allAttendance.map((a: any) => {
+                <div className="space-y-2">{allAttendance.map((a) => {
                   const prof = profileMap.get(a.user_id);
                   const isLate = a.check_in && new Date(a.check_in).getHours() >= 9;
                   return (<div key={a.id} className={`flex items-center justify-between p-3 rounded-lg gap-2 flex-wrap ${isLate ? "bg-warning/10 border border-warning/20" : "bg-muted/30"}`}>
@@ -569,7 +560,7 @@ const HR = () => {
 
         {/* LEAVES TAB */}
         <TabsContent value="leaves"><Card className="border-border/50"><CardHeader><CardTitle className="text-base flex items-center gap-2"><CalendarDays className="h-5 w-5 text-warning" /> Leave Requests</CardTitle></CardHeader><CardContent>
-          {leaveRequests.length > 0 ? (<div className="space-y-2">{leaveRequests.map((l: any) => {
+          {leaveRequests.length > 0 ? (<div className="space-y-2">{leaveRequests.map((l) => {
             const requesterName = profileMap.get(l.user_id)?.full_name;
             return (<div key={l.id} className="flex items-center justify-between py-3 px-3 rounded-lg bg-muted/30 gap-2 flex-wrap">
               <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="text-sm capitalize font-medium">{l.leave_type} leave</p>{isHrOrAdmin && requesterName && <span className="text-xs text-muted-foreground">— {requesterName}</span>}</div><p className="text-xs text-muted-foreground">{l.start_date} → {l.end_date}</p>{l.reason && <p className="text-xs text-muted-foreground mt-1">{l.reason}</p>}</div>
@@ -610,8 +601,8 @@ const HR = () => {
               <CardContent>
                 {salaryPayments.length > 0 ? (() => {
                   // Group payments by employee
-                  const groupedByEmployee = new Map<string, any[]>();
-                  salaryPayments.forEach((p: any) => {
+                  const groupedByEmployee = new Map<string, Array<{ id: string; amount: number; date: string; description: string | null }>>();
+                  salaryPayments.forEach((p) => {
                     if (!groupedByEmployee.has(p.user_id)) {
                       groupedByEmployee.set(p.user_id, []);
                     }
@@ -621,7 +612,7 @@ const HR = () => {
                   return (
                     <div className="space-y-3">
                       {[...groupedByEmployee.entries()].map(([userId, payments]) => {
-                        const totalAmount = payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+                        const totalAmount = payments.reduce((sum: number, p) => sum + Number(p.amount), 0);
                         return (
                           <div key={userId} className="border rounded-lg p-3 space-y-2">
                             <div className="flex items-center justify-between">
@@ -635,7 +626,7 @@ const HR = () => {
                               <Badge variant="outline" className="text-xs font-semibold text-primary">₦{totalAmount.toLocaleString()}</Badge>
                             </div>
                             <div className="space-y-1 pl-8">
-                              {payments.map((p: any) => (
+                              {payments.map((p) => (
                                 <div key={p.id} className="flex items-center justify-between text-xs text-muted-foreground">
                                   <span>{p.date}{p.description ? ` · ${p.description}` : ""}</span>
                                   <span>₦{Number(p.amount).toLocaleString()}</span>
@@ -659,12 +650,12 @@ const HR = () => {
             <Card className="border-border/50">
               <CardHeader><CardTitle className="text-base flex items-center gap-2"><CreditCard className="h-5 w-5 text-primary" /> Employee ID Cards</CardTitle></CardHeader>
               <CardContent>
-                {uniqueEmployees.length > 0 ? (<div className="space-y-2">{uniqueEmployees.map((m: any) => {
+                {uniqueEmployees.length > 0 ? (<div className="space-y-2">{uniqueEmployees.map((m) => {
                   const prof = profileMap.get(m.user_id);
                   return (
                     <div key={m.user_id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                       <div className="flex items-center gap-3 min-w-0">
-                        <Avatar className="h-9 w-9 shrink-0">{prof?.avatar_url && <AvatarImage src={prof.avatar_url} />}<AvatarFallback className="text-xs bg-primary/10 text-primary">{(prof?.full_name || "?").split(" ").map((n: string) => n[0]).join("").slice(0, 2)}</AvatarFallback></Avatar>
+                        <Avatar className="h-9 w-9 shrink-0">{prof?.avatar_url && <AvatarImage src={prof.avatar_url} />}<AvatarFallback className="text-xs bg-primary/10 text-primary">{(prof?.full_name || "?").split(" ").map((n) => n[0]).join("").slice(0, 2)}</AvatarFallback></Avatar>
                         <div className="min-w-0"><p className="text-sm font-medium truncate">{prof?.full_name ?? "Unknown"}</p><p className="text-xs text-muted-foreground capitalize">{m.role?.replace(/_/g, " ")}</p></div>
                       </div>
                       <Button size="sm" variant="outline" onClick={() => { setIdCardUser(m); setIdCardTemp(false); setIdCardOpen(true); }}>
@@ -697,12 +688,12 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {performanceLogs.length > 0 ? (<div className="space-y-2">{performanceLogs.map((p: any) => (
+              {performanceLogs.length > 0 ? (<div className="space-y-2">{performanceLogs.map((p) => (
                 <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{getMemberName(p.user_id)} — {p.period}</p>{p.notes && <p className="text-xs text-muted-foreground">{p.notes}</p>}</div>
                   <div className="flex items-center gap-1">
                     <Badge variant="outline" className={`text-[10px] ${p.rating >= 4 ? "text-primary" : p.rating >= 3 ? "text-warning" : "text-destructive"}`}>{p.rating}/5</Badge>
-                    <RecordActions item={p} table="performance_logs" label="performance review" onEdit={() => openEditPerf(p)} />
+                    <RecordActions onEdit={() => openEditPerf(p)} onDelete={() => setDeleteTarget({ id: p.id, table: "performance_logs", label: "performance review" })} />
                   </div>
                 </div>
               ))}</div>) : <p className="text-sm text-muted-foreground">No performance reviews yet.</p>}
@@ -729,12 +720,12 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {recruitment.length > 0 ? (<div className="space-y-2">{recruitment.map((r: any) => (
+              {recruitment.length > 0 ? (<div className="space-y-2">{recruitment.map((r) => (
                 <div key={r.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{r.position_title}</p><p className="text-xs text-muted-foreground">{r.candidate_name ?? "No candidate"} · {r.department ?? "—"}</p></div>
                   <div className="flex items-center gap-1">
                     <Badge variant="outline" className={`text-[10px] capitalize ${r.status === "hired" ? "text-primary" : r.status === "rejected" ? "text-destructive" : "text-warning"}`}>{r.status}</Badge>
-                    <RecordActions item={r} table="recruitment" label="recruitment entry" onEdit={() => openEditRecruit(r)} />
+                    <RecordActions onEdit={() => openEditRecruit(r)} onDelete={() => setDeleteTarget({ id: r.id, table: "recruitment", label: "recruitment entry" })} />
                   </div>
                 </div>
               ))}</div>) : <p className="text-sm text-muted-foreground">No recruitment entries.</p>}
@@ -762,10 +753,10 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {trainingLogs.length > 0 ? (<div className="space-y-2">{trainingLogs.map((t: any) => (
+              {trainingLogs.length > 0 ? (<div className="space-y-2">{trainingLogs.map((t) => (
                 <div key={t.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{t.training_title}</p><p className="text-xs text-muted-foreground">{getMemberName(t.user_id)} · {t.training_type ?? "—"}{t.completed_date ? ` · Done: ${t.completed_date}` : ""}</p></div>
-                  <div className="flex items-center gap-1">{t.score != null && <Badge variant="outline" className="text-[10px]">{t.score}%</Badge>}<RecordActions item={t} table="training_logs" label="training log" onEdit={() => openEditTraining(t)} /></div>
+                  <div className="flex items-center gap-1">{t.score != null && <Badge variant="outline" className="text-[10px]">{t.score}%</Badge>}<RecordActions onEdit={() => openEditTraining(t)} onDelete={() => setDeleteTarget({ id: t.id, table: "training_logs", label: "training log" })} /></div>
                 </div>
               ))}</div>) : <p className="text-sm text-muted-foreground">No training logs.</p>}
             </CardContent>
@@ -791,13 +782,13 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {skills.length > 0 ? (<div className="space-y-2">{skills.map((s: any) => (
+              {skills.length > 0 ? (<div className="space-y-2">{skills.map((s) => (
                 <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{s.skill_name}</p><p className="text-xs text-muted-foreground">{getMemberName(s.user_id)}</p></div>
                   <div className="flex items-center gap-2">
                     <div className="flex gap-0.5">{Array.from({ length: 5 }, (_, i) => (<div key={i} className={`h-2 w-2 rounded-full ${i < s.proficiency_level ? "bg-primary" : "bg-muted"}`} />))}</div>
                     {s.certified && <Badge variant="outline" className="text-[10px] text-primary">Certified</Badge>}
-                    <RecordActions item={s} table="employee_skills" label="skill" onEdit={() => openEditSkill(s)} />
+                    <RecordActions onEdit={() => openEditSkill(s)} onDelete={() => setDeleteTarget({ id: s.id, table: "employee_skills", label: "skill" })} />
                   </div>
                 </div>
               ))}</div>) : <p className="text-sm text-muted-foreground">No skills recorded.</p>}
@@ -824,10 +815,10 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {disciplinary.length > 0 ? (<div className="space-y-2">{disciplinary.map((d: any) => (
+              {disciplinary.length > 0 ? (<div className="space-y-2">{disciplinary.map((d) => (
                 <div key={d.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{getMemberName(d.user_id)}</p><p className="text-xs text-muted-foreground">{d.description.slice(0, 80)}{d.description.length > 80 ? "..." : ""}</p><p className="text-[10px] text-muted-foreground">{d.incident_date}{d.action_taken ? ` · ${d.action_taken}` : ""}</p></div>
-                  <div className="flex items-center gap-1"><Badge variant="outline" className={`text-[10px] capitalize ${d.severity === "termination" || d.severity === "suspension" ? "text-destructive" : "text-warning"}`}>{d.severity.replace("_", " ")}</Badge><RecordActions item={d} table="disciplinary_records" label="record" onEdit={() => openEditDisc(d)} /></div>
+                  <div className="flex items-center gap-1"><Badge variant="outline" className={`text-[10px] capitalize ${d.severity === "termination" || d.severity === "suspension" ? "text-destructive" : "text-warning"}`}>{d.severity.replace("_", " ")}</Badge><RecordActions onEdit={() => openEditDisc(d)} onDelete={() => setDeleteTarget({ id: d.id, table: "disciplinary_records", label: "record" })} /></div>
                 </div>
               ))}</div>) : <p className="text-sm text-muted-foreground">No disciplinary records.</p>}
             </CardContent>
@@ -856,10 +847,10 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {promotions.length > 0 ? (<div className="space-y-2">{promotions.map((p: any) => (
+              {promotions.length > 0 ? (<div className="space-y-2">{promotions.map((p) => (
                 <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{getMemberName(p.user_id)}</p><p className="text-xs text-muted-foreground">{p.previous_role ?? "—"} → {p.new_role} · {p.effective_date}</p>{p.reason && <p className="text-[10px] text-muted-foreground">{p.reason}</p>}</div>
-                  <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px] text-primary">Promoted</Badge><RecordActions item={p} table="promotions" label="promotion" onEdit={() => openEditPromo(p)} /></div>
+                  <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px] text-primary">Promoted</Badge><RecordActions onEdit={() => openEditPromo(p)} onDelete={() => setDeleteTarget({ id: p.id, table: "promotions", label: "promotion" })} /></div>
                 </div>
               ))}</div>) : <p className="text-sm text-muted-foreground">No promotion records.</p>}
             </CardContent>

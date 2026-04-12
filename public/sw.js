@@ -18,11 +18,11 @@ self.addEventListener("push", (event) => {
 
   const options = {
     body: data.body,
-    icon: data.icon || "/placeholder.svg",
-    badge: "/placeholder.svg",
+    icon: data.icon || "/nif-logo.png",
+    badge: "/icon-192.png",
     vibrate: [200, 100, 200],
     data: data,
-    actions: [{ action: "open", title: "Open" }],
+    actions: [{ action: "open", title: "Open App" }],
   };
 
   event.waitUntil(self.registration.showNotification(data.title, options));

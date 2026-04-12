@@ -16,6 +16,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
+
+type EquipmentItem = Database["public"]["Tables"]["equipment"]["Row"] & { projects?: { name: string } | null };
+type EquipmentRequest = Database["public"]["Tables"]["equipment_requests"]["Row"] & { equipment?: { name: string } | null };
+type OrgProfile = { user_id: string; full_name: string | null; phone: string | null };
+type Project = { id: string; name: string; team_member_ids: string[] | null; project_head_id: string | null };
 // generatePdf loaded dynamically
 
 const statusColors: Record<string, string> = {
@@ -31,13 +37,13 @@ const Equipment = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
-  const [editingEquip, setEditingEquip] = useState<any>(null);
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [editingEquip, setEditingEquip] = useState<EquipmentItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<EquipmentItem | null>(null);
   const [requestOpen, setRequestOpen] = useState(false);
-  const [selectedEquipment, setSelectedEquipment] = useState<any>(null);
+  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentItem | null>(null);
   const [requestReason, setRequestReason] = useState("");
   const [requestProject, setRequestProject] = useState("");
-  const [escalateRequest, setEscalateRequest] = useState<any>(null);
+  const [escalateRequest, setEscalateRequest] = useState<EquipmentRequest | null>(null);
   const containerRef = useGsapAnimation("slideUp");
   const orgId = memberships[0]?.organization_id;
   const isAdmin = activeRole === "administrator" || isMaintenance;
@@ -56,7 +62,7 @@ const Equipment = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("equipment").select("*, projects(name)").eq("organization_id", orgId).order("name");
-      return data ?? [];
+      return (data as unknown as EquipmentItem[]) ?? [];
     },
     enabled: !!orgId,
   });
@@ -66,7 +72,7 @@ const Equipment = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("projects").select("id, name, team_member_ids, project_head_id").eq("organization_id", orgId).order("name");
-      return data ?? [];
+      return (data as unknown as Project[]) ?? [];
     },
     enabled: !!orgId,
   });
@@ -76,7 +82,7 @@ const Equipment = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("profiles").select("user_id, full_name, phone").eq("organization_id", orgId);
-      return data ?? [];
+      return (data as OrgProfile[]) ?? [];
     },
     enabled: !!orgId,
   });
@@ -86,12 +92,12 @@ const Equipment = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("equipment_requests").select("*, equipment(name)").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30);
-      return data ?? [];
+      return (data as unknown as EquipmentRequest[]) ?? [];
     },
     enabled: !!orgId,
   });
 
-  const openEdit = (e: any) => {
+  const openEdit = (e: EquipmentItem) => {
     setEditingEquip(e);
     setNewName(e.name); setNewType(e.type ?? ""); setNewSerial(e.serial_number ?? "");
     setNewHours(e.usage_hours?.toString() ?? ""); setNewMaintDate(e.next_maintenance_date ?? "");
@@ -109,16 +115,17 @@ const Equipment = () => {
   const saveEquipment = useMutation({
     mutationFn: async () => {
       if (!orgId || !user) throw new Error("Not authenticated");
-      const payload: any = {
+      const payload: Database["public"]["Tables"]["equipment"]["Insert"] = {
+        organization_id: orgId,
         name: newName, type: newType || null, serial_number: newSerial || null,
         usage_hours: newHours ? parseFloat(newHours) : 0, next_maintenance_date: newMaintDate || null,
-        status: newStatus as any,
+        status: newStatus as "available" | "in_use" | "maintenance" | "retired",
       };
       if (editingEquip) {
         const { error } = await supabase.from("equipment").update(payload).eq("id", editingEquip.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("equipment").insert({ ...payload, organization_id: orgId });
+        const { error } = await supabase.from("equipment").insert(payload);
         if (error) throw error;
       }
     },
@@ -127,7 +134,7 @@ const Equipment = () => {
       setAddOpen(false);
       queryClient.invalidateQueries({ queryKey: ["equipment"] });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const handleDelete = async () => {
@@ -138,19 +145,21 @@ const Equipment = () => {
       toast({ title: "Equipment deleted" });
       setDeleteTarget(null);
       queryClient.invalidateQueries({ queryKey: ["equipment"] });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
-      const { error } = await supabase.from("equipment").update({ status: status as any }).eq("id", id);
+      const { error } = await supabase.from("equipment").update({ status: status as "available" | "in_use" | "maintenance" | "retired" }).eq("id", id);
       if (error) throw error;
       toast({ title: `Status → ${status.replace("_", " ")}` });
       queryClient.invalidateQueries({ queryKey: ["equipment"] });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -168,7 +177,7 @@ const Equipment = () => {
       setRequestOpen(false); setRequestReason(""); setRequestProject(""); setSelectedEquipment(null);
       queryClient.invalidateQueries({ queryKey: ["equipment-requests"] });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const updateRequest = useMutation({
@@ -176,7 +185,13 @@ const Equipment = () => {
       const { error } = await supabase.from("equipment_requests").update({ status, reviewed_by: user?.id }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { toast({ title: "Request updated" }); queryClient.invalidateQueries({ queryKey: ["equipment-requests"] }); },
+    onSuccess: () => { 
+      toast({ title: "Request updated" }); 
+      queryClient.invalidateQueries({ queryKey: ["equipment-requests"] }); 
+      import("@/lib/pushNotifications").then(({ showNotification }) => {
+        showNotification("Equipment Request Updated", "The status of your equipment request has been changed.", { type: "equipment_update" });
+      });
+    },
   });
 
   const handlePrintSheet = async () => {
@@ -192,7 +207,7 @@ const Equipment = () => {
           { header: "Hours", dataKey: "hours" },
           { header: "Site", dataKey: "site" },
         ],
-        rows: equipment.map((e: any) => ({
+        rows: equipment.map((e: EquipmentItem) => ({
           name: e.name, type: e.type ?? "N/A", serial: e.serial_number ?? "N/A",
           status: e.status, hours: e.usage_hours ?? 0, site: e.projects?.name ?? "N/A",
         })),
@@ -203,9 +218,9 @@ const Equipment = () => {
 
   const stats = [
     { label: "Total", value: equipment.length, icon: Wrench },
-    { label: "In Use", value: equipment.filter((e: any) => e.status === "in_use").length, icon: MapPin },
-    { label: "Available", value: equipment.filter((e: any) => e.status === "available").length, icon: Clock },
-    { label: "Maintenance", value: equipment.filter((e: any) => e.status === "maintenance").length, icon: AlertCircle },
+    { label: "In Use", value: equipment.filter((e: EquipmentItem) => e.status === "in_use").length, icon: MapPin },
+    { label: "Available", value: equipment.filter((e: EquipmentItem) => e.status === "available").length, icon: Clock },
+    { label: "Maintenance", value: equipment.filter((e: EquipmentItem) => e.status === "maintenance").length, icon: AlertCircle },
   ];
 
   return (
@@ -266,8 +281,9 @@ const Equipment = () => {
                 <p className="text-xs text-muted-foreground">Currently: {selectedEquipment.status?.replace("_", " ")}</p>
               </div>
               <div className="space-y-2"><Label>Project (optional)</Label>
-                <Select value={requestProject} onValueChange={setRequestProject}><SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
-                  <SelectContent>{projects.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                <Select value={requestProject} onValueChange={setRequestProject}>
+                  <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
+                  <SelectContent>{projects.map((p: Project) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2"><Label>Reason</Label><Textarea value={requestReason} onChange={e => setRequestReason(e.target.value)} placeholder="Why?" rows={3} /></div>
@@ -295,23 +311,23 @@ const Equipment = () => {
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Escalate Request</DialogTitle></DialogHeader>
           {escalateRequest && (() => {
-            const project = projects.find((p: any) => p.id === escalateRequest.project_id);
+            const project = projects.find((p: Project) => p.id === escalateRequest.project_id);
             const teamIds = project ? [
               ...(project.project_head_id ? [project.project_head_id] : []),
               ...(Array.isArray(project.team_member_ids) ? (project.team_member_ids as string[]) : []),
             ].filter((id) => id !== escalateRequest.requested_by) : [];
-            const teamMembers = orgProfiles.filter((p: any) => teamIds.includes(p.user_id));
+            const teamMembers = orgProfiles.filter((p: OrgProfile) => teamIds.includes(p.user_id));
             return (
               <div className="space-y-4">
                 <div className="bg-muted/50 rounded-lg p-3">
                   <p className="text-sm font-medium">{escalateRequest.equipment?.name}</p>
-                  <p className="text-xs text-muted-foreground">Requested by: {orgProfiles.find((p: any) => p.user_id === escalateRequest.requested_by)?.full_name ?? "Unknown"}</p>
+                  <p className="text-xs text-muted-foreground">Requested by: {orgProfiles.find((p: OrgProfile) => p.user_id === escalateRequest.requested_by)?.full_name ?? "Unknown"}</p>
                   {escalateRequest.reason && <p className="text-xs text-muted-foreground mt-1">{escalateRequest.reason}</p>}
                 </div>
                 <p className="text-sm text-muted-foreground">The requester has not responded. You can contact other team members on this project:</p>
                 {teamMembers.length > 0 ? (
                   <div className="space-y-2">
-                    {teamMembers.map((m: any) => (
+                    {teamMembers.map((m: OrgProfile) => (
                       <div key={m.user_id} className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted/30">
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">{m.full_name}</p>
@@ -344,13 +360,13 @@ const Equipment = () => {
         </DialogContent>
       </Dialog>
 
-      {isAdmin && requests.filter((r: any) => r.status === "pending").length > 0 && (
+      {isAdmin && requests.filter((r: EquipmentRequest) => r.status === "pending").length > 0 && (
         <Card className="border-warning/30">
           <CardHeader className="pb-2"><CardTitle className="text-sm text-warning flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" /> Pending Requests ({requests.filter((r: any) => r.status === "pending").length})
+            <AlertCircle className="h-4 w-4" /> Pending Requests ({requests.filter((r: EquipmentRequest) => r.status === "pending").length})
           </CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            {requests.filter((r: any) => r.status === "pending").map((r: any) => {
+            {requests.filter((r: EquipmentRequest) => r.status === "pending").map((r: EquipmentRequest) => {
               const ageMs = Date.now() - new Date(r.created_at).getTime();
               const isStale = ageMs > 2 * 60 * 60 * 1000; // 2 hours old
               return (
@@ -380,7 +396,7 @@ const Equipment = () => {
 
       {isLoading && <p className="text-sm text-muted-foreground">Loading equipment...</p>}
       <div className="space-y-2">
-        {equipment.map((e: any) => (
+        {equipment.map((e: EquipmentItem) => (
           <Card key={e.id} className="hover:border-primary/20 transition-colors">
             <CardContent className="p-3 sm:p-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">

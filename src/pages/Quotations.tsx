@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { QuotationCard } from "@/components/quotations/QuotationCard";
+import { QuotationSummary } from "@/components/quotations/QuotationSummary";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -328,13 +330,14 @@ const Quotations = () => {
                     <div className="space-y-2"><Label>Labor (₦/m)</Label><Input type="number" value={laborCost} onChange={(e) => setLaborCost(Number(e.target.value))} /></div>
                     <div className="space-y-2"><Label>Transport (₦)</Label><Input type="number" value={transportCost} onChange={(e) => setTransportCost(Number(e.target.value))} /></div>
                   </div>
-                  <Card className="bg-muted/50 border-border/50"><CardContent className="pt-4 pb-4 space-y-1 text-sm">
-                    <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
-                    <div className="flex justify-between"><span>Labor</span><span>{formatCurrency(laborTotal)}</span></div>
-                    <div className="flex justify-between"><span>Transport</span><span>{formatCurrency(transportCost)}</span></div>
-                    <div className="flex justify-between"><span>Profit ({profitMargin}%)</span><span>{formatCurrency(profitAmount)}</span></div>
-                    <div className="flex justify-between font-bold text-base border-t border-border pt-2 mt-2"><span>Grand Total</span><span className="text-primary">{formatCurrency(grandTotal)}</span></div>
-                  </CardContent></Card>
+                  <QuotationSummary
+                    subtotal={subtotal}
+                    laborTotal={laborTotal}
+                    transportCost={transportCost}
+                    profitMargin={profitMargin}
+                    profitAmount={profitAmount}
+                    grandTotal={grandTotal}
+                  />
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</Button>
                     <Button variant="secondary" onClick={() => handleSave("draft")} disabled={saving}>Save Draft</Button>
@@ -384,35 +387,18 @@ const Quotations = () => {
           </CardContent></Card>
         )}
         {filtered.map((q: any) => (
-          <Card key={q.id} className="gsap-card border-border/50 hover:border-primary/20 transition-all">
-            <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0"><FileText className="h-5 w-5" /></div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-sm">{q.quotation_number}</p>
-                  <p className="text-xs text-muted-foreground truncate">{q.clients?.name ?? "No client"} · {new Date(q.created_at).toLocaleDateString()}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 sm:shrink-0">
-                <span className="font-bold text-sm">{formatCurrency(q.total_amount ?? 0)}</span>
-                <Badge variant={statusVariant[q.status] ?? "outline"} className="capitalize">{q.status}</Badge>
-                {canEdit && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEditQuotation(q)}><Pencil className="h-3.5 w-3.5 mr-2" />Edit</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handlePrint(q)}><FileText className="h-3.5 w-3.5 mr-2" />Download PDF</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      {allQStatuses.filter(s => s !== q.status).map(s => (
-                        <DropdownMenuItem key={s} onClick={() => handleStatusChange(q.id, s)} className="capitalize">{s}</DropdownMenuItem>
-                      ))}
-                      {canDelete && <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(q)}><Trash2 className="h-3.5 w-3.5 mr-2" />Delete</DropdownMenuItem></>}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <QuotationCard
+            key={q.id}
+            quotation={q}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            statusVariant={statusVariant}
+            allStatuses={allQStatuses}
+            onEdit={() => openEditQuotation(q)}
+            onPrint={() => handlePrint(q)}
+            onDelete={() => setDeleteTarget(q)}
+            onStatusChange={(s) => handleStatusChange(q.id, s)}
+          />
         ))}
       </div>
     </div>

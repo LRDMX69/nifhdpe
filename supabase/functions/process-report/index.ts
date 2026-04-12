@@ -1,15 +1,28 @@
+// @ts-expect-error
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-expect-error
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
+import { validateUser } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+interface ReportRecord {
+  organization_id: string;
+  report_date: string;
+  projects?: {
+    name: string;
+  };
+}
+
 async function callAI(systemPrompt: string, userMessage: string) {
+  // @ts-expect-error
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  // @ts-expect-error
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
   
   if (LOVABLE_API_KEY) {
@@ -54,7 +67,9 @@ serve(async (req: Request) => {
   try {
       const body = await req.json();
     const fieldReportId = body.field_report_id ?? body.reportId;
+    // @ts-expect-error
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    // @ts-expect-error
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     if (!fieldReportId) throw new Error("field_report_id or reportId required");
@@ -65,9 +80,43 @@ serve(async (req: Request) => {
 
     if (reportErr || !report) throw new Error("Report not found: " + (reportErr?.message ?? ""));
 
+    // Validate that the user is authorized for this organization
+    await validateUser(req, report.organization_id);
+
     const { data: photos } = await supabase.from("field_report_photos").select("*").eq("field_report_id", fieldReportId);
 
-    const prompt = `Structure this raw field report into a professional engineering report.\n\nPROJECT: ${report.projects?.name ?? "Unknown"}\nCLIENT: ${report.projects?.clients?.name ?? "Unknown"}\nDATE: ${report.report_date}\nCREW: ${report.crew_members ?? "Not specified"}\n\nRAW NOTES:\n${report.notes ?? report.tasks_completed ?? "No notes"}\n\nTASKS COMPLETED:\n${report.tasks_completed ?? "Not specified"}\n\nPRESSURE TEST: ${report.pressure_test_result ?? "Not recorded"}\nSAFETY INCIDENTS: ${report.safety_incidents ?? "None"}\nCLIENT FEEDBACK: ${report.client_feedback ?? "None"}\nPHOTOS: ${photos?.length ?? 0}\n\nGenerate:\n1. Executive Summary\n2. Work Completed\n3. Technical Observations\n4. Safety Status\n5. Issues & Recommendations\n6. Next Steps\n\nUse professional engineering language. Be concise.`;
+    const photoCount = photos?.length ?? 0;
+    const rawNotes = (report.notes ?? report.tasks_completed ?? "No notes").replace(/<\/?script/gi, "");
+    const tasks = (report.tasks_completed ?? "Not specified").replace(/<\/?script/gi, "");
+
+    const prompt = `Structure the following raw data into a professional engineering report for NIF Technical (Nigeria).
+
+[METADATA]
+PROJECT: ${report.projects?.name ?? "Unknown"}
+CLIENT: ${report.projects?.clients?.name ?? "Unknown"}
+DATE: ${report.report_date}
+CREW: ${report.crew_members ?? "Not specified"}
+PRESSURE TEST: ${report.pressure_test_result ?? "Not recorded"}
+SAFETY INCIDENTS: ${report.safety_incidents ?? "None"}
+CLIENT FEEDBACK: ${report.client_feedback ?? "None"}
+PHOTOS: ${photoCount}
+
+[RAW_USER_NOTES]
+${rawNotes}
+
+[USER_TASKS_COMPLETED]
+${tasks}
+
+[INSTRUCTIONS]
+Generate:
+1. Executive Summary
+2. Work Completed
+3. Technical Observations
+4. Safety Status
+5. Issues & Recommendations
+6. Next Steps
+
+Use professional engineering language. Be concise.`;
 
     const response = await callAI(
       "You are an AI report structuring assistant for NIF Technical, an HDPE pipe installation company in Nigeria.",
@@ -82,9 +131,10 @@ serve(async (req: Request) => {
 
     await supabase.from("structured_reports").insert({ field_report_id: fieldReportId, structured_content: structuredContent });
 
+    const rData = report as unknown as ReportRecord;
     await supabase.from("ai_summaries").insert({
-      organization_id: report.organization_id, context: "field_report",
-      summary: `📋 New Field Report Processed\n\nProject: ${report.projects?.name ?? "General"}\nDate: ${report.report_date}\n\n${structuredContent.substring(0, 400)}...`,
+      organization_id: rData.organization_id, context: "field_report",
+      summary: `📋 New Field Report Processed\n\nProject: ${rData.projects?.name ?? "General"}\nDate: ${rData.report_date}\n\n${structuredContent.substring(0, 400)}...`,
       metadata: { field_report_id: fieldReportId, processed_at: new Date().toISOString() },
     });
 
