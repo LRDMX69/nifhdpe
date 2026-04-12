@@ -5,6 +5,49 @@
  */
 
 let swRegistration: ServiceWorkerRegistration | null = null;
+import { supabase } from "@/integrations/supabase/client";
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+/** Subscribe the current user to push and store subscription server-side */
+export async function subscribeToPush(vapidPublicKey?: string, userId?: string, orgId?: string) {
+  try {
+    if (!swRegistration) return null;
+    if (!('PushManager' in window)) return null;
+    const existing = await swRegistration.pushManager.getSubscription();
+    if (existing) return existing;
+    if (!vapidPublicKey) vapidPublicKey = (import.meta as any).env?.VITE_VAPID_PUBLIC_KEY;
+    const sub = await swRegistration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey || ''),
+    });
+    // Store subscription to DB
+    try {
+      await supabase.from('push_subscriptions').upsert({
+        user_id: userId || null,
+        organization_id: orgId || null,
+        endpoint: sub.endpoint,
+        keys: sub.toJSON().keys,
+      }, { onConflict: ['endpoint'] });
+    } catch (e) {
+      // best-effort
+      console.warn('Failed to persist push subscription', e);
+    }
+    return sub;
+  } catch (e) {
+    console.warn('subscribeToPush failed', e);
+    return null;
+  }
+}
 
 /** Register the service worker */
 export async function registerServiceWorker(): Promise<boolean> {
@@ -100,7 +143,19 @@ export async function initPushNotifications(): Promise<void> {
       console.log("Notification permission:", permission);
     }
   }
-
+  // If permission already granted, attempt to subscribe and persist
+  if (Notification.permission === "granted") {
+    try {
+      // attempt to get current user from supabase client
+      const user = (await import("@/contexts/AuthContext"))?.useAuth?.()?.user;
+      const memberships = (await import("@/contexts/AuthContext"))?.useAuth?.()?.memberships;
+      const orgId = memberships?.[0]?.organization_id;
+      const sub = await subscribeToPush(undefined, user?.id, orgId);
+      if (!sub) console.debug('No push subscription created');
+    } catch (e) {
+      // ignore - best effort
+    }
+  }
   // Show any stored offline notifications
   const stored = getStoredNotifications();
   for (const n of stored) {

@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
+import { logger } from "../_shared/logger.ts";
+import { captureException, handleErrorResponse } from "../_shared/errorHandler.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -77,6 +79,35 @@ const RULE_FALLBACKS: Record<string, string> = {
   general: "NIF Technical Operations Assistant: System is currently in high-reliability mode. All operational data is being logged and audited. Please contact your department head for specific strategic guidance while AI is regenerating.",
 };
 
+// Basic request validation and sanitization utilities
+const ALLOWED_CONTEXTS = new Set(Object.keys(SYSTEM_PROMPTS));
+function sanitizePrompt(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  // Strip common prompt-injection patterns and long control sequences
+  let s = raw.replace(/```[\s\S]*?```/g, ""); // remove fenced blocks
+  s = s.replace(/(?:system|assistant|user)\s*:/gi, "");
+  // Collapse excessive whitespace and enforce length
+  s = s.replace(/\s+/g, " ").trim();
+  if (s.length === 0 || s.length > 5000) return null;
+  return s;
+}
+
+function validateRequestBody(body: any) {
+  if (!body || typeof body !== "object") return { ok: false, reason: "invalid_json" };
+  const { context, prompt, data } = body;
+  if (!context || typeof context !== "string" || !ALLOWED_CONTEXTS.has(context)) return { ok: false, reason: "invalid_context" };
+  const sanitizedPrompt = sanitizePrompt(prompt);
+  if (!sanitizedPrompt) return { ok: false, reason: "invalid_prompt" };
+  if (data !== undefined && typeof data !== "object") return { ok: false, reason: "invalid_data" };
+  try {
+    // Limit serialized data size to avoid huge payloads
+    const dataSize = data ? new TextEncoder().encode(JSON.stringify(data)).length : 0;
+    if (dataSize > 200_000) return { ok: false, reason: "data_too_large" };
+  } catch (_err) {
+    return { ok: false, reason: "invalid_data" };
+  }
+  return { ok: true, context, prompt: sanitizedPrompt, data };
+}
 async function callGemini(systemPrompt: string, userMessage: string, stream: boolean, context: string) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
@@ -97,9 +128,9 @@ async function callGemini(systemPrompt: string, userMessage: string, stream: boo
         }),
       });
       if (res.ok) return res;
-      console.warn(`Lovable AI gateway returned ${res.status}, trying fallback`);
+      logger.warn(`Lovable AI gateway returned ${res.status}, trying fallback`);
     } catch (err) {
-      console.error("Lovable AI gateway fetch error:", err);
+      logger.error("Lovable AI gateway fetch error:", err);
     }
   }
 
@@ -119,9 +150,9 @@ async function callGemini(systemPrompt: string, userMessage: string, stream: boo
         }),
       });
       if (res.ok) return res;
-      console.error(`Gemini API error: ${res.status} ${res.statusText}`);
+      logger.error(`Gemini API error: ${res.status} ${res.statusText}`);
     } catch (err) {
-      console.error("Gemini API fetch error:", err);
+      logger.error("Gemini API fetch error:", err);
     }
   }
 
@@ -159,8 +190,14 @@ serve(async (req) => {
   }
 
   try {
-    const { context, prompt, data } = await req.json();
+    const raw = await req.json();
+    const validation = validateRequestBody(raw);
+    if (!validation.ok) {
+      logger.warn("ai-assistant: invalid request", validation.reason);
+      return new Response(JSON.stringify({ error: "invalid_request", reason: validation.reason }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
+    const { context, prompt, data } = validation;
     const systemPrompt = SYSTEM_PROMPTS[context] || SYSTEM_PROMPTS.general;
     const userMessage = data
       ? `Here is the relevant data:\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\`\n\nUser query: ${prompt}`
@@ -177,10 +214,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
-    console.error("ai-assistant error:", e);
-    // Even in total catch block, try to provide a rule-based fallback if possible
-    return new Response(JSON.stringify({ error: "System encountered an error, but operational integrity is maintained. Please try again or use manual overrides." }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    await captureException(e, { fn: "ai-assistant" });
+    return handleErrorResponse(e);
   }
 });

@@ -80,6 +80,27 @@ const Messages = () => {
     return () => { supabase.removeChannel(channel); };
   }, [orgId, refetchMessages]);
 
+  // When the user opens the Messages page mark all their messages as read
+  useEffect(() => {
+    if (!user || !orgId) return;
+    (async () => {
+      try {
+        const { error } = await supabase
+          .from("messages")
+          .update({ is_read: true })
+          .eq("organization_id", orgId)
+          .eq("recipient_id", user.id)
+          .eq("is_read", false);
+        if (!error) {
+          queryClient.invalidateQueries({ queryKey: ["messages", orgId, user.id] });
+          queryClient.invalidateQueries({ queryKey: ["unread-msg-count", orgId, user?.id] });
+        }
+      } catch (e) {
+        // best effort
+      }
+    })();
+  }, [user, orgId, queryClient]);
+
   // Team members
   const { data: teamMembers = [] } = useQuery({
     queryKey: ["team-members-msg", orgId],

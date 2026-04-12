@@ -239,6 +239,28 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
     showSignature = true, senderName, senderDepartment, documentId, logoUrl,
   } = options;
 
+  // Try server-side enqueue first to avoid heavy client work.
+  try {
+    const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL;
+    const SUPABASE_PUB = (import.meta as any).env?.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (SUPABASE_URL && SUPABASE_PUB) {
+      const resp = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/generate-pdf`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_PUB}`,
+        },
+        body: JSON.stringify({ title, content, contentSections, tableData, stampType, showSignature, senderName, senderDepartment, documentId, logoUrl }),
+      });
+      if (resp.ok) {
+        // Job queued; return so client doesn't do heavy PDF work.
+        return;
+      }
+    }
+  } catch (e) {
+    // Best-effort: if server enqueue fails, continue with client generation
+  }
+
   let logoData: string | null = null;
   if (logoUrl) logoData = await loadImageAsBase64(logoUrl);
 
@@ -309,6 +331,29 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
         y += 5;
       }
       y += 2;
+    }
+    // If this section is an attachment and contains a URL, try to embed the image
+    if (section.heading && section.heading.toLowerCase().includes("attach") && section.body) {
+      const urlMatch = section.body.match(/https?:\/\/[^\s)]+/);
+      if (urlMatch) {
+        const imgUrl = urlMatch[0];
+        const imgData = await loadImageAsBase64(imgUrl);
+        if (imgData) {
+          y = checkPageBreak(doc, y, 40, margin);
+          // Fit image width to half content width
+          const imgW = Math.min(contentW / 2, 120);
+          const imgH = (imgW / 1.6);
+          try {
+            doc.addImage(imgData, 'JPEG', margin, y, imgW, imgH);
+            y += imgH + 6;
+          } catch (e) {
+            // fallback: add a note
+            doc.setFontSize(9);
+            doc.text("[Attachment could not be embedded]", margin, y);
+            y += 8;
+          }
+        }
+      }
     }
     if (section.bullets && section.bullets.length > 0) {
       doc.setFont("helvetica", "normal");

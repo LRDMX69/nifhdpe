@@ -53,8 +53,8 @@ export const ChatView = ({ recipientId, recipientName, recipientAvatar, recipien
     if (unread.length > 0) {
       const ids = unread.map((m: any) => m.id);
       supabase.from("messages").update({ is_read: true }).in("id", ids).then(() => {
-        queryClient.invalidateQueries({ queryKey: ["unread-notifications"] });
-        queryClient.invalidateQueries({ queryKey: ["messages"] });
+        queryClient.invalidateQueries({ queryKey: ["messages", orgId, user?.id] });
+        queryClient.invalidateQueries({ queryKey: ["unread-msg-count", orgId, user?.id] });
       });
     }
   }, [messages, user, queryClient]);

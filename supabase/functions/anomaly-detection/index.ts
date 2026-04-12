@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
+import { logger } from "../_shared/logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,9 +22,9 @@ async function callAI(systemPrompt: string, userMessage: string) {
     if (res.ok) return res;
     // If it's a 502 (gateway error), try fallback
     if (res.status === 502) {
-      console.warn("Lovable AI gateway returned 502, trying fallback");
+      logger.warn("Lovable AI gateway returned 502, trying fallback");
     } else {
-      console.error(`Lovable AI gateway error: ${res.status} ${res.statusText}`);
+      logger.error(`Lovable AI gateway error: ${res.status} ${res.statusText}`);
     }
   }
   
@@ -35,7 +36,7 @@ async function callAI(systemPrompt: string, userMessage: string) {
     });
     // Only return if truly successful
     if (res.ok) return res;
-    console.error(`Gemini API error: ${res.status} ${res.statusText}`);
+    logger.error(`Gemini API error: ${res.status} ${res.statusText}`);
   }
   
   throw new Error("No AI API key configured or all AI services failed (LOVABLE_API_KEY or GEMINI_API_KEY)");
@@ -78,7 +79,7 @@ serve(async (req: Request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("anomaly-detection error:", e);
+    logger.error("anomaly-detection error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
