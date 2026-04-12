@@ -38,7 +38,7 @@ async function callAI(systemPrompt: string, userMessage: string) {
   throw new Error("No AI API key configured or all AI services failed (LOVABLE_API_KEY or GEMINI_API_KEY)");
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   // Apply rate limiting (AI functions are expensive, use strict limits)
@@ -69,12 +69,12 @@ serve(async (req) => {
       });
     }
 
-    const messageIds = messages.map(m => m.id);
+    const messageIds = messages.map((m: any) => m.id);
     const { data: existingScans } = await supabase
       .from("message_risk_logs").select("message_id").in("message_id", messageIds);
 
-    const scannedIds = new Set((existingScans ?? []).map(s => s.message_id));
-    const unscanned = messages.filter(m => !scannedIds.has(m.id));
+    const scannedIds = new Set((existingScans ?? []).map((s: any) => s.message_id));
+    const unscanned = messages.filter((m: any) => !scannedIds.has(m.id));
 
     if (unscanned.length === 0) {
       return new Response(JSON.stringify({ success: true, scanned: 0, flagged: 0, note: "All recent messages already scanned" }), {
@@ -82,7 +82,7 @@ serve(async (req) => {
       });
     }
 
-    const messageBatch = unscanned.map(m => ({ id: m.id, body: m.body.substring(0, 500), type: m.message_type, time: m.created_at }));
+    const messageBatch = unscanned.map((m: any) => ({ id: m.id, body: m.body.substring(0, 500), type: m.message_type, time: m.created_at }));
 
     const aiPrompt = `Analyze these ${messageBatch.length} internal messages for risk.\n\nMESSAGES:\n${JSON.stringify(messageBatch, null, 2)}\n\nEvaluate for: fraud, coercion, data exfiltration, policy violations, safety risks.\n\nReturn ONLY a JSON array:\n[{"id":"<message_id>","risk_score":<0-100>,"risk_category":"<fraud|coercion|data_leak|policy_violation|safety|none>","flagged_content":"<phrase or null>","details":"<explanation or null>"}]\n\nOnly flag risk_score >= 30. Valid JSON only, no markdown.`;
 
@@ -91,7 +91,9 @@ serve(async (req) => {
       aiPrompt
     );
 
-    if (!response.ok) throw new Error(`AI API error: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`AI API error: ${response.status}`);
+    }
     const result = await response.json();
     const aiContent = result.choices?.[0]?.message?.content ?? "[]";
 

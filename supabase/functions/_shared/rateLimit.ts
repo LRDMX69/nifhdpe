@@ -84,7 +84,7 @@ export function checkRateLimit(
   if (Math.random() < 0.01) {
     cleanupExpiredEntries();
   }
-  
+
   let entry = rateLimitStore.get(key);
   
   // If no entry or entry expired, create new one

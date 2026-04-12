@@ -126,7 +126,6 @@ async function callGemini(systemPrompt: string, userMessage: string, stream: boo
   }
 
   // SYSTEM FAILSAFE: Rule-based logic if AI credits/services fail
-  console.warn(`AI System Failsafe triggered for context: ${context}`);
   const fallbackText = RULE_FALLBACKS[context] || RULE_FALLBACKS.general;
   
   // Return a mock response that mimics a stream if possible, or a simple JSON

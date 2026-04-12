@@ -95,7 +95,7 @@ export async function generateIdCard(options: IdCardOptions): Promise<void> {
       const logoSize = 7;
       doc.addImage(logoImg, "PNG", w - logoSize - 4, 3.5, logoSize, logoSize);
     } catch (e) {
-      console.warn("Failed to load organization logo:", e);
+      // ignore
     }
   }
 

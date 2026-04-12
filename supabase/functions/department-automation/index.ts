@@ -39,7 +39,7 @@ async function callAI(systemPrompt: string, userMessage: string) {
   throw new Error("No AI API key configured or all AI services failed (LOVABLE_API_KEY or GEMINI_API_KEY)");
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   // Apply rate limiting (AI functions are expensive, use strict limits)
@@ -65,7 +65,7 @@ serve(async (req) => {
           supabase.from("expenses").select("*").eq("organization_id", organization_id).gte("date", new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0]),
           supabase.from("worker_claims").select("*").eq("organization_id", organization_id).eq("status", "pending"),
         ]);
-        const totalExp = (expenses.data ?? []).reduce((s, e) => s + Number(e.amount), 0);
+        const totalExp = (expenses.data ?? []).reduce((s: number, e: any) => s + Number(e.amount), 0);
         prompt = `Analyze NIF Technical finance data (7 days):\n- Expenses: ₦${totalExp.toLocaleString()} across ${expenses.data?.length ?? 0} entries\n- Pending claims: ${claims.data?.length ?? 0}\n\nProvide: 1) Spending trends 2) Cost-saving suggestions 3) Anomaly flags 4) Cash flow status. Be concise, use ₦. No markdown.`;
         metadata = { expenses: expenses.data?.length, claims: claims.data?.length };
         break;
@@ -75,7 +75,7 @@ serve(async (req) => {
           supabase.from("attendance").select("*").eq("organization_id", organization_id).gte("date", new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0]),
           supabase.from("leave_requests").select("*").eq("organization_id", organization_id).gte("created_at", sevenDaysAgo),
         ]);
-        const lateCount = (attendance.data ?? []).filter(a => a.check_in && new Date(a.check_in).getHours() >= 9).length;
+        const lateCount = (attendance.data ?? []).filter((a: any) => a.check_in && new Date(a.check_in).getHours() >= 9).length;
         prompt = `Analyze NIF Technical HR data (7 days):\n- Total attendance records: ${attendance.data?.length ?? 0}\n- Late arrivals: ${lateCount}\n- Leave requests: ${leaves.data?.length ?? 0}\n\nProvide: 1) Attendance trends 2) Punctuality concerns 3) Leave patterns 4) Recommendations. No markdown.`;
         metadata = { attendance: attendance.data?.length, leaves: leaves.data?.length, late: lateCount };
         break;
@@ -85,8 +85,8 @@ serve(async (req) => {
           supabase.from("inventory").select("*").eq("organization_id", organization_id),
           supabase.from("equipment").select("*").eq("organization_id", organization_id),
         ]);
-        const lowStock = (inventory.data ?? []).filter(i => Number(i.quantity_meters ?? 0) < Number(i.min_stock_level ?? 10));
-        const totalValue = (inventory.data ?? []).reduce((s, i) => s + Number(i.quantity_meters ?? 0) * Number(i.unit_cost ?? 0), 0);
+        const lowStock = (inventory.data ?? []).filter((i: any) => Number(i.quantity_meters ?? 0) < Number(i.min_stock_level ?? 10));
+        const totalValue = (inventory.data ?? []).reduce((s: number, i: any) => s + Number(i.quantity_meters ?? 0) * Number(i.unit_cost ?? 0), 0);
         prompt = `Analyze NIF Technical warehouse data:\n- Total items: ${inventory.data?.length ?? 0}\n- Low stock items: ${lowStock.length}\n- Total inventory value: ₦${totalValue.toLocaleString()}\n- Equipment: ${equipmentData.data?.length ?? 0}\n\nProvide: 1) Stock health 2) Reorder recommendations 3) Equipment status 4) Optimization suggestions. No markdown.`;
         metadata = { items: inventory.data?.length, low_stock: lowStock.length, equipment: equipmentData.data?.length };
         break;
@@ -102,15 +102,15 @@ serve(async (req) => {
         // Compliance expiry alerts
         const today = new Date();
         const thirtyDaysFromNow = new Date(Date.now() + 30 * 86400000);
-        const expiringDocs = (complianceData.data ?? []).filter(d => d.expiry_date && new Date(d.expiry_date) <= thirtyDaysFromNow && new Date(d.expiry_date) > today);
-        const expiredDocs = (complianceData.data ?? []).filter(d => d.expiry_date && new Date(d.expiry_date) <= today);
+        const expiringDocs = (complianceData.data ?? []).filter((d: any) => d.expiry_date && new Date(d.expiry_date) <= thirtyDaysFromNow && new Date(d.expiry_date) > today);
+        const expiredDocs = (complianceData.data ?? []).filter((d: any) => d.expiry_date && new Date(d.expiry_date) <= today);
         
         // Log compliance expiry alerts
         if (expiringDocs.length > 0) {
           await supabase.from("ai_intelligence_logs").insert({
             organization_id, category: "compliance", severity: "warning",
             title: `${expiringDocs.length} compliance doc(s) expiring within 30 days`,
-            details: expiringDocs.map(d => `${d.title} expires ${d.expiry_date}`).join("; "),
+            details: expiringDocs.map((d: any) => `${d.title} expires ${d.expiry_date}`).join("; "),
             source_table: "compliance_documents",
           });
         }
@@ -118,13 +118,13 @@ serve(async (req) => {
           await supabase.from("ai_intelligence_logs").insert({
             organization_id, category: "compliance", severity: "critical",
             title: `${expiredDocs.length} compliance doc(s) EXPIRED`,
-            details: expiredDocs.map(d => `${d.title} expired ${d.expiry_date}`).join("; "),
+            details: expiredDocs.map((d: any) => `${d.title} expired ${d.expiry_date}`).join("; "),
             source_table: "compliance_documents",
           });
         }
 
         // Delivery delay prediction
-        const overdueDeliveries = (deliveriesData.data ?? []).filter(d => {
+        const overdueDeliveries = (deliveriesData.data ?? []).filter((d: any) => {
           const deliveryDate = new Date(d.delivery_date);
           return deliveryDate < today && d.status !== "delivered" && d.status !== "cancelled";
         });
@@ -132,13 +132,13 @@ serve(async (req) => {
           await supabase.from("ai_intelligence_logs").insert({
             organization_id, category: "logistics", severity: "warning",
             title: `${overdueDeliveries.length} overdue delivery(ies)`,
-            details: overdueDeliveries.map(d => `${d.destination} was due ${d.delivery_date}`).join("; "),
+            details: overdueDeliveries.map((d: any) => `${d.destination} was due ${d.delivery_date}`).join("; "),
             source_table: "deliveries",
           });
         }
 
         // Project deadline risk prediction
-        const atRiskProjects = (projectsData.data ?? []).filter(p => {
+        const atRiskProjects = (projectsData.data ?? []).filter((p: any) => {
           if (!p.end_date) return false;
           const daysLeft = (new Date(p.end_date).getTime() - today.getTime()) / 86400000;
           const progressNeeded = 100 - (p.progress_percent ?? 0);
@@ -148,7 +148,7 @@ serve(async (req) => {
           await supabase.from("ai_intelligence_logs").insert({
             organization_id, category: "projects", severity: "warning",
             title: `${atRiskProjects.length} project(s) at risk of missing deadline`,
-            details: atRiskProjects.map(p => `${p.name}: ${p.progress_percent ?? 0}% done, due ${p.end_date}`).join("; "),
+            details: atRiskProjects.map((p: any) => `${p.name}: ${p.progress_percent ?? 0}% done, due ${p.end_date}`).join("; "),
             source_table: "projects",
           });
         }
@@ -168,15 +168,18 @@ serve(async (req) => {
       prompt
     );
 
-    let summary = "Analysis complete. No AI summary generated.";
-    if (response.ok) {
-      const result = await response.json();
-      summary = result.choices?.[0]?.message?.content ?? summary;
-    } else if (response.status === 429) {
-      return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    } else if (response.status === 402) {
-      return new Response(JSON.stringify({ error: "Payment required, please add credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "Payment required, please add credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      throw new Error(`AI API error: ${response.status}`);
     }
+
+    const result = await response.json();
+    const summary = result.choices?.[0]?.message?.content ?? "Analysis complete. No AI summary generated.";
 
     await supabase.from("ai_summaries").insert({ organization_id, context, summary, metadata });
 

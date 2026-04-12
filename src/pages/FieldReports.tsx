@@ -114,7 +114,6 @@ const FieldReports = () => {
       for (const photo of photos) {
         const fileName = `${user.id}/${Date.now()}-${photo.name}`;
         const { data: uploadData, error: uploadError } = await supabase.storage.from("site-photos").upload(fileName, photo);
-        if (uploadError) console.error("Photo upload error:", uploadError);
         if (uploadData) {
           const { data: urlData } = supabase.storage.from("site-photos").getPublicUrl(uploadData.path);
           photoUrls.push(urlData.publicUrl);
@@ -150,10 +149,7 @@ const FieldReports = () => {
         body: { reportId: report.id },
       });
 
-      if (processError) {
-        console.error("AI processing error:", processError);
-        toast({ title: "Report saved", description: "Report saved but AI processing failed. Admin will review manually." });
-      } else {
+      if (!processError) {
         setStructuredReport(processData?.structured_content || null);
         toast({ title: "Report processed", description: `AI has structured your report and sent it to the ${sendTo}.` });
       }

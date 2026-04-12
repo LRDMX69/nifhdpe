@@ -16,12 +16,10 @@ export async function registerServiceWorker(): Promise<boolean> {
   const isInIframe = (() => { try { return window.self !== window.top; } catch { return true; } })();
   const isPreview = window.location.hostname.includes("id-preview--") || window.location.hostname.includes("lovableproject.com");
   if (isInIframe || isPreview) {
-    console.log("SW registration skipped (preview/iframe context)");
     return false;
   }
   try {
     swRegistration = await navigator.serviceWorker.register("/sw.js");
-    console.log("SW registered:", swRegistration.scope);
     return true;
   } catch (err) {
     console.error("SW registration failed:", err);

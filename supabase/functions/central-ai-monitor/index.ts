@@ -49,7 +49,7 @@ async function callAI(systemPrompt: string, userMessage: string) {
   throw new Error("No AI API key configured or all AI services failed (LOVABLE_API_KEY or GEMINI_API_KEY)");
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   // Apply rate limiting (AI functions are expensive, use strict limits)
@@ -91,13 +91,13 @@ serve(async (req) => {
       logs.push({ organization_id, category: "attendance", severity: "warning", title: `High absenteeism: ${absenteeRate.toFixed(0)}% absent today`, details: `Only ${attendanceCount} of ${memberCount} members checked in.`, source_table: "attendance", metadata: { absent_rate: absenteeRate, checked_in: attendanceCount, total: memberCount } });
     }
 
-    const lateCheckins = (attendance.data ?? []).filter(a => a.check_in && new Date(a.check_in).getHours() >= 9);
+    const lateCheckins = (attendance.data ?? []).filter((a: any) => a.check_in && new Date(a.check_in).getHours() >= 9);
     if (lateCheckins.length > 2) {
       logs.push({ organization_id, category: "attendance", severity: "info", title: `${lateCheckins.length} late check-ins today`, details: `${lateCheckins.length} workers checked in after 9 AM.`, source_table: "attendance" });
     }
 
     // --- Safety incidents ---
-    const safetyReports = (reports.data ?? []).filter(r => r.safety_incidents && r.safety_incidents.trim().length > 0 && r.safety_incidents.toLowerCase() !== "none");
+    const safetyReports = (reports.data ?? []).filter((r: any) => r.safety_incidents && r.safety_incidents.trim().length > 0 && r.safety_incidents.toLowerCase() !== "none");
     if (safetyReports.length > 0) {
       logs.push({ organization_id, category: "safety", severity: "critical", title: `${safetyReports.length} safety incident(s) in last 3 days`, details: safetyReports.map(r => r.safety_incidents).join("; ").substring(0, 500), source_table: "field_reports" });
     }
@@ -173,11 +173,12 @@ serve(async (req) => {
       aiPrompt
     );
 
-    let aiSummary = "Monitoring complete. No AI summary generated.";
-    if (response.ok) {
-      const result = await response.json();
-      aiSummary = result.choices?.[0]?.message?.content ?? aiSummary;
+    if (!response.ok) {
+      throw new Error(`AI API error: ${response.status}`);
     }
+
+    const result = await response.json();
+    const aiSummary = result.choices?.[0]?.message?.content ?? "Monitoring complete. No AI summary generated.";
 
     await supabase.from("ai_summaries").insert({
       organization_id, context: "central_ai", summary: aiSummary,

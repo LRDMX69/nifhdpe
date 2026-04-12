@@ -41,7 +41,7 @@ async function callAI(systemPrompt: string, userMessage: string) {
   throw new Error("No AI API key configured or all AI services failed (LOVABLE_API_KEY or GEMINI_API_KEY)");
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   // Apply rate limiting (AI functions are expensive, use strict limits)
@@ -63,7 +63,9 @@ serve(async (req) => {
 
     const response = await callAI("You are an AI financial anomaly detector for NIF Technical, an HDPE pipe company in Nigeria.", prompt);
 
-    if (!response.ok) throw new Error(`AI error: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`AI API error: ${response.status}`);
+    }
     const result = await response.json();
     const summary = result.choices?.[0]?.message?.content ?? "Analysis failed";
 
