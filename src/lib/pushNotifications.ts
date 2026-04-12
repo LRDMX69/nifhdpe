@@ -44,8 +44,8 @@ export async function showNotification(title: string, body: string, data?: Recor
     try {
       await swRegistration.showNotification(title, {
         body,
-        icon: "/placeholder.svg",
-        badge: "/placeholder.svg",
+        icon: "/nif-logo.png",
+        badge: "/icon-192.png",
         data,
       } as NotificationOptions);
       return true;
@@ -57,7 +57,7 @@ export async function showNotification(title: string, body: string, data?: Recor
   // Fallback: basic Notification API
   if ("Notification" in window && Notification.permission === "granted") {
     try {
-      new Notification(title, { body, icon: "/placeholder.svg" });
+      new Notification(title, { body, icon: "/nif-logo.png" });
       return true;
     } catch (e) {
       console.warn("Notification API failed:", e);

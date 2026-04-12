@@ -217,6 +217,22 @@ function parseContentIntoSections(content: string): ContentSection[] {
   return sections.length > 0 ? sections : [{ body: clean }];
 }
 
+async function loadImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, { mode: "cors" });
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function generatePdf(options: PdfOptions): Promise<void> {
   const {
     title, content, contentSections, tableData, stampType,
