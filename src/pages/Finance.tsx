@@ -20,6 +20,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { stripMarkdown } from "@/lib/stripMarkdown";
+import type { Database } from "@/integrations/supabase/types";
+
+type ExpenseItem = Database["public"]["Tables"]["expenses"]["Row"];
+type PaymentItem = Database["public"]["Tables"]["worker_payments"]["Row"];
+type QuotationItem = { total_amount: number | null; created_at: string };
 
 const PAYMENT_TYPES = ["salary", "overtime", "fuel", "maintenance", "bonus", "transport", "vendor"] as const;
 const EXPENSE_CATEGORIES = ["labor", "fuel", "transport", "materials", "equipment", "other"] as const;
@@ -32,8 +37,8 @@ const Finance = () => {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: "expense" | "payment" } | null>(null);
-  const [editingExpense, setEditingExpense] = useState<any>(null);
-  const [editingPayment, setEditingPayment] = useState<any>(null);
+  const [editingExpense, setEditingExpense] = useState<ExpenseItem | null>(null);
+  const [editingPayment, setEditingPayment] = useState<PaymentItem | null>(null);
   const containerRef = useGsapAnimation("slideUp");
 
   // Payment form
@@ -69,7 +74,7 @@ const Finance = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("worker_payments").select("*").eq("organization_id", orgId).order("date", { ascending: false }).limit(100);
-      return data ?? [];
+      return (data as PaymentItem[]) ?? [];
     },
     enabled: !!orgId,
   });
@@ -79,7 +84,7 @@ const Finance = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("expenses").select("*").eq("organization_id", orgId).order("date", { ascending: false }).limit(100);
-      return data ?? [];
+      return (data as ExpenseItem[]) ?? [];
     },
     enabled: !!orgId,
   });
@@ -89,7 +94,7 @@ const Finance = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("quotations").select("total_amount, created_at").eq("organization_id", orgId).eq("status", "accepted");
-      return data ?? [];
+      return (data as unknown as QuotationItem[]) ?? [];
     },
     enabled: !!orgId,
   });
@@ -103,19 +108,19 @@ const Finance = () => {
   });
 
   const financials = useMemo(() => {
-    const totalRevenue = acceptedQuotations.reduce((s: number, q: any) => s + Number(q.total_amount ?? 0), 0);
-    const totalExpenses = expenses.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
-    const totalPayments = payments.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0);
+    const totalRevenue = acceptedQuotations.reduce((s: number, q: QuotationItem) => s + Number(q.total_amount ?? 0), 0);
+    const totalExpenses = expenses.reduce((s: number, e: ExpenseItem) => s + Number(e.amount ?? 0), 0);
+    const totalPayments = payments.reduce((s: number, p: PaymentItem) => s + Number(p.amount ?? 0), 0);
     const netProfit = totalRevenue - totalExpenses - totalPayments;
 
     const monthlyMap = new Map<string, { revenue: number; expenses: number }>();
-    acceptedQuotations.forEach((q: any) => {
+    acceptedQuotations.forEach((q: QuotationItem) => {
       const month = new Date(q.created_at).toLocaleString("en", { month: "short" });
       const entry = monthlyMap.get(month) ?? { revenue: 0, expenses: 0 };
       entry.revenue += Number(q.total_amount ?? 0);
       monthlyMap.set(month, entry);
     });
-    expenses.forEach((e: any) => {
+    expenses.forEach((e: ExpenseItem) => {
       const month = new Date(e.date).toLocaleString("en", { month: "short" });
       const entry = monthlyMap.get(month) ?? { revenue: 0, expenses: 0 };
       entry.expenses += Number(e.amount ?? 0);
@@ -131,13 +136,13 @@ const Finance = () => {
   const resetPaymentForm = () => { setPayType(""); setPayAmount(""); setPayDesc(""); setPayUserId(""); setPayDate(new Date().toISOString().split("T")[0]); setEditingPayment(null); };
   const resetExpenseForm = () => { setExpCategory(""); setExpAmount(""); setExpDesc(""); setExpDate(new Date().toISOString().split("T")[0]); setEditingExpense(null); };
 
-  const openEditPayment = (p: any) => {
+  const openEditPayment = (p: PaymentItem) => {
     setEditingPayment(p); setPayType(p.type); setPayAmount(p.amount.toString());
     setPayDesc(p.description ?? ""); setPayDate(p.date); setPayUserId(p.user_id ?? "");
     setPaymentOpen(true);
   };
 
-  const openEditExpense = (e: any) => {
+  const openEditExpense = (e: ExpenseItem) => {
     setEditingExpense(e); setExpCategory(e.category); setExpAmount(e.amount.toString());
     setExpDesc(e.description ?? ""); setExpDate(e.date);
     setExpenseOpen(true);
@@ -147,23 +152,25 @@ const Finance = () => {
     if (!payType || !payAmount || !user || !orgId) return;
     setSaving(true);
     try {
-      const payload: any = {
+      const payload: Database["public"]["Tables"]["worker_payments"]["Insert"] = {
+        organization_id: orgId, created_by: user.id,
         type: payType as any, amount: parseFloat(payAmount),
         description: payDesc || null, date: payDate, user_id: payUserId || null,
       };
       if (editingPayment) {
-        const { error } = await supabase.from("worker_payments").update(payload).eq("id", editingPayment.id);
+        const { error } = await supabase.from("worker_payments").update(payload as Database["public"]["Tables"]["worker_payments"]["Update"]).eq("id", editingPayment.id);
         if (error) throw error;
         toast({ title: "Payment updated" });
       } else {
-        const { error } = await supabase.from("worker_payments").insert({ ...payload, organization_id: orgId, created_by: user.id });
+        const { error } = await supabase.from("worker_payments").insert(payload);
         if (error) throw error;
         toast({ title: "Payment logged" });
         supabase.functions.invoke("anomaly-detection", { body: { organization_id: orgId } }).catch(console.error);
       }
       setPaymentOpen(false); resetPaymentForm(); refetchPayments();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally { setSaving(false); }
   };
 
@@ -171,22 +178,24 @@ const Finance = () => {
     if (!expCategory || !expAmount || !user || !orgId) return;
     setSaving(true);
     try {
-      const payload: any = {
+      const payload: Database["public"]["Tables"]["expenses"]["Insert"] = {
+        organization_id: orgId, created_by: user.id,
         category: expCategory as any, amount: parseFloat(expAmount),
         description: expDesc || null, date: expDate,
       };
       if (editingExpense) {
-        const { error } = await supabase.from("expenses").update(payload).eq("id", editingExpense.id);
+        const { error } = await supabase.from("expenses").update(payload as Database["public"]["Tables"]["expenses"]["Update"]).eq("id", editingExpense.id);
         if (error) throw error;
         toast({ title: "Expense updated" });
       } else {
-        const { error } = await supabase.from("expenses").insert({ ...payload, organization_id: orgId, created_by: user.id });
+        const { error } = await supabase.from("expenses").insert(payload);
         if (error) throw error;
         toast({ title: "Expense logged" });
       }
       setExpenseOpen(false); resetExpenseForm(); refetchExpenses();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally { setSaving(false); }
   };
 
@@ -199,8 +208,9 @@ const Finance = () => {
       toast({ title: `${deleteTarget.type === "expense" ? "Expense" : "Payment"} deleted` });
       setDeleteTarget(null);
       if (deleteTarget.type === "expense") refetchExpenses(); else refetchPayments();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -224,13 +234,13 @@ const Finance = () => {
           { header: "Description", dataKey: "description" },
           { header: "Amount (₦)", dataKey: "amount" },
         ],
-        rows: expenses.slice(0, 50).map((e: any) => ({
+        rows: expenses.slice(0, 50).map((e: ExpenseItem) => ({
           date: e.date, category: e.category,
           description: e.description || "—",
           amount: Number(e.amount).toLocaleString(),
         })),
         summary: [
-          { label: "Total Expenses", value: formatCurrency(expenses.reduce((s: number, e: any) => s + Number(e.amount), 0)) },
+          { label: "Total Expenses", value: formatCurrency(expenses.reduce((s: number, e: ExpenseItem) => s + Number(e.amount), 0)) },
         ],
       } : undefined,
       stampType: "finance",
@@ -364,7 +374,7 @@ const Finance = () => {
                     <TableHead>Date</TableHead><TableHead>Category</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-[40px]"></TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
-                    {expenses.map((e: any) => (
+                    {expenses.map((e: ExpenseItem) => (
                       <TableRow key={e.id}>
                         <TableCell className="text-sm">{e.date}</TableCell>
                         <TableCell><Badge variant="outline" className="capitalize">{e.category}</Badge></TableCell>
@@ -400,7 +410,7 @@ const Finance = () => {
                     <TableHead>Date</TableHead><TableHead>Employee</TableHead><TableHead>Type</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-[40px]"></TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
-                    {payments.map((p: any) => (
+                    {payments.map((p: PaymentItem) => (
                       <TableRow key={p.id}>
                         <TableCell className="text-sm">{p.date}</TableCell>
                         <TableCell className="text-sm">{p.user_id ? getMemberName(p.user_id) : "—"}</TableCell>

@@ -17,6 +17,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAiAssistant } from "@/hooks/useAiAssistant";
+import type { Database } from "@/integrations/supabase/types";
+
+type OpportunityItem = Database["public"]["Tables"]["opportunities"]["Row"];
 
 const statusColors: Record<string, string> = {
   identified: "bg-blue-500/10 text-blue-400 border-blue-500/20",
@@ -31,7 +34,7 @@ const Opportunities = () => {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("all");
   const [scanning, setScanning] = useState(false);
-  const [viewingOpp, setViewingOpp] = useState<any>(null);
+  const [viewingOpp, setViewingOpp] = useState<OpportunityItem | null>(null);
   const { response: proposalEmail, loading: generatingEmail, error: emailError, ask: askAi, reset: resetAi } = useAiAssistant({ context: "opportunities" });
   const containerRef = useGsapAnimation("slideUp");
 
@@ -43,12 +46,11 @@ const Opportunities = () => {
 
   const { data: opportunities = [], refetch } = useQuery({
     queryKey: ["opportunities"],
-    queryFn: async () => {
       const { data } = await supabase
         .from("opportunities")
         .select("*")
         .order("relevance_score", { ascending: false, nullsFirst: false });
-      return data ?? [];
+      return (data as OpportunityItem[]) ?? [];
     },
   });
 
@@ -65,10 +67,10 @@ const Opportunities = () => {
     },
   });
 
-  const filtered = filter === "all" ? opportunities : opportunities.filter((o: any) => o.status === filter);
-  const totalValue = opportunities.reduce((s: number, o: any) => s + (o.estimated_value || 0), 0);
-  const activeBids = opportunities.filter((o: any) => o.status === "bidding").length;
-  const wonCount = opportunities.filter((o: any) => o.status === "won").length;
+  const filtered = filter === "all" ? opportunities : opportunities.filter((o) => o.status === filter);
+  const totalValue = opportunities.reduce((s: number, o) => s + (o.estimated_value || 0), 0);
+  const activeBids = opportunities.filter((o) => o.status === "bidding").length;
+  const wonCount = opportunities.filter((o) => o.status === "won").length;
 
   const handleRefreshIntelligence = async () => {
     setScanning(true);
@@ -97,8 +99,9 @@ const Opportunities = () => {
       setOpen(false);
       setTitle(""); setSource(""); setValue(""); setDeadline(""); setDescription("");
       refetch();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -134,12 +137,12 @@ const Opportunities = () => {
                     { header: "Value (₦)", dataKey: "value" },
                     { header: "Deadline", dataKey: "deadline" },
                   ],
-                  rows: opportunities.map(o => ({
-                    title: (o as any).title,
-                    source: (o as any).source || "—",
-                    status: (o as any).status || "—",
-                    value: (o as any).estimated_value ? Number((o as any).estimated_value).toLocaleString() : "TBD",
-                    deadline: (o as any).deadline || "—",
+                  rows: (opportunities as OpportunityItem[]).map((o) => ({
+                    title: o.title,
+                    source: o.source || "—",
+                    status: o.status || "—",
+                    value: o.estimated_value ? Number(o.estimated_value).toLocaleString() : "TBD",
+                    deadline: o.deadline || "—",
                   })),
                   summary: [
                     { label: "Total Opportunities", value: String(opportunities.length) },

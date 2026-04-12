@@ -17,6 +17,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
+
+type InventoryItem = Database["public"]["Tables"]["inventory"]["Row"] & { 
+  storage_locations?: { name: string } | null;
+  storage_boxes?: { box_code: string; label: string | null } | null;
+};
+type StorageLocation = Database["public"]["Tables"]["storage_locations"]["Row"];
+type StorageBox = Database["public"]["Tables"]["storage_boxes"]["Row"] & {
+  storage_locations?: { name: string } | null;
+};
 
 const Inventory = () => {
   const { user, memberships, activeRole } = useAuth();
@@ -27,7 +37,7 @@ const Inventory = () => {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const listRef = useGsapStagger(".gsap-card", 0.05);
@@ -59,7 +69,7 @@ const Inventory = () => {
       if (!orgId) return [];
       const { data, error } = await supabase.from("inventory").select("*, storage_locations(name), storage_boxes(box_code, label)").eq("organization_id", orgId).order("item_name");
       if (error) throw error;
-      return data ?? [];
+      return (data as unknown as InventoryItem[]) ?? [];
     },
     enabled: !!orgId,
   });
@@ -69,7 +79,7 @@ const Inventory = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("storage_locations").select("*").eq("organization_id", orgId).order("name");
-      return data ?? [];
+      return (data as StorageLocation[]) ?? [];
     },
     enabled: !!orgId,
   });
@@ -79,7 +89,7 @@ const Inventory = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("storage_boxes").select("*, storage_locations(name)").eq("organization_id", orgId).order("box_code");
-      return data ?? [];
+      return (data as unknown as StorageBox[]) ?? [];
     },
     enabled: !!orgId,
   });
@@ -91,7 +101,7 @@ const Inventory = () => {
     setEditingItem(null);
   };
 
-  const openEdit = (item: any) => {
+  const openEdit = (item: InventoryItem) => {
     setEditingItem(item);
     setItemName(item.item_name);
     setItemType(item.item_type || "hdpe");
@@ -111,7 +121,7 @@ const Inventory = () => {
     if (!orgId || !user || !itemName.trim()) return;
     setSaving(true);
     try {
-      const payload: any = {
+      const payload: Database["public"]["Tables"]["inventory"]["Insert"] = {
         organization_id: orgId,
         item_name: itemName.trim(),
         item_type: (itemType || "hdpe"),
@@ -125,7 +135,7 @@ const Inventory = () => {
         box_id: boxId && boxId !== "none" ? boxId : null,
       };
       if (editingItem) {
-        const { error } = await supabase.from("inventory").update(payload).eq("id", editingItem.id);
+        const { error } = await supabase.from("inventory").update(payload as Database["public"]["Tables"]["inventory"]["Update"]).eq("id", editingItem.id);
         if (error) throw error;
         toast({ title: "Item updated" });
       } else {
@@ -136,8 +146,9 @@ const Inventory = () => {
       resetForm();
       setDialogOpen(false);
       refetch();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -171,23 +182,26 @@ const Inventory = () => {
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       setDeleteTarget(null);
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: unknown) => {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
   });
 
-  const filtered = inventory.filter((item: any) => {
+  const filtered = inventory.filter((item: InventoryItem) => {
     const matchesSearch = item.item_name.toLowerCase().includes(search.toLowerCase()) || (item.supplier ?? "").toLowerCase().includes(search.toLowerCase());
     const matchesType = typeFilter === "all" || item.item_type === typeFilter;
     return matchesSearch && matchesType;
   });
 
-  const lowStockCount = inventory.filter((i: any) => (i.quantity_meters ?? 0) < (i.min_stock_level ?? 0)).length;
-  const totalValue = inventory.reduce((s: number, i: any) => s + (i.quantity_meters ?? 0) * (i.unit_cost ?? 0), 0);
+  const lowStockCount = inventory.filter((i: InventoryItem) => (i.quantity_meters ?? 0) < (i.min_stock_level ?? 0)).length;
+  const totalValue = inventory.reduce((s: number, i: InventoryItem) => s + (i.quantity_meters ?? 0) * (i.unit_cost ?? 0), 0);
 
   if (isLoading) {
     return <div className="p-6 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
-  const filteredBoxes = locationId ? boxes.filter((b: any) => b.location_id === locationId) : boxes;
+  const filteredBoxes = locationId ? boxes.filter((b: StorageBox) => b.location_id === locationId) : boxes;
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -215,7 +229,7 @@ const Inventory = () => {
                     <div className="space-y-2"><Label>Label</Label><Input placeholder="Optional label" value={boxLabel} onChange={(e) => setBoxLabel(e.target.value)} /></div>
                     <div className="space-y-2"><Label>Location *</Label>
                       <Select value={boxLocId} onValueChange={setBoxLocId}><SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
-                        <SelectContent>{locations.map((l: any) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
+                        <SelectContent>{locations.map((l: StorageLocation) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <Button type="submit">Save</Button>
@@ -247,8 +261,8 @@ const Inventory = () => {
                   <div className="space-y-2"><Label>Storage Location</Label>
                     <Select value={locationId} onValueChange={(v) => { setLocationId(v); setBoxId(""); }}><SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
                       <SelectContent>
-        <SelectItem value="none">None</SelectItem>
-                        {locations.map((l: any) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+                        <SelectItem value="none">None</SelectItem>
+                        {locations.map((l: StorageLocation) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -256,7 +270,7 @@ const Inventory = () => {
                     <Select value={boxId} onValueChange={setBoxId}><SelectTrigger><SelectValue placeholder="Select box" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">None</SelectItem>
-                        {filteredBoxes.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.box_code} {b.label ? `(${b.label})` : ""}</SelectItem>)}
+                        {filteredBoxes.map((b: StorageBox) => <SelectItem key={b.id} value={b.id}>{b.box_code} {b.label ? `(${b.label})` : ""}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -312,7 +326,7 @@ const Inventory = () => {
             {inventory.length === 0 ? "No inventory items yet. Add your first item above." : "No items match your search."}
           </CardContent></Card>
         )}
-        {filtered.map((item: any) => {
+        {filtered.map((item: InventoryItem) => {
           const isLow = (item.quantity_meters ?? 0) < (item.min_stock_level ?? 0);
           const locName = item.storage_locations?.name;
           const boxCode = item.storage_boxes?.box_code;

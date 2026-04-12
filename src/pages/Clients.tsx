@@ -14,6 +14,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
+
+type ClientItem = Database["public"]["Tables"]["clients"]["Row"];
 
 const Clients = () => {
   const { user, memberships, activeRole, isMaintenance } = useAuth();
@@ -23,8 +26,8 @@ const Clients = () => {
   const canDelete = activeRole === "administrator" || isMaintenance;
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingClient, setEditingClient] = useState<any>(null);
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [editingClient, setEditingClient] = useState<ClientItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ClientItem | null>(null);
   const [saving, setSaving] = useState(false);
   const listRef = useGsapStagger(".gsap-card", 0.06);
 
@@ -40,12 +43,12 @@ const Clients = () => {
       if (!orgId) return [];
       const { data, error } = await supabase.from("clients").select("*").eq("organization_id", orgId).order("name");
       if (error) throw error;
-      return data ?? [];
+      return (data as ClientItem[]) ?? [];
     },
     enabled: !!orgId,
   });
 
-  const openEdit = (client: any) => {
+  const openEdit = (client: ClientItem) => {
     setEditingClient(client);
     setName(client.name);
     setContactPerson(client.contact_person ?? "");
@@ -66,7 +69,8 @@ const Clients = () => {
     if (!orgId || !name.trim()) return;
     setSaving(true);
     try {
-      const payload = {
+      const payload: Database["public"]["Tables"]["clients"]["Insert"] = {
+        organization_id: orgId,
         name: name.trim(),
         contact_person: contactPerson || null,
         phone: phone || null,
@@ -74,18 +78,19 @@ const Clients = () => {
         address: address || null,
       };
       if (editingClient) {
-        const { error } = await supabase.from("clients").update(payload).eq("id", editingClient.id);
+        const { error } = await supabase.from("clients").update(payload as Database["public"]["Tables"]["clients"]["Update"]).eq("id", editingClient.id);
         if (error) throw error;
         toast({ title: "Client updated" });
       } else {
-        const { error } = await supabase.from("clients").insert({ ...payload, organization_id: orgId });
+        const { error } = await supabase.from("clients").insert(payload);
         if (error) throw error;
         toast({ title: "Client added" });
       }
       setDialogOpen(false);
       refetch();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -99,8 +104,9 @@ const Clients = () => {
       toast({ title: "Client deleted" });
       setDeleteTarget(null);
       refetch();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -165,7 +171,7 @@ const Clients = () => {
             {clients.length === 0 ? "No clients yet. Add your first client above." : "No clients match your search."}
           </CardContent></Card>
         )}
-        {filtered.map((client) => (
+        {filtered.map((client: ClientItem) => (
           <Card key={client.id} className="gsap-card border-border/50 hover:border-primary/30 transition-all hover:shadow-md group">
             <CardContent className="pt-5 pb-4 space-y-3">
               <div className="flex items-start justify-between">

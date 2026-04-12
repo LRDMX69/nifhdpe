@@ -17,6 +17,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
+
+type KnowledgeArticle = Database["public"]["Tables"]["knowledge_articles"]["Row"];
 
 const CATEGORIES = [
   { id: "fusion", label: "Fusion Procedures", icon: Wrench },
@@ -36,7 +39,7 @@ const KnowledgeBase = () => {
 
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingArticle, setEditingArticle] = useState<any>(null);
+  const [editingArticle, setEditingArticle] = useState<KnowledgeArticle | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   // Form state
@@ -87,7 +90,10 @@ const KnowledgeBase = () => {
       resetForm();
       setDialogOpen(false);
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: unknown) => {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -100,7 +106,10 @@ const KnowledgeBase = () => {
       queryClient.invalidateQueries({ queryKey: ["knowledge-articles"] });
       setDeleteTarget(null);
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: unknown) => {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
   });
 
   const resetForm = () => {
@@ -108,7 +117,7 @@ const KnowledgeBase = () => {
     setEditingArticle(null);
   };
 
-  const openEdit = (article: any) => {
+  const openEdit = (article: KnowledgeArticle) => {
     setEditingArticle(article);
     setTitle(article.title);
     setCategory(article.category);

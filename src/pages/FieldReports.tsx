@@ -37,7 +37,7 @@ const FieldReports = () => {
   const [submitting, setSubmitting] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [structuredReport, setStructuredReport] = useState<string | null>(null);
-  const [viewingReport, setViewingReport] = useState<any>(null);
+  const [viewingReport, setViewingReport] = useState<any>(null); // Keeping any for now due to complex nested includes, but casting in loops
   const containerRef = useGsapAnimation("slideUp");
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -157,8 +157,9 @@ const FieldReports = () => {
       setRawNotes(""); setSelectedProject(""); setCrew(""); setSafety(""); setPressure(""); setClientFeedback(""); setPhotos([]);
       setOpen(false);
       refetch();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
       setProcessing(false);
@@ -408,10 +409,10 @@ const FieldReports = () => {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Reports Today", value: String(reports.filter((r: any) => r.report_date === new Date().toISOString().split("T")[0]).length), icon: ClipboardList },
+          { label: "Reports Today", value: String((reports as any[]).filter((r) => r.report_date === new Date().toISOString().split("T")[0]).length), icon: ClipboardList },
           { label: "This Week", value: String(reports.length), icon: Calendar },
           { label: "Active Crews", value: "—", icon: Users },
-          { label: "Incidents", value: String(reports.filter((r: any) => r.safety_incidents && r.safety_incidents !== "None").length), icon: AlertTriangle },
+          { label: "Incidents", value: String((reports as any[]).filter((r) => r.safety_incidents && r.safety_incidents !== "None").length), icon: AlertTriangle },
         ].map((s) => (
           <Card key={s.label}><CardContent className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
@@ -431,7 +432,7 @@ const FieldReports = () => {
             {isAdmin ? "No reports received yet." : "No reports yet. Submit your first field report above."}
           </CardContent></Card>
         )}
-        {reports.map((r: any) => {
+        {(reports as any[]).map((r) => {
           const senderProfile = senderProfiles.get(r.created_by);
           const senderRole = senderRoles.get(r.created_by);
           return (

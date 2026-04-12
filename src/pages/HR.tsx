@@ -145,7 +145,7 @@ const HR = () => {
   })();
 
   const attendancePatterns = (() => {
-    if (!isHrOrAdmin || weeklyAttendance.length === 0) return { lateArrivals: [], missingCheckouts: [], absentUsers: [] };
+    if (!isHrOrAdmin || weeklyAttendance.length === 0) return { lateArrivals: [], missingCheckouts: [], absentUsers: [] as string[] };
     const lateArrivals = weeklyAttendance.filter(a => a.check_in && new Date(a.check_in).getHours() >= 9);
     const missingCheckouts = weeklyAttendance.filter(a => a.check_in && !a.check_out && a.date !== new Date().toISOString().split("T")[0]);
     const userDays = new Map<string, number>();
@@ -221,6 +221,7 @@ const HR = () => {
       if (error) throw error;
     },
     onSuccess: (_, { status }) => { toast({ title: `Leave ${status}` }); queryClient.invalidateQueries({ queryKey: ["leave-requests"] }); },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const submitRecruitment = useMutation({
@@ -611,8 +612,8 @@ const HR = () => {
                   
                   return (
                     <div className="space-y-3">
-                      {[...groupedByEmployee.entries()].map(([userId, payments]) => {
-                        const totalAmount = payments.reduce((sum: number, p) => sum + Number(p.amount), 0);
+                      {[...groupedByEmployee.entries()].map(([userId, pms]) => {
+                        const totalAmount = pms.reduce((sum: number, p) => sum + Number(p.amount), 0);
                         return (
                           <div key={userId} className="border rounded-lg p-3 space-y-2">
                             <div className="flex items-center justify-between">
@@ -626,7 +627,7 @@ const HR = () => {
                               <Badge variant="outline" className="text-xs font-semibold text-primary">₦{totalAmount.toLocaleString()}</Badge>
                             </div>
                             <div className="space-y-1 pl-8">
-                              {payments.map((p) => (
+                              {pms.map((p) => (
                                 <div key={p.id} className="flex items-center justify-between text-xs text-muted-foreground">
                                   <span>{p.date}{p.description ? ` · ${p.description}` : ""}</span>
                                   <span>₦{Number(p.amount).toLocaleString()}</span>

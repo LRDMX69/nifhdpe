@@ -88,7 +88,10 @@ const AdminDashboard = () => {
       queryClient.invalidateQueries({ queryKey: ["intelligence-logs"] });
       queryClient.invalidateQueries({ queryKey: ["ai-summary"] });
     },
-    onError: (err: any) => toast({ title: "Scan failed", description: err.message, variant: "destructive" }),
+    onError: (err: unknown) => {
+      const error = err as Error;
+      toast({ title: "Scan failed", description: error.message, variant: "destructive" });
+    },
   });
 
   const { data: aiSummary = [], isLoading: aiLoading } = useQuery({
@@ -282,7 +285,7 @@ const AdminDashboard = () => {
               {aiLoading ? (
                 <div className="space-y-2"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /></div>
               ) : aiSummary.length > 0 ? (
-                aiSummary.map((s: any) => (
+                (aiSummary as any[]).map((s) => (
                   <div key={s.id} className="bg-muted/30 rounded-lg p-3 text-sm space-y-1">
                     <Badge variant="outline" className="text-[10px]">{contextLabels[s.context] ?? s.context.replace(/_/g, " ")}</Badge>
                     <p className="leading-relaxed text-xs sm:text-sm break-words-safe">{formatContent(s.summary.substring(0, 400))}{s.summary.length > 400 ? "..." : ""}</p>
@@ -302,7 +305,7 @@ const AdminDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 max-h-[400px] overflow-y-auto">
-              {pendingEquipReqs.map((r: any) => (
+              {(pendingEquipReqs as any[]).map((r) => (
                 <div key={r.id} className="bg-muted/30 rounded-lg p-3 text-xs space-y-2">
                   <div className="flex justify-between items-start gap-1">
                     <span className="font-medium truncate">🔧 {r.equipment?.name}</span>
@@ -322,7 +325,7 @@ const AdminDashboard = () => {
               {pendingClaims.length === 0 && pendingEquipReqs.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No pending items.</p>
               ) : (
-                pendingClaims.slice(0, 5).map((c: any) => (
+                (pendingClaims as any[]).slice(0, 5).map((c) => (
                   <div key={c.id} className="bg-muted/30 rounded-lg p-3 text-xs space-y-2">
                     <div className="flex justify-between items-start gap-1">
                       <div className="min-w-0 flex-1">
@@ -360,7 +363,7 @@ const AdminDashboard = () => {
               <p className="text-sm text-muted-foreground">No reports submitted yet.</p>
             ) : (
               <div className="space-y-2">
-                {recentReports.map((r: any) => {
+                {(recentReports as any[]).map((r) => {
                   const hasStructured = r.structured_reports && r.structured_reports.length > 0;
                   const routedTo = r.notes?.startsWith("routed_to:") ? r.notes.replace("routed_to:", "") : null;
                   return (

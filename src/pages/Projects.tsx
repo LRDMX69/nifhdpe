@@ -20,6 +20,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
+
+type ProjectItem = Database["public"]["Tables"]["projects"]["Row"] & { clients?: { name: string } | null };
+type ClientItem = { id: string; name: string };
+type MemberItem = { user_id: string; full_name: string | null };
 
 const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   planning: "outline", in_progress: "default", on_hold: "secondary", completed: "default", cancelled: "destructive",
@@ -36,8 +41,8 @@ const Projects = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<any>(null);
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [editingProject, setEditingProject] = useState<ProjectItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ProjectItem | null>(null);
   const listRef = useGsapStagger(".gsap-card", 0.06);
   const orgId = memberships[0]?.organization_id;
   const canEdit = ["administrator", "engineer", "technician", "finance"].includes(activeRole ?? "") || isMaintenance;
@@ -62,7 +67,7 @@ const Projects = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("projects").select("*, clients(name)").eq("organization_id", orgId).order("created_at", { ascending: false });
-      return data ?? [];
+      return (data as unknown as ProjectItem[]) ?? [];
     },
     enabled: !!orgId,
   });
@@ -72,7 +77,7 @@ const Projects = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("clients").select("id, name").eq("organization_id", orgId).order("name");
-      return data ?? [];
+      return (data as ClientItem[]) ?? [];
     },
     enabled: !!orgId,
   });
@@ -82,12 +87,12 @@ const Projects = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("profiles").select("user_id, full_name").eq("organization_id", orgId).order("full_name");
-      return data ?? [];
+      return (data as MemberItem[]) ?? [];
     },
     enabled: !!orgId,
   });
 
-  const openEdit = (p: any) => {
+  const openEdit = (p: ProjectItem) => {
     setEditingProject(p);
     setNewName(p.name); setNewDesc(p.description ?? ""); setNewBudget(p.budget?.toString() ?? "");
     setNewStart(p.start_date ?? ""); setNewEnd(p.end_date ?? ""); setNewClientId(p.client_id ?? "");
@@ -113,10 +118,11 @@ const Projects = () => {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!orgId || !user || !newName.trim()) throw new Error("Missing required fields");
-      const payload: any = {
+      const payload: Database["public"]["Tables"]["projects"]["Insert"] = {
+        organization_id: orgId, created_by: user.id,
         name: newName, description: newDesc || null, budget: newBudget ? parseFloat(newBudget) : null,
         start_date: newStart || null, end_date: newEnd || null, client_id: newClientId || null,
-        status: newStatus as any, progress_percent: newProgress, project_head_id: newHeadId || null,
+        status: newStatus as "planning" | "in_progress" | "on_hold" | "completed" | "cancelled", progress_percent: newProgress, project_head_id: newHeadId || null,
         team_member_ids: newTeamIds.length > 0 ? newTeamIds : null,
         project_lat: newProjectLat ? parseFloat(newProjectLat) : null,
         project_lng: newProjectLng ? parseFloat(newProjectLng) : null,
@@ -125,11 +131,11 @@ const Projects = () => {
 
       let projectId: string;
       if (editingProject) {
-        const { error } = await supabase.from("projects").update(payload).eq("id", editingProject.id);
+        const { error } = await supabase.from("projects").update(payload as Database["public"]["Tables"]["projects"]["Update"]).eq("id", editingProject.id);
         if (error) throw error;
         projectId = editingProject.id;
       } else {
-        const { data, error } = await supabase.from("projects").insert({ ...payload, organization_id: orgId, created_by: user.id }).select("id").single();
+        const { data, error } = await supabase.from("projects").insert(payload).select("id").single();
         if (error) throw error;
         projectId = data.id;
       }
@@ -160,7 +166,7 @@ const Projects = () => {
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const handleDelete = async () => {
@@ -171,29 +177,31 @@ const Projects = () => {
       toast({ title: "Project deleted" });
       setDeleteTarget(null);
       queryClient.invalidateQueries({ queryKey: ["projects"] });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
-      const { error } = await supabase.from("projects").update({ status: status as any }).eq("id", id);
+      const { error } = await supabase.from("projects").update({ status: status as "planning" | "in_progress" | "on_hold" | "completed" | "cancelled" }).eq("id", id);
       if (error) throw error;
       toast({ title: `Status → ${statusLabels[status]}` });
       queryClient.invalidateQueries({ queryKey: ["projects"] });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
-  const filtered = projects.filter((p: any) => {
+  const filtered = projects.filter((p: ProjectItem) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || (p.clients?.name ?? "").toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || p.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
-  const getMemberName = (userId: string) => members.find((m: any) => m.user_id === userId)?.full_name ?? "Unknown";
+  const getMemberName = (userId: string) => members.find((m: MemberItem) => m.user_id === userId)?.full_name ?? "Unknown";
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
@@ -209,7 +217,7 @@ const Projects = () => {
               <div className="space-y-2 sm:col-span-2"><Label>Project Name *</Label><Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Lekki Phase 2 Water Supply" /></div>
               <div className="space-y-2"><Label>Client</Label>
                 <Select value={newClientId} onValueChange={setNewClientId}><SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
-                  <SelectContent>{clients.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                  <SelectContent>{clients.map((c: ClientItem) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2"><Label>Budget (₦)</Label><Input type="number" value={newBudget} onChange={e => setNewBudget(e.target.value)} placeholder="0" /></div>
@@ -226,14 +234,14 @@ const Projects = () => {
               </div>
               <div className="space-y-2 sm:col-span-2"><Label>Project Head</Label>
                 <Select value={newHeadId} onValueChange={setNewHeadId}><SelectTrigger><SelectValue placeholder="Assign project head" /></SelectTrigger>
-                  <SelectContent>{members.map((m: any) => <SelectItem key={m.user_id} value={m.user_id}>{m.full_name ?? "Unknown"}</SelectItem>)}</SelectContent>
+                  <SelectContent>{members.map((m: MemberItem) => <SelectItem key={m.user_id} value={m.user_id}>{m.full_name ?? "Unknown"}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               {/* Team Members Multi-Select */}
               <div className="space-y-2 sm:col-span-2">
                 <Label className="flex items-center gap-1"><Users className="h-4 w-4" /> Team Members</Label>
                 <div className="border border-border rounded-md p-3 max-h-40 overflow-y-auto space-y-1">
-                  {members.length === 0 ? <p className="text-xs text-muted-foreground">No members available</p> : members.map((m: any) => (
+                  {members.length === 0 ? <p className="text-xs text-muted-foreground">No members available</p> : members.map((m: MemberItem) => (
                     <div key={m.user_id} className="flex items-center gap-2">
                       <Checkbox
                         id={`team-${m.user_id}`}
@@ -296,8 +304,8 @@ const Projects = () => {
         {filtered.length === 0 && !isLoading && (
           <Card className="col-span-full"><CardContent className="p-8 text-center text-muted-foreground">No projects found.</CardContent></Card>
         )}
-        {filtered.map((project: any) => {
-          const teamIds: string[] = Array.isArray(project.team_member_ids) ? project.team_member_ids : [];
+        {filtered.map((project: ProjectItem) => {
+          const teamIds: string[] = Array.isArray(project.team_member_ids) ? project.team_member_ids as string[] : [];
           return (
             <Card key={project.id} className="gsap-card border-border/50 hover:border-primary/20 transition-all hover:shadow-md">
               <CardContent className="pt-5 pb-4 space-y-3">

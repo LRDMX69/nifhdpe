@@ -103,7 +103,10 @@ const Logistics = () => {
     }
     setSaving(true);
     try {
-      const payload: any = {
+      const payload: Database["public"]["Tables"]["deliveries"]["Insert"] = {
+        organization_id: orgId,
+        created_by: user.id,
+        status: editingDelivery ? (editingDelivery.status as "pending" | "in_transit" | "delivered" | "cancelled") : "pending",
         project_id: projectId || null,
         destination: destination.trim(),
         vehicle: vehicle || null,
@@ -117,23 +120,19 @@ const Logistics = () => {
         destination_lng: destLng ? parseFloat(destLng) : null,
       };
       if (editingDelivery) {
-        const { error } = await supabase.from("deliveries").update(payload).eq("id", editingDelivery.id);
+        const { error } = await supabase.from("deliveries").update(payload as Database["public"]["Tables"]["deliveries"]["Update"]).eq("id", editingDelivery.id);
         if (error) throw error;
         toast({ title: "Delivery updated" });
       } else {
-        const { error } = await supabase.from("deliveries").insert({
-          ...payload,
-          organization_id: orgId,
-          created_by: user.id,
-          status: "pending" as const,
-        });
+        const { error } = await supabase.from("deliveries").insert(payload);
         if (error) throw error;
         toast({ title: "Delivery scheduled" });
       }
       setDialogOpen(false);
       refetch();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -156,9 +155,9 @@ const Logistics = () => {
         payload.delivered_at = new Date().toISOString();
 
         // Find the delivery to check destination coordinates
-        const delivery = deliveries.find((d: any) => d.id === id);
-        const destLat = delivery?.destination_lat;
-        const destLng = delivery?.destination_lng;
+        const delivery = deliveries.find((d) => (d as any).id === id);
+        const destLat = (delivery as any)?.destination_lat;
+        const destLng = (delivery as any)?.destination_lng;
 
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
@@ -210,8 +209,9 @@ const Logistics = () => {
       if (error) throw error;
       toast({ title: `Status updated to ${newStatus.replace("_", " ")}` });
       refetch();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -223,13 +223,14 @@ const Logistics = () => {
       toast({ title: "Delivery deleted" });
       setDeleteTarget(null);
       refetch();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
-  const filtered = deliveries.filter((d: any) => {
-    const projectName = d.projects?.name ?? "";
+  const filtered = deliveries.filter((d) => {
+    const projectName = (d as any).projects?.name ?? "";
     const matchSearch = projectName.toLowerCase().includes(search.toLowerCase()) || (d.driver ?? "").toLowerCase().includes(search.toLowerCase()) || d.destination.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || d.status === statusFilter;
     return matchSearch && matchStatus;
@@ -309,13 +310,13 @@ const Logistics = () => {
             {deliveries.length === 0 ? "No deliveries yet. Schedule your first delivery above." : "No deliveries match your filter."}
           </CardContent></Card>
         )}
-        {filtered.map((d: any) => (
+        {filtered.map((d) => (
           <Card key={d.id} className="gsap-card border-border/50 hover:border-primary/20 transition-all">
             <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0"><Truck className="h-5 w-5" /></div>
                 <div className="min-w-0">
-                  <p className="font-semibold text-sm truncate">{d.projects?.name ?? "Unlinked delivery"}</p>
+                  <p className="font-semibold text-sm truncate">{(d as any).projects?.name ?? "Unlinked delivery"}</p>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-0.5">
                     <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {d.destination}</span>
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {d.delivery_date}</span>
@@ -325,7 +326,7 @@ const Logistics = () => {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="font-bold text-sm">{formatCurrency(d.cost ?? 0)}</span>
-                <Badge variant={statusBadge[d.status] ?? "outline"} className="capitalize text-xs">{(d.status ?? "pending").replace("_", " ")}</Badge>
+                <Badge variant={statusBadge[d.status || "pending"] ?? "outline"} className="capitalize text-xs">{(d.status ?? "pending").replace("_", " ")}</Badge>
                 {canEdit && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

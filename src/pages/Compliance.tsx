@@ -16,6 +16,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
+
+type ComplianceDoc = Database["public"]["Tables"]["compliance_documents"]["Row"];
 
 const statusConfig: Record<string, { icon: typeof CheckCircle2; class: string }> = {
   valid: { icon: CheckCircle2, class: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
@@ -31,8 +34,8 @@ const Compliance = () => {
   const canEdit = activeRole === "administrator" || activeRole === "engineer" || isMaintenance;
   const canDelete = activeRole === "administrator" || isMaintenance;
   const [open, setOpen] = useState(false);
-  const [editingDoc, setEditingDoc] = useState<any>(null);
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [editingDoc, setEditingDoc] = useState<ComplianceDoc | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ComplianceDoc | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const containerRef = useGsapAnimation("slideUp");
@@ -50,7 +53,7 @@ const Compliance = () => {
       if (!orgId) return [];
       const { data, error } = await supabase.from("compliance_documents").select("*").eq("organization_id", orgId).order("created_at", { ascending: false });
       if (error) throw error;
-      return data ?? [];
+      return (data as ComplianceDoc[]) ?? [];
     },
     enabled: !!orgId,
   });
@@ -65,7 +68,7 @@ const Compliance = () => {
     enabled: !!orgId,
   });
 
-  const openEdit = (d: any) => {
+  const openEdit = (d: ComplianceDoc) => {
     setEditingDoc(d);
     setTitle(d.title); setDocType(d.doc_type); setExpiryDate(d.expiry_date ?? "");
     setProjectId(d.project_id ?? ""); setFileUrl(d.file_url); setDocStatus(d.status);
@@ -89,8 +92,9 @@ const Compliance = () => {
       const { data: urlData } = supabase.storage.from("compliance-docs").getPublicUrl(filePath);
       setFileUrl(urlData.publicUrl);
       toast({ title: "File uploaded" });
-    } catch (err: any) {
-      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
     } finally { setUploading(false); }
   };
 
@@ -113,8 +117,9 @@ const Compliance = () => {
         toast({ title: "Document added" });
       }
       setOpen(false); refetch();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally { setSaving(false); }
   };
 
@@ -124,8 +129,9 @@ const Compliance = () => {
       if (error) throw error;
       toast({ title: `Status → ${status}` });
       refetch();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -136,8 +142,9 @@ const Compliance = () => {
       if (error) throw error;
       toast({ title: "Document deleted" });
       setDeleteTarget(null); refetch();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 

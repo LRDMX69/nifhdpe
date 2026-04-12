@@ -20,6 +20,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
+
+type DbQuotation = Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null, quotation_items?: { count: number }[] };
+type DbQuotationItem = Database["public"]["Tables"]["quotation_items"]["Row"];
+type DbClient = { id: string; name: string };
 
 interface QuotationItem {
   id: string; description: string; type: string; quantity: number; unitPrice: number; total: number;
@@ -40,7 +45,7 @@ const Quotations = () => {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DbQuotation | null>(null);
   const [items, setItems] = useState<QuotationItem[]>([]);
   const [pipeType, setPipeType] = useState("hdpe");
   const [profitMargin, setProfitMargin] = useState(15);
@@ -49,7 +54,7 @@ const Quotations = () => {
   const [clientId, setClientId] = useState("");
   const [lumpSumAmount, setLumpSumAmount] = useState("");
   const [lumpSumDesc, setLumpSumDesc] = useState("");
-  const [editingQuotation, setEditingQuotation] = useState<any>(null);
+  const [editingQuotation, setEditingQuotation] = useState<DbQuotation | null>(null);
   const listRef = useGsapStagger(".gsap-card", 0.06);
 
   const { data: quotations = [], isLoading, refetch } = useQuery({
@@ -58,7 +63,7 @@ const Quotations = () => {
       if (!orgId) return [];
       const { data, error } = await supabase.from("quotations").select("*, clients(name), quotation_items(count)").eq("organization_id", orgId).order("created_at", { ascending: false });
       if (error) throw error;
-      return data ?? [];
+      return (data as unknown as DbQuotation[]) ?? [];
     },
     enabled: !!orgId,
   });
@@ -68,7 +73,7 @@ const Quotations = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("clients").select("id, name").eq("organization_id", orgId).order("name");
-      return data ?? [];
+      return (data as DbClient[]) ?? [];
     },
     enabled: !!orgId,
   });
@@ -96,7 +101,7 @@ const Quotations = () => {
   };
 
   /** Load existing quotation for editing */
-  const openEditQuotation = async (q: any) => {
+  const openEditQuotation = async (q: DbQuotation) => {
     setEditingQuotation(q);
     setClientId(q.client_id ?? "");
     setPipeType(q.pipe_type ?? "hdpe");
@@ -111,7 +116,7 @@ const Quotations = () => {
       // Load line items
       const { data: lineItems } = await supabase.from("quotation_items").select("*").eq("quotation_id", q.id);
       if (lineItems) {
-        setItems(lineItems.map((li: any) => ({
+        setItems((lineItems as DbQuotationItem[]).map((li) => ({
           id: li.id,
           description: li.description,
           type: li.item_type,
@@ -134,7 +139,7 @@ const Quotations = () => {
           client_id: clientId || null, pipe_type: pipeType as any,
           profit_margin_percent: profitMargin, labor_cost_per_meter: laborCost,
           transport_cost: transportCost, subtotal, total_amount: grandTotal, status: status as any, is_lump_sum: false,
-        }).eq("id", editingQuotation.id);
+        } as Database["public"]["Tables"]["quotations"]["Update"]).eq("id", editingQuotation.id);
         if (error) throw error;
         // Replace line items
         await supabase.from("quotation_items").delete().eq("quotation_id", editingQuotation.id);
@@ -151,7 +156,7 @@ const Quotations = () => {
           organization_id: orgId, created_by: user.id, client_id: clientId || null, quotation_number: qNum,
           pipe_type: pipeType as any, profit_margin_percent: profitMargin, labor_cost_per_meter: laborCost,
           transport_cost: transportCost, subtotal, total_amount: grandTotal, status: status as any, is_lump_sum: false,
-        }).select().single();
+        } as Database["public"]["Tables"]["quotations"]["Insert"]).select().single();
         if (error) throw error;
         if (items.length > 0 && quotation) {
           await supabase.from("quotation_items").insert(items.map(i => ({
@@ -176,7 +181,7 @@ const Quotations = () => {
           client_id: clientId || null, is_lump_sum: true,
           lump_sum_amount: parseFloat(lumpSumAmount), total_amount: parseFloat(lumpSumAmount),
           notes: lumpSumDesc || null,
-        }).eq("id", editingQuotation.id);
+        } as Database["public"]["Tables"]["quotations"]["Update"]).eq("id", editingQuotation.id);
         if (error) throw error;
         toast({ title: "Quotation updated" });
       } else {
@@ -184,8 +189,8 @@ const Quotations = () => {
         const { error } = await supabase.from("quotations").insert({
           organization_id: orgId, created_by: user.id, client_id: clientId || null, quotation_number: qNum,
           is_lump_sum: true, lump_sum_amount: parseFloat(lumpSumAmount), total_amount: parseFloat(lumpSumAmount),
-          notes: lumpSumDesc || null, status: "draft" as any,
-        });
+          notes: lumpSumDesc || null, status: "draft",
+        } as Database["public"]["Tables"]["quotations"]["Insert"]);
         if (error) throw error;
         toast({ title: "Quotation saved" });
       }
@@ -201,8 +206,9 @@ const Quotations = () => {
       if (error) throw error;
       toast({ title: `Status → ${status}` });
       refetch();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -215,12 +221,13 @@ const Quotations = () => {
       toast({ title: "Quotation deleted" });
       setDeleteTarget(null);
       refetch();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
-  const handlePrint = async (q: any) => {
+  const handlePrint = async (q: DbQuotation) => {
     const { generatePdf } = await import("@/lib/generatePdf");
     // Fetch line items for table
     const { data: lineItems } = await supabase.from("quotation_items").select("*").eq("quotation_id", q.id);
@@ -246,7 +253,7 @@ const Quotations = () => {
             { header: "Unit Price (₦)", dataKey: "unitPrice" },
             { header: "Total (₦)", dataKey: "total" },
           ],
-          rows: lineItems.map((li: any, idx: number) => ({
+          rows: (lineItems as DbQuotationItem[]).map((li, idx: number) => ({
             num: idx + 1,
             description: li.description,
             type: li.item_type,
@@ -275,7 +282,7 @@ const Quotations = () => {
   };
 
   const filtered = quotations.filter(
-    (q: any) => q.quotation_number.toLowerCase().includes(search.toLowerCase()) || (q.clients?.name ?? "").toLowerCase().includes(search.toLowerCase())
+    (q: DbQuotation) => q.quotation_number.toLowerCase().includes(search.toLowerCase()) || (q.clients?.name ?? "").toLowerCase().includes(search.toLowerCase())
   );
 
   if (isLoading) return <div className="p-6 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -297,7 +304,7 @@ const Quotations = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-2"><Label>Client</Label>
                       <Select value={clientId} onValueChange={setClientId}><SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
-                        <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                        <SelectContent>{clients.map((c: DbClient) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2"><Label>Pipe Type</Label>
@@ -348,7 +355,7 @@ const Quotations = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2"><Label>Client</Label>
                       <Select value={clientId} onValueChange={setClientId}><SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
-                        <SelectContent>{clients.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                        <SelectContent>{clients.map((c: DbClient) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2"><Label>Amount (₦)</Label><Input type="number" placeholder="0" value={lumpSumAmount} onChange={(e) => setLumpSumAmount(e.target.value)} /></div>
@@ -386,7 +393,7 @@ const Quotations = () => {
             {quotations.length === 0 ? "No quotations yet." : "No matches."}
           </CardContent></Card>
         )}
-        {filtered.map((q: any) => (
+        {filtered.map((q: DbQuotation) => (
           <QuotationCard
             key={q.id}
             quotation={q}
