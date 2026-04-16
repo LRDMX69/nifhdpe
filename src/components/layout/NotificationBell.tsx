@@ -115,9 +115,10 @@ export const NotificationBell = () => {
     if (error) {
       logger.error("Failed to mark message as read:", error);
     }
-    // Invalidate the unread notifications query to update the count immediately
+    // Invalidate all unread message queries to update counts everywhere
     queryClient.invalidateQueries({ queryKey: ["unread-notifications", orgId, user?.id] });
     queryClient.invalidateQueries({ queryKey: ["messages", orgId, user?.id] });
+    queryClient.invalidateQueries({ queryKey: ["unread-msg-count", orgId, user?.id] });
     setOpen(false);
     // Navigate to messages page - the chat will be opened there
     navigate("/messages");

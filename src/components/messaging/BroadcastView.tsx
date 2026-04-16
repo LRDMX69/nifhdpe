@@ -7,10 +7,11 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
+import type { Database } from "@/integrations/supabase/types";
 
 interface BroadcastViewProps {
-  broadcasts: any[];
-  profileMap: Map<string, any>;
+  broadcasts: Database["public"]["Tables"]["messages"]["Row"][];
+  profileMap: Map<string, { full_name: string | null }>;
   onBack: () => void;
 }
 
@@ -26,6 +27,7 @@ export const BroadcastView = ({ broadcasts, profileMap, onBack }: BroadcastViewP
       supabase.from("messages").update({ is_read: true }).in("id", unread.map(b => b.id)).then(() => {
         queryClient.invalidateQueries({ queryKey: ["unread-notifications"] });
         queryClient.invalidateQueries({ queryKey: ["messages"] });
+        queryClient.invalidateQueries({ queryKey: ["unread-msg-count"] });
       });
     }
   }, [broadcasts, user, queryClient]);
@@ -41,7 +43,7 @@ export const BroadcastView = ({ broadcasts, profileMap, onBack }: BroadcastViewP
       </div>
       <ScrollArea className="flex-1 p-3">
         <div className="space-y-3">
-          {broadcasts.map((b: any) => {
+          {broadcasts.map((b: Database["public"]["Tables"]["messages"]["Row"]) => {
             const sender = profileMap.get(b.sender_id);
             return (
               <Card key={b.id}>

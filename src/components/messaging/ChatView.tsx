@@ -49,15 +49,16 @@ export const ChatView = ({ recipientId, recipientName, recipientAvatar, recipien
   // Mark unread messages as read
   useEffect(() => {
     if (!user || messages.length === 0) return;
-    const unread = messages.filter((m: any) => m.recipient_id === user.id && !m.is_read);
+    const unread = messages.filter((m: Database["public"]["Tables"]["messages"]["Row"]) => m.recipient_id === user.id && !m.is_read);
     if (unread.length > 0) {
-      const ids = unread.map((m: any) => m.id);
+      const ids = unread.map((m) => m.id);
       supabase.from("messages").update({ is_read: true }).in("id", ids).then(() => {
         queryClient.invalidateQueries({ queryKey: ["messages", orgId, user?.id] });
         queryClient.invalidateQueries({ queryKey: ["unread-msg-count", orgId, user?.id] });
+        queryClient.invalidateQueries({ queryKey: ["unread-notifications", orgId, user?.id] });
       });
     }
-  }, [messages, user, queryClient]);
+  }, [messages, user, queryClient, orgId]);
 
   // Auto-scroll to bottom
   useEffect(() => {
