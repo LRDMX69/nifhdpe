@@ -67,11 +67,13 @@ export const CheckInWidget = () => {
         .in("status", ["planning", "in_progress"]);
       if (!data) return [];
       // Filter to projects where user is head or team member
-      return data.filter((p: { project_head_id: string; team_member_ids: string[] | null }) => {
+      return data.filter((p) => {
         if (p.project_head_id === user.id) return true;
-        if (Array.isArray(p.team_member_ids) && p.team_member_ids.includes(user.id)) return true;
+        // team_member_ids is Json type - check if it's an array and includes user.id
+        const teamIds = p.team_member_ids as string[] | null;
+        if (Array.isArray(teamIds) && teamIds.includes(user.id)) return true;
         return false;
-      }).filter((p: { project_lat: number | null; project_lng: number | null }) => p.project_lat != null && p.project_lng != null);
+      }).filter((p) => p.project_lat != null && p.project_lng != null);
     },
     enabled: !!orgId && !!user,
   });

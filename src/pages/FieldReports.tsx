@@ -31,6 +31,11 @@ const cleanMarkdown = (text: string) =>
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
+type FieldReportWithRelations = Database["public"]["Tables"]["field_reports"]["Row"] & {
+  projects?: { name: string } | null;
+  structured_reports?: Database["public"]["Tables"]["structured_reports"]["Row"][];
+};
+
 const FieldReports = () => {
   const { user, activeRole, isMaintenance, memberships } = useAuth();
   const { toast } = useToast();
@@ -38,7 +43,7 @@ const FieldReports = () => {
   const [submitting, setSubmitting] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [structuredReport, setStructuredReport] = useState<string | null>(null);
-  const [viewingReport, setViewingReport] = useState<Database["public"]["Tables"]["field_reports"]["Row"] & { structured_reports?: Database["public"]["Tables"]["structured_reports"]["Row"][] } | null>(null);
+  const [viewingReport, setViewingReport] = useState<FieldReportWithRelations | null>(null);
   const containerRef = useGsapAnimation("slideUp");
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -76,7 +81,7 @@ const FieldReports = () => {
 
       // Engineer: only see reports routed to them or their own
       if (isEngineer && !isAdmin && user) {
-        return data.filter((r: Database["public"]["Tables"]["field_reports"]["Row"]) =>
+        return data.filter((r: FieldReportWithRelations) =>
           r.created_by === user.id ||
           r.notes === "routed_to:engineer" ||
           !r.notes?.startsWith("routed_to:")
@@ -167,7 +172,7 @@ const FieldReports = () => {
     }
   };
 
-  const handlePrintReport = (report: Database["public"]["Tables"]["field_reports"]["Row"] & { structured_reports?: Database["public"]["Tables"]["structured_reports"]["Row"][] }) => {
+  const handlePrintReport = (report: FieldReportWithRelations) => {
     const content = report.structured_reports?.[0]?.structured_content
       ? cleanMarkdown(report.structured_reports[0].structured_content)
       : `Tasks: ${report.tasks_completed}\nCrew: ${report.crew_members || 'N/A'}\nPressure Test: ${report.pressure_test_result || 'N/A'}\nSafety: ${report.safety_incidents || 'None'}`;
@@ -179,7 +184,7 @@ const FieldReports = () => {
     queryKey: ["report-sender-profiles"],
     queryFn: async () => {
       if (!isAdmin) return new Map();
-      const userIds = [...new Set(reports.map((r: Database["public"]["Tables"]["field_reports"]["Row"]) => r.created_by))];
+      const userIds = [...new Set(reports.map((r: FieldReportWithRelations) => r.created_by))];
       if (userIds.length === 0) return new Map();
       const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, avatar_url").in("user_id", userIds);
       return new Map((profiles ?? []).map((p: { user_id: string; full_name: string | null; avatar_url: string | null }) => [p.user_id, p]));
@@ -192,7 +197,7 @@ const FieldReports = () => {
     queryKey: ["report-sender-roles"],
     queryFn: async () => {
       if (!isAdmin) return new Map();
-      const userIds = [...new Set(reports.map((r: Database["public"]["Tables"]["field_reports"]["Row"]) => r.created_by))];
+      const userIds = [...new Set(reports.map((r: FieldReportWithRelations) => r.created_by))];
       if (userIds.length === 0) return new Map();
       const { data } = await supabase.from("organization_memberships").select("user_id, role").in("user_id", userIds);
       return new Map((data ?? []).map((m: { user_id: string; role: string }) => [m.user_id, m.role]));
@@ -410,10 +415,10 @@ const FieldReports = () => {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Reports Today", value: String((reports as Database["public"]["Tables"]["field_reports"]["Row"][]).filter((r) => r.report_date === new Date().toISOString().split("T")[0]).length), icon: ClipboardList },
+          { label: "Reports Today", value: String((reports as FieldReportWithRelations[]).filter((r) => r.report_date === new Date().toISOString().split("T")[0]).length), icon: ClipboardList },
           { label: "This Week", value: String(reports.length), icon: Calendar },
           { label: "Active Crews", value: "—", icon: Users },
-          { label: "Incidents", value: String((reports as Database["public"]["Tables"]["field_reports"]["Row"][]).filter((r) => r.safety_incidents && r.safety_incidents !== "None").length), icon: AlertTriangle },
+          { label: "Incidents", value: String((reports as FieldReportWithRelations[]).filter((r) => r.safety_incidents && r.safety_incidents !== "None").length), icon: AlertTriangle },
         ].map((s) => (
           <Card key={s.label}><CardContent className="p-3 sm:p-4">
             <div className="flex items-center justify-between">
@@ -433,7 +438,7 @@ const FieldReports = () => {
             {isAdmin ? "No reports received yet." : "No reports yet. Submit your first field report above."}
           </CardContent></Card>
         )}
-        {(reports as Database["public"]["Tables"]["field_reports"]["Row"][]).map((r) => {
+        {(reports as FieldReportWithRelations[]).map((r) => {
           const senderProfile = senderProfiles.get(r.created_by);
           const senderRole = senderRoles.get(r.created_by);
           return (
