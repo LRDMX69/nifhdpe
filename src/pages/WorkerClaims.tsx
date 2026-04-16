@@ -157,10 +157,31 @@ const WorkerClaims = () => {
       ...(c.admin_notes ? [{ heading: "Admin Notes", body: c.admin_notes }] : []),
     ];
 
-    // Note: jspdf doesn't directly handle URLs well in this simple wrapper without more complex logic, 
-    // but we add a note about the attachment.
+    // Add attachment note
     if (c.file_url) {
       sections.push({ heading: "Attachments", body: `Verification proof: ${c.file_url}` });
+    }
+
+    // Fetch and embed the image if it's an image file
+    let logoUrl: string | null = null;
+    if (c.file_url && isImageUrl(c.file_url)) {
+      try {
+        // Pre-load the image to ensure it can be embedded
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error("Failed to load image"));
+          img.src = c.file_url!;
+        });
+        logoUrl = c.file_url;
+        sections.push({ heading: "Verification Proof", body: "Image attached below:" });
+      } catch (e) {
+        // If image can't be loaded, just show the URL
+        sections.push({ heading: "Verification Proof", body: `Image URL: ${c.file_url}` });
+      }
+    } else if (c.file_url) {
+      sections.push({ heading: "Verification Proof", body: `Document URL: ${c.file_url}` });
     }
 
     generatePdf({
@@ -169,6 +190,7 @@ const WorkerClaims = () => {
       contentSections: sections,
       stampType: c.status === "approved" ? "admin" : null,
       showSignature: true,
+      logoUrl: logoUrl,
     });
   };
 
@@ -219,7 +241,7 @@ const WorkerClaims = () => {
                 </div>
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1"><Upload className="h-3.5 w-3.5" /> Proof (Required) *</Label>
-                  <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx" capture="environment" className="hidden" onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)} />
+                  <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)} />
                   <div className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors" onClick={() => fileInputRef.current?.click()}>
                     {selectedFile ? (
                       <div className="flex items-center gap-2 justify-center">

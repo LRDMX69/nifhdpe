@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 interface Message {
@@ -30,6 +30,7 @@ export const NotificationBell = () => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: unreadMessages = [], refetch } = useQuery<Message[]>({
     queryKey: ["unread-notifications", orgId, user?.id],
@@ -110,8 +111,13 @@ export const NotificationBell = () => {
 
   const handleNotificationClick = async (m: Message) => {
     // Mark as read
-    await supabase.from("messages").update({ is_read: true }).eq("id", m.id);
-    refetch();
+    const { error } = await supabase.from("messages").update({ is_read: true }).eq("id", m.id);
+    if (error) {
+      logger.error("Failed to mark message as read:", error);
+    }
+    // Invalidate the unread notifications query to update the count immediately
+    queryClient.invalidateQueries({ queryKey: ["unread-notifications", orgId, user?.id] });
+    queryClient.invalidateQueries({ queryKey: ["messages", orgId, user?.id] });
     setOpen(false);
     // Navigate to messages page - the chat will be opened there
     navigate("/messages");

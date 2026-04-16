@@ -19,7 +19,7 @@ const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-const DEFAULT_RADIUS = 500;
+const DEFAULT_RADIUS = 700; // 700 meters as per requirements
 
 /** Check if current Nigeria time is past 5:00 PM */
 const isPast5pmNigeria = () => {

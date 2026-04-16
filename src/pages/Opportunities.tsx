@@ -46,6 +46,7 @@ const Opportunities = () => {
 
   const { data: opportunities = [], refetch } = useQuery({
     queryKey: ["opportunities"],
+    queryFn: async () => {
       const { data } = await supabase
         .from("opportunities")
         .select("*")
@@ -403,14 +404,14 @@ const Opportunities = () => {
             No opportunities found. Add one manually or refresh intelligence.
           </CardContent></Card>
         )}
-        {filtered.map((o: any) => {
+        {filtered.map((o) => {
           const info = parseContactInfo(o.description ?? "");
           return (
             <Card key={o.id} className="hover:border-primary/30 transition-colors cursor-pointer" onClick={() => setViewingOpp(o)}>
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-sm sm:text-base break-words-safe">{o.title}</CardTitle>
-                  <Badge className={statusColors[o.status] || ""} variant="outline">{o.status}</Badge>
+                  <Badge className={statusColors[o.status || "identified"] || ""} variant="outline">{o.status}</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-2">

@@ -283,7 +283,7 @@ const FieldReports = () => {
                     <p className="text-sm text-muted-foreground">
                       {photos.length > 0 ? `${photos.length} photo(s) selected` : "Tap to capture or upload"}
                     </p>
-                    <input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handlePhotoCapture} />
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoCapture} />
                   </label>
                 </div>
 

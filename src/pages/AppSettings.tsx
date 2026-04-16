@@ -27,10 +27,10 @@ const AppSettings = () => {
       if (!orgId) return [];
       const { data } = await supabase.rpc("get_visible_members", { _org_id: orgId });
       if (!data) return [];
-      const userIds = data.map((m: any) => m.user_id);
+      const userIds = data.map((m: { user_id: string }) => m.user_id);
       const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, phone, avatar_url").in("user_id", userIds);
-      const profileMap = new Map((profiles ?? []).map((p: any) => [p.user_id, p]));
-      return data.map((m: any) => ({ ...m, full_name: profileMap.get(m.user_id)?.full_name ?? "Unknown", avatar_url: profileMap.get(m.user_id)?.avatar_url }));
+      const profileMap = new Map((profiles ?? []).map((p: { user_id: string; full_name: string | null; avatar_url: string | null }) => [p.user_id, p]));
+      return data.map((m: { user_id: string; id: string; role: string }) => ({ ...m, full_name: profileMap.get(m.user_id)?.full_name ?? "Unknown", avatar_url: profileMap.get(m.user_id)?.avatar_url }));
     },
     enabled: !!orgId,
   });
@@ -42,17 +42,17 @@ const AppSettings = () => {
       const { data: allProfiles } = await supabase.from("profiles").select("user_id, full_name, avatar_url").eq("organization_id", orgId);
       if (!allProfiles) return [];
       const { data: allMemberships } = await supabase.from("organization_memberships").select("user_id").eq("organization_id", orgId);
-      const assignedIds = new Set((allMemberships ?? []).map((m: any) => m.user_id));
+      const assignedIds = new Set((allMemberships ?? []).map((m: { user_id: string }) => m.user_id));
       const { data: maintenanceAccounts } = await supabase.from("system_maintenance_accounts").select("user_id");
-      const maintenanceIds = new Set((maintenanceAccounts ?? []).map((m: any) => m.user_id));
-      return allProfiles.filter((p: any) => !assignedIds.has(p.user_id) && !maintenanceIds.has(p.user_id));
+      const maintenanceIds = new Set((maintenanceAccounts ?? []).map((m: { user_id: string }) => m.user_id));
+      return allProfiles.filter((p: { user_id: string }) => !assignedIds.has(p.user_id) && !maintenanceIds.has(p.user_id));
     },
     enabled: !!orgId,
   });
 
   const assignRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      const { error } = await supabase.from("organization_memberships").insert({ user_id: userId, organization_id: orgId, role: role as any });
+      const { error } = await supabase.from("organization_memberships").insert({ user_id: userId, organization_id: orgId, role: role });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -60,7 +60,7 @@ const AppSettings = () => {
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
       queryClient.invalidateQueries({ queryKey: ["unassigned-users"] });
     },
-    onError: (err: any) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
   });
 
   const removeMember = useMutation({
@@ -100,8 +100,8 @@ const AppSettings = () => {
       const { error: updateError } = await supabase.from("profiles").update({ avatar_url: urlData.publicUrl }).eq("user_id", user.id);
       if (updateError) throw updateError;
       toast({ title: "Profile photo updated" });
-    } catch (err: any) {
-      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -150,7 +150,7 @@ const AppSettings = () => {
             <Card className="border-warning/30 bg-warning/5">
               <CardHeader className="pb-2"><CardTitle className="text-sm text-warning flex items-center gap-2">⚠ Pending Role Assignment ({unassignedUsers.length})</CardTitle></CardHeader>
               <CardContent className="space-y-2">
-                {unassignedUsers.map((u: any) => (
+                {unassignedUsers.map((u: { user_id: string; full_name: string | null; avatar_url: string | null }) => (
                   <div key={u.user_id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 rounded-lg border border-border/50">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <Avatar className="h-7 w-7">
@@ -176,7 +176,7 @@ const AppSettings = () => {
 
           <p className="text-sm text-muted-foreground">{membersLoading ? "Loading..." : `${teamMembers.length} team members`}</p>
           <div className="space-y-2">
-            {teamMembers.map((m: any) => (
+            {teamMembers.map((m: { id: string; user_id: string; full_name: string | null; avatar_url: string | null; role: string }) => (
               <Card key={m.id} className="border-border/50">
                 <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-2">
                   <div className="flex items-center gap-3 min-w-0">
