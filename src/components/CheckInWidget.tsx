@@ -67,11 +67,11 @@ export const CheckInWidget = () => {
         .in("status", ["planning", "in_progress"]);
       if (!data) return [];
       // Filter to projects where user is head or team member
-      return data.filter((p: any) => {
+      return data.filter((p: { project_head_id: string; team_member_ids: string[] | null }) => {
         if (p.project_head_id === user.id) return true;
         if (Array.isArray(p.team_member_ids) && p.team_member_ids.includes(user.id)) return true;
         return false;
-      }).filter((p: any) => p.project_lat != null && p.project_lng != null);
+      }).filter((p: { project_lat: number | null; project_lng: number | null }) => p.project_lat != null && p.project_lng != null);
     },
     enabled: !!orgId && !!user,
   });
@@ -145,11 +145,12 @@ export const CheckInWidget = () => {
 
     // Add project sites
     for (const p of assignedProjects) {
-      const pLat = Number((p as any).project_lat);
-      const pLng = Number((p as any).project_lng);
-      const radius = (p as any).radius_meters || DEFAULT_RADIUS;
+      const project = p as { project_lat: number; project_lng: number; radius_meters?: number; name: string };
+      const pLat = Number(project.project_lat);
+      const pLng = Number(project.project_lng);
+      const radius = project.radius_meters || DEFAULT_RADIUS;
       zones.push({
-        zone: `Project: ${(p as any).name}`,
+        zone: `Project: ${project.name}`,
         targetLat: pLat,
         targetLng: pLng,
         radius,
@@ -229,11 +230,12 @@ export const CheckInWidget = () => {
         toast({ title: "Checked in!", description: `${closest.zone} verified (${Math.round(closest.distance)}m).` });
         refetch();
       }
-    } catch (err: any) {
-      if (err.code === 1) {
+    } catch (err: unknown) {
+      const error = err as { code?: number; message?: string };
+      if (error.code === 1) {
         toast({ title: "Location required", description: "Please enable GPS/location to check in.", variant: "destructive" });
       } else {
-        toast({ title: "Error", description: err.message, variant: "destructive" });
+        toast({ title: "Error", description: error.message || "Unknown error", variant: "destructive" });
       }
     } finally {
       setLoading(false);
@@ -265,8 +267,9 @@ export const CheckInWidget = () => {
         toast({ title: "Checked out!" });
         refetch();
       }
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      toast({ title: "Error", description: error.message || "Unknown error", variant: "destructive" });
     } finally {
       setLoading(false);
     }

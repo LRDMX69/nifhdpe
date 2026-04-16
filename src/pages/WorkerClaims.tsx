@@ -241,7 +241,7 @@ const WorkerClaims = () => {
                 </div>
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1"><Upload className="h-3.5 w-3.5" /> Proof (Required) *</Label>
-                  <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx" className="hidden" onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)} />
+                  <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx" title="Upload proof file" className="hidden" onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)} />
                   <div className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors" onClick={() => fileInputRef.current?.click()}>
                     {selectedFile ? (
                       <div className="flex items-center gap-2 justify-center">

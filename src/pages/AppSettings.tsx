@@ -14,6 +14,7 @@ import { ROLE_LABELS, ALL_ROLES } from "@/lib/constants";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
 
 const AppSettings = () => {
   const { profile, memberships, user, isMaintenance } = useAuth();
@@ -52,7 +53,7 @@ const AppSettings = () => {
 
   const assignRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      const { error } = await supabase.from("organization_memberships").insert({ user_id: userId, organization_id: orgId, role: role });
+      const { error } = await supabase.from("organization_memberships").insert({ user_id: userId, organization_id: orgId, role: role as Database["public"]["Enums"]["app_role"] });
       if (error) throw error;
     },
     onSuccess: () => {
