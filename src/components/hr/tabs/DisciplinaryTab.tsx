@@ -58,10 +58,8 @@ export const DisciplinaryTab = ({
                   </Badge>
                   <RecordActions 
                     item={d} 
-                    table="disciplinary_records" 
-                    label="record" 
                     onEdit={() => onEdit(d)} 
-                    onDelete={onDelete}
+                    onDelete={() => onDelete(d.id, "disciplinary_records", "record")}
                   />
                 </div>
               </div>

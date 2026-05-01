@@ -56,10 +56,8 @@ export const SkillsTab = ({
                   )}
                   <RecordActions 
                     item={s} 
-                    table="employee_skills" 
-                    label="skill" 
                     onEdit={() => onEdit(s)} 
-                    onDelete={onDelete}
+                    onDelete={() => onDelete(s.id, "employee_skills", "skill")}
                   />
                 </div>
               </div>

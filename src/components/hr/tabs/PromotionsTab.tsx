@@ -49,10 +49,8 @@ export const PromotionsTab = ({
                   <Badge variant="outline" className="text-[10px] text-primary">Promoted</Badge>
                   <RecordActions 
                     item={p} 
-                    table="promotions" 
-                    label="promotion" 
                     onEdit={() => onEdit(p)} 
-                    onDelete={onDelete}
+                    onDelete={() => onDelete(p.id, "promotions", "promotion")}
                   />
                 </div>
               </div>

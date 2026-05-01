@@ -124,7 +124,7 @@ const Inventory = () => {
       const payload: Database["public"]["Tables"]["inventory"]["Insert"] = {
         organization_id: orgId,
         item_name: itemName.trim(),
-        item_type: (itemType || "hdpe"),
+        item_type: (itemType || "hdpe") as "hdpe" | "pvc" | "custom",
         diameter_mm: diameter ? parseInt(diameter) : null,
         quantity_meters: quantity ? parseFloat(quantity) : 0,
         min_stock_level: minStock ? parseFloat(minStock) : 10,
