@@ -54,10 +54,8 @@ export const PerformanceTab = ({
                   </Badge>
                   <RecordActions 
                     item={p} 
-                    table="performance_logs" 
-                    label="performance review" 
                     onEdit={() => onEdit(p)} 
-                    onDelete={onDelete}
+                    onDelete={() => onDelete(p.id, "performance_logs", "performance review")}
                   />
                 </div>
               </div>

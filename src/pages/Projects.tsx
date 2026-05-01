@@ -97,7 +97,7 @@ const Projects = () => {
     setNewName(p.name); setNewDesc(p.description ?? ""); setNewBudget(p.budget?.toString() ?? "");
     setNewStart(p.start_date ?? ""); setNewEnd(p.end_date ?? ""); setNewClientId(p.client_id ?? "");
     setNewStatus(p.status); setNewProgress(p.progress_percent ?? 0); setNewHeadId(p.project_head_id ?? "");
-    setNewTeamIds(Array.isArray(p.team_member_ids) ? p.team_member_ids : []);
+    setNewTeamIds(Array.isArray(p.team_member_ids) ? (p.team_member_ids as unknown as string[]) : []);
     setNewProjectLat(p.project_lat?.toString() ?? ""); setNewProjectLng(p.project_lng?.toString() ?? "");
     setNewRadius(p.radius_meters?.toString() ?? "500");
     setDialogOpen(true);

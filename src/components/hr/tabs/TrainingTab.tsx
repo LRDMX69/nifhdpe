@@ -51,10 +51,8 @@ export const TrainingTab = ({
                   )}
                   <RecordActions 
                     item={t} 
-                    table="training_logs" 
-                    label="training log" 
                     onEdit={() => onEdit(t)} 
-                    onDelete={onDelete}
+                    onDelete={() => onDelete(t.id, "training_logs", "training log")}
                   />
                 </div>
               </div>

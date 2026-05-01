@@ -49,10 +49,8 @@ export const RecruitmentTab = ({ recruitment, onAdd, onEdit, onDelete }: Recruit
                   </Badge>
                   <RecordActions 
                     item={r} 
-                    table="recruitment" 
-                    label="recruitment entry" 
                     onEdit={() => onEdit(r)} 
-                    onDelete={onDelete}
+                    onDelete={() => onDelete(r.id, "recruitment", "recruitment entry")}
                   />
                 </div>
               </div>
