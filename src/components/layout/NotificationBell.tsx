@@ -105,7 +105,7 @@ export const NotificationBell = () => {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [orgId, refetch]);
+  }, [orgId, refetch, user]);
 
   // Close on click outside
   useEffect(() => {
