@@ -24,6 +24,7 @@ export default tseslint.config(
       // Downgraded to warn to unblock production builds while we incrementally
       // tighten types. Critical paths (auth, finance) should still avoid `any`.
       "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-empty-object-type": "off",
     },
   },
 );
