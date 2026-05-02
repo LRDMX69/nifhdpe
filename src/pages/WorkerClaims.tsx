@@ -157,31 +157,12 @@ const WorkerClaims = () => {
       ...(c.admin_notes ? [{ heading: "Admin Notes", body: c.admin_notes }] : []),
     ];
 
-    // Add attachment note
-    if (c.file_url) {
-      sections.push({ heading: "Attachments", body: `Verification proof: ${c.file_url}` });
-    }
-
-    // Fetch and embed the image if it's an image file
-    let logoUrl: string | null = null;
+    // Embed proof: pass the URL inside a "Verification Proof" section so the
+    // PDF generator inlines the actual image (not the link).
     if (c.file_url && isImageUrl(c.file_url)) {
-      try {
-        // Pre-load the image to ensure it can be embedded
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = () => reject(new Error("Failed to load image"));
-          img.src = c.file_url!;
-        });
-        logoUrl = c.file_url;
-        sections.push({ heading: "Verification Proof", body: "Image attached below:" });
-      } catch (e) {
-        // If image can't be loaded, just show the URL
-        sections.push({ heading: "Verification Proof", body: `Image URL: ${c.file_url}` });
-      }
+      sections.push({ heading: "Verification Proof", body: c.file_url });
     } else if (c.file_url) {
-      sections.push({ heading: "Verification Proof", body: `Document URL: ${c.file_url}` });
+      sections.push({ heading: "Attachment", body: `Document: ${c.file_url}` });
     }
 
     generatePdf({
@@ -190,7 +171,6 @@ const WorkerClaims = () => {
       contentSections: sections,
       stampType: c.status === "approved" ? "admin" : null,
       showSignature: true,
-      logoUrl: logoUrl,
     });
   };
 
