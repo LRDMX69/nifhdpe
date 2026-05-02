@@ -31,16 +31,8 @@ const ResetPassword = () => {
       setReady(true);
     }
 
-    // Fallback: if no recovery event after 3s, show error
-    const timeout = setTimeout(() => {
-      if (!ready) {
-        // Don't redirect immediately - the user may still be loading
-      }
-    }, 3000);
-
     return () => {
       subscription.unsubscribe();
-      clearTimeout(timeout);
     };
   }, []);
 
@@ -65,10 +57,11 @@ const ResetPassword = () => {
       toast({ title: "Password reset successful", description: "Your password has been updated. Redirecting to login..." });
       await supabase.auth.signOut();
       setTimeout(() => navigate("/login"), 2000);
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The reset link may have expired. Please request a new one.";
       toast({
         title: "Error resetting password",
-        description: error.message || "The reset link may have expired. Please request a new one.",
+        description: message,
         variant: "destructive",
       });
     } finally {
