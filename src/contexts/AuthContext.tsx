@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { logger } from "@/lib/logger";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,7 @@ interface AuthContextType {
   activeOrganizationId: string | null;
   loading: boolean;
   isMaintenance: boolean;
+  authError: string | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -44,9 +45,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMaintenance, setIsMaintenance] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const activeOrgRef = useRef<string | null>(null);
 
   const fetchUserData = useCallback(async (userId: string) => {
     try {
+      setAuthError(null);
       // Check if maintenance admin
       const { data: maintenanceCheck } = await supabase
         .from("system_maintenance_accounts")
@@ -80,8 +84,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           organization_name: (m.organizations as unknown as { name: string })?.name ?? "",
         }));
         setMemberships(mapped);
-        // Set the first organization as active if not already set
-        if (!activeOrganizationId) {
+        // Set the first organization as active if not already set (use ref to avoid stale-closure re-fetch loop)
+        const currentOrg = activeOrgRef.current;
+        if (!currentOrg) {
+          activeOrgRef.current = mapped[0].organization_id;
           setActiveOrganizationId(mapped[0].organization_id);
         }
         // Maintenance admin always gets administrator view
@@ -89,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setActiveRole("administrator");
         } else {
           // Set the role for the active organization
-          const activeMembership = mapped.find(m => m.organization_id === activeOrganizationId) || mapped[0];
+          const activeMembership = mapped.find(m => m.organization_id === activeOrgRef.current) || mapped[0];
           setActiveRole(activeMembership.role);
         }
       } else if (isMaintenanceAdmin) {
@@ -103,8 +109,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       logger.error("Error fetching user data/memberships:", error);
+      setAuthError(error instanceof Error ? error.message : "Failed to load profile.");
     }
-  }, [activeOrganizationId]);
+  }, []);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -119,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setMemberships([]);
           setActiveRole(null);
           setActiveOrganizationId(null);
+          activeOrgRef.current = null;
           setIsMaintenance(false);
         }
         setLoading(false);
@@ -160,6 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setMemberships([]);
     setActiveRole(null);
     setActiveOrganizationId(null);
+    activeOrgRef.current = null;
     setIsMaintenance(false);
   };
 
@@ -172,6 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const switchOrganization = (organizationId: string) => {
     const membership = memberships.find(m => m.organization_id === organizationId);
     if (membership) {
+      activeOrgRef.current = organizationId;
       setActiveOrganizationId(organizationId);
       setActiveRole(membership.role);
     }
@@ -188,6 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         activeOrganizationId,
         loading,
         isMaintenance,
+        authError,
         signIn,
         signUp,
         signOut,

@@ -22,13 +22,21 @@ export async function validateUser(req: Request, organizationId: string) {
     throw new Error("Invalid token");
   }
 
-  // Verify membership in the organization
+  // Verify membership in the organization. Maintenance admins bypass org membership checks.
+  const { data: maintenance } = await supabase
+    .from("system_maintenance_accounts")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (maintenance) return user;
+
   const { data: membership, error: memberError } = await supabase
-    .from("user_organizations")
+    .from("organization_memberships")
     .select("role")
     .eq("user_id", user.id)
     .eq("organization_id", organizationId)
-    .single();
+    .maybeSingle();
 
   if (memberError || !membership) {
     throw new Error("Unauthorized access to this organization");

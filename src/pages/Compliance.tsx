@@ -102,7 +102,7 @@ const Compliance = () => {
     if (!orgId || !user || !title.trim() || !docType) return;
     setSaving(true);
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         title: title.trim(), doc_type: docType, expiry_date: expiryDate || null,
         project_id: projectId && projectId !== "none" ? projectId : null,
         file_url: fileUrl, status: docStatus as any,
@@ -112,7 +112,8 @@ const Compliance = () => {
         if (error) throw error;
         toast({ title: "Document updated" });
       } else {
-        const { error } = await supabase.from("compliance_documents").insert({ ...payload, organization_id: orgId, created_by: user.id });
+        const insertRow = { ...payload, organization_id: orgId, created_by: user.id } as never;
+        const { error } = await supabase.from("compliance_documents").insert(insertRow);
         if (error) throw error;
         toast({ title: "Document added" });
       }
