@@ -66,32 +66,67 @@ const DARK: [number, number, number] = [10, 22, 40];
 const STAMP_RED: [number, number, number] = [180, 30, 30];
 
 function drawLetterhead(doc: jsPDF, margin: number, pageW: number): number {
-  // 1. Draw Geometric Banner Background (z-indexed behind content)
-  const bannerW = pageW * 0.7; // ~70% width
-  const bannerH = 20; 
+  // ============================================================
+  // 1. DECORATIVE TOP-CENTER BANNER (drawn FIRST so it sits behind content)
+  //    Geometry per strict spec:
+  //      - ~70% page width, top-center, never touches margins
+  //      - Bottom-right corner cut inward diagonally ~55% of width
+  //      - Color split line starts from the END of the cut and runs
+  //        diagonally upward in the OPPOSITE direction, hitting the top
+  //      - Left = COMPANY BLUE, Right = COMPANY GREEN. Solid, sharp, no gradient.
+  // ============================================================
+  const bannerW = pageW * 0.7;
+  const bannerH = 22;
   const bannerX = (pageW - bannerW) / 2;
-  const bannerY = 5;
-  const cutX = bannerX + (bannerW * 0.45); // 55% cut inward from right
-  const splitTopX = bannerX + (bannerW * 0.8); // Diagonal split sloping opposite to cut
+  const bannerY = 4;
 
-  // Draw Blue Section (Left)
+  // Cut: bottom edge runs full width up to (1 - 0.55) = 45% from left.
+  // Cut endpoint sits on the RIGHT edge somewhere up the side.
+  // We define: the diagonal cut starts on the bottom edge at 45% width
+  //            and ends on the right edge ~55% up from the bottom.
+  const cutBottomX = bannerX + bannerW * 0.45;            // bottom-edge endpoint
+  const cutBottomY = bannerY + bannerH;
+  const cutRightX  = bannerX + bannerW;                    // right edge x
+  const cutRightY  = bannerY + bannerH * 0.45;             // 55% up from bottom
+
+  // Color split: starts at the cut's bottom endpoint (cutBottomX, cutBottomY)
+  // and slopes diagonally UPWARD in the OPPOSITE direction (up-and-left → top edge).
+  // Land it on the top edge to the LEFT of cutBottomX so the slope opposes the cut.
+  const splitTopX = bannerX + bannerW * 0.30;              // opposite-direction slope
+  const splitTopY = bannerY;
+
+  // ---- BLUE polygon (left of split) ----
   doc.setFillColor(...BLUE);
-  doc.path([
-    { op: "m", c: [bannerX, bannerY] },
-    { op: "l", c: [splitTopX, bannerY] },
-    { op: "l", c: [cutX, bannerY + bannerH] },
-    { op: "l", c: [bannerX, bannerY + bannerH] },
-    { op: "h", c: [] }
-  ], "F");
+  doc.triangle(
+    bannerX, bannerY,
+    splitTopX, splitTopY,
+    bannerX, cutBottomY,
+    "F"
+  );
+  // The remaining quad on the left bottom (split point down to cut start)
+  doc.triangle(
+    splitTopX, splitTopY,
+    cutBottomX, cutBottomY,
+    bannerX, cutBottomY,
+    "F"
+  );
 
-  // Draw Green Section (Right)
+  // ---- GREEN polygon (right of split, with bottom-right corner cut) ----
   doc.setFillColor(...GREEN);
-  doc.path([
-    { op: "m", c: [splitTopX, bannerY] },
-    { op: "l", c: [bannerX + bannerW, bannerY] },
-    { op: "l", c: [cutX, bannerY + bannerH] },
-    { op: "h", c: [] }
-  ], "F");
+  // Top trapezoid: split top → top-right → cut endpoint on right edge
+  doc.triangle(
+    splitTopX, splitTopY,
+    cutRightX, bannerY,
+    cutRightX, cutRightY,
+    "F"
+  );
+  // Bottom triangle: split top → cut-right point → cut-bottom point
+  doc.triangle(
+    splitTopX, splitTopY,
+    cutRightX, cutRightY,
+    cutBottomX, cutBottomY,
+    "F"
+  );
 
   // 2. App Icon + Letterhead (Top-Left, independent of rectangle)
   let y = margin + 2;
