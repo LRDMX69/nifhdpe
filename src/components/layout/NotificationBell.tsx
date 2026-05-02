@@ -41,6 +41,8 @@ export const NotificationBell = () => {
         .select("id, subject, body, sender_id, message_type, created_at, is_read, recipient_id")
         .eq("organization_id", orgId)
         .eq("is_read", false)
+        // Exclude messages this user sent (own broadcasts/replies should not count as unread)
+        .neq("sender_id", user.id)
         .or(`recipient_id.eq.${user.id},message_type.eq.broadcast`)
         .order("created_at", { ascending: false })
         .limit(10);
