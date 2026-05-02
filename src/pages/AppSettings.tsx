@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Building2, Users, Shield, Check, X, Loader2, Camera, Trash2 } from "lucide-react";
+import { Building2, Users, Shield, Check, X, Loader2, Camera, Trash2, Ban, UserX } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_LABELS, ALL_ROLES } from "@/lib/constants";
@@ -29,11 +30,68 @@ const AppSettings = () => {
       const { data } = await supabase.rpc("get_visible_members", { _org_id: orgId });
       if (!data) return [];
       const userIds = data.map((m: { user_id: string }) => m.user_id);
-      const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, phone, avatar_url").in("user_id", userIds);
-      const profileMap = new Map((profiles ?? []).map((p: { user_id: string; full_name: string | null; avatar_url: string | null }) => [p.user_id, p]));
-      return data.map((m: { user_id: string; id: string; role: string }) => ({ ...m, full_name: profileMap.get(m.user_id)?.full_name ?? "Unknown", avatar_url: profileMap.get(m.user_id)?.avatar_url }));
+      const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, phone, avatar_url, terminated").in("user_id", userIds);
+      const profileMap = new Map((profiles ?? []).map((p: { user_id: string; full_name: string | null; avatar_url: string | null; terminated?: boolean }) => [p.user_id, p]));
+      return data.map((m: { user_id: string; id: string; role: string }) => ({
+        ...m,
+        full_name: profileMap.get(m.user_id)?.full_name ?? "Unknown",
+        avatar_url: profileMap.get(m.user_id)?.avatar_url,
+        terminated: profileMap.get(m.user_id)?.terminated ?? false,
+      }));
     },
     enabled: !!orgId,
+  });
+
+  const { data: terminatedUsers = [] } = useQuery({
+    queryKey: ["terminated-users", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, avatar_url, terminated_at")
+        .eq("organization_id", orgId)
+        .eq("terminated", true);
+      return data ?? [];
+    },
+    enabled: !!orgId && isMaintenance === isMaintenance, // always
+  });
+
+  const callAdminAction = async (action: "terminate" | "delete", userId: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error("Not authenticated");
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-terminate-user`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ user_id: userId, organization_id: orgId, action }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Action failed (${res.status})`);
+    }
+  };
+
+  const terminateUser = useMutation({
+    mutationFn: (userId: string) => callAdminAction("terminate", userId),
+    onSuccess: () => {
+      toast({ title: "User terminated", description: "Access revoked. Their work has been preserved." });
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      queryClient.invalidateQueries({ queryKey: ["terminated-users"] });
+      queryClient.invalidateQueries({ queryKey: ["unassigned-users"] });
+    },
+    onError: (err: Error) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: (userId: string) => callAdminAction("delete", userId),
+    onSuccess: () => {
+      toast({ title: "Account deleted", description: "Login removed. Their previous work is preserved." });
+      queryClient.invalidateQueries({ queryKey: ["terminated-users"] });
+    },
+    onError: (err: Error) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
   });
 
   const { data: unassignedUsers = [] } = useQuery({
@@ -177,7 +235,7 @@ const AppSettings = () => {
 
           <p className="text-sm text-muted-foreground">{membersLoading ? "Loading..." : `${teamMembers.length} team members`}</p>
           <div className="space-y-2">
-            {teamMembers.map((m: { id: string; user_id: string; full_name: string | null; avatar_url: string | null; role: string }) => (
+            {teamMembers.map((m: { id: string; user_id: string; full_name: string | null; avatar_url: string | null; role: string; terminated?: boolean }) => (
               <Card key={m.id} className="border-border/50">
                 <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-2">
                   <div className="flex items-center gap-3 min-w-0">
@@ -190,15 +248,78 @@ const AppSettings = () => {
                   <div className="flex items-center gap-2">
                     <Badge variant={m.role === "administrator" ? "default" : "secondary"} className="capitalize text-xs">{ROLE_LABELS[m.role] ?? m.role}</Badge>
                     {m.user_id !== user?.id && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => removeMember.mutate(m.id)}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      <>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Remove role" onClick={() => removeMember.mutate(m.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="Terminate user">
+                              <Ban className="h-3 w-3" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Terminate {m.full_name}?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This revokes all access immediately and signs them out. Their submitted work (reports, claims, projects) will be preserved. You can permanently delete the login afterward.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => terminateUser.mutate(m.user_id)}>Terminate</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
                     )}
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
+
+          {terminatedUsers.length > 0 && (
+            <Card className="border-destructive/30 bg-destructive/5 mt-4">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-destructive flex items-center gap-2">
+                  <UserX className="h-4 w-4" /> Terminated Accounts ({terminatedUsers.length})
+                </CardTitle>
+                <CardDescription>Permanently delete the login. Their past work is kept.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {terminatedUsers.map((u: { user_id: string; full_name: string | null; avatar_url: string | null; terminated_at: string | null }) => (
+                  <div key={u.user_id} className="flex items-center justify-between gap-2 p-2 rounded-lg border border-border/50">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Avatar className="h-7 w-7"><AvatarFallback className="text-[10px]">{getInitials(u.full_name)}</AvatarFallback></Avatar>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{u.full_name}</p>
+                        {u.terminated_at && <p className="text-[10px] text-muted-foreground">Terminated {new Date(u.terminated_at).toLocaleDateString()}</p>}
+                      </div>
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="destructive" className="h-7 text-xs"><Trash2 className="h-3 w-3 mr-1" />Delete Account</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Permanently delete {u.full_name}?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            The login will be removed and they cannot return. Their previous work stays in the system.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteUser.mutate(u.user_id)}>Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="profile" className="space-y-4">
