@@ -23,17 +23,17 @@ export const navItems: NavItem[] = [
   // HR visible to ALL roles (for check-in/out) + HR/Admin for full stats
   { label: "HR", icon: UserCog, path: "/hr", roles: ["administrator", "engineer", "technician", "warehouse", "finance", "hr", "reception_sales"] },
 
-  // Operational pages (hidden from admin)
-  { label: "Quotations", icon: FileText, path: "/quotations", roles: ["reception_sales"] },
-  { label: "Clients", icon: Users, path: "/clients", roles: ["reception_sales"] },
-  { label: "Inventory", icon: Package, path: "/inventory", roles: ["warehouse"] },
-  { label: "Projects", icon: FolderKanban, path: "/projects", roles: ["engineer", "technician"] },
-  { label: "Logistics", icon: Truck, path: "/logistics", roles: ["warehouse"] },
-  { label: "Equipment", icon: Wrench, path: "/equipment", roles: ["engineer", "technician", "warehouse"] },
-  { label: "Compliance", icon: ShieldCheck, path: "/compliance", roles: ["engineer"] },
-  { label: "Knowledge Base", icon: BookOpen, path: "/knowledge-base", roles: ["engineer", "technician", "warehouse", "finance", "hr", "reception_sales"] },
-  { label: "Analytics", icon: BarChart3, path: "/analytics", roles: ["finance", "reception_sales"] },
-  { label: "Calculator", icon: Calculator, path: "/calculator", roles: ["engineer", "technician"] },
+  // Operational pages — administrators get full visibility (oversight) too
+  { label: "Quotations", icon: FileText, path: "/quotations", roles: ["administrator", "reception_sales"] },
+  { label: "Clients", icon: Users, path: "/clients", roles: ["administrator", "reception_sales"] },
+  { label: "Inventory", icon: Package, path: "/inventory", roles: ["administrator", "warehouse"] },
+  { label: "Projects", icon: FolderKanban, path: "/projects", roles: ["administrator", "engineer", "technician"] },
+  { label: "Logistics", icon: Truck, path: "/logistics", roles: ["administrator", "warehouse"] },
+  { label: "Equipment", icon: Wrench, path: "/equipment", roles: ["administrator", "engineer", "technician", "warehouse"] },
+  { label: "Compliance", icon: ShieldCheck, path: "/compliance", roles: ["administrator", "engineer"] },
+  { label: "Knowledge Base", icon: BookOpen, path: "/knowledge-base", roles: ["administrator", "engineer", "technician", "warehouse", "finance", "hr", "reception_sales"] },
+  { label: "Analytics", icon: BarChart3, path: "/analytics", roles: ["administrator", "finance", "reception_sales"] },
+  { label: "Calculator", icon: Calculator, path: "/calculator", roles: ["administrator", "engineer", "technician"] },
 
   // Settings (admin only)
   { label: "Settings", icon: Settings, path: "/settings", roles: ["administrator"] },
