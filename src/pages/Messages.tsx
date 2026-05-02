@@ -174,7 +174,12 @@ const Messages = () => {
     };
   }).sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime());
 
-  const totalUnread = conversations.reduce((s, c) => s + c.unreadCount, 0) + broadcasts.filter((b: Database["public"]["Tables"]["messages"]["Row"]) => !b.is_read).length;
+  const totalUnread =
+    conversations.reduce((s, c) => s + c.unreadCount, 0) +
+    broadcasts.filter(
+      (b: Database["public"]["Tables"]["messages"]["Row"]) =>
+        !b.is_read && b.sender_id !== user?.id
+    ).length;
 
   // Filter conversations based on search
   const filteredConversations = conversations.filter((conv) => {
