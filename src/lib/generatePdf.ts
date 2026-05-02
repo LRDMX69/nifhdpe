@@ -352,24 +352,41 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       }
       y += 2;
     }
-    // If this section is an attachment and contains a URL, try to embed the image
-    if (section.heading && section.heading.toLowerCase().includes("attach") && section.body) {
+    // Embed any image URL found in attachment / proof / verification sections.
+    if (
+      section.heading &&
+      /attach|proof|verification|image/i.test(section.heading) &&
+      section.body
+    ) {
       const urlMatch = section.body.match(/https?:\/\/[^\s)]+/);
-      if (urlMatch) {
+      if (urlMatch && /\.(jpe?g|png|gif|webp|bmp)(\?.*)?$/i.test(urlMatch[0])) {
         const imgUrl = urlMatch[0];
         const imgData = await loadImageAsBase64(imgUrl);
         if (imgData) {
-          y = checkPageBreak(doc, y, 40, margin);
-          // Fit image width to half content width
-          const imgW = Math.min(contentW / 2, 120);
-          const imgH = (imgW / 1.6);
+          // Use natural aspect ratio when possible
+          const dims = await new Promise<{ w: number; h: number }>((resolve) => {
+            const im = new Image();
+            im.onload = () => resolve({ w: im.naturalWidth || 1, h: im.naturalHeight || 1 });
+            im.onerror = () => resolve({ w: 4, h: 3 });
+            im.src = imgData;
+          });
+          const maxW = contentW;
+          const maxH = 110;
+          let imgW = maxW;
+          let imgH = (imgW * dims.h) / dims.w;
+          if (imgH > maxH) {
+            imgH = maxH;
+            imgW = (imgH * dims.w) / dims.h;
+          }
+          y = checkPageBreak(doc, y, imgH + 6, margin);
           try {
-            doc.addImage(imgData, 'JPEG', margin, y, imgW, imgH);
+            const fmt = /\.png(\?.*)?$/i.test(imgUrl) ? "PNG" : "JPEG";
+            doc.addImage(imgData, fmt, margin, y, imgW, imgH);
             y += imgH + 6;
-          } catch (e) {
-            // fallback: add a note
+          } catch {
             doc.setFontSize(9);
-            doc.text("[Attachment could not be embedded]", margin, y);
+            doc.setTextColor(120, 120, 120);
+            doc.text("[Attachment image could not be embedded]", margin, y);
             y += 8;
           }
         }
