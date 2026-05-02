@@ -314,7 +314,6 @@ const AppSettings = () => {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
-                    )}
                   </div>
                 ))}
               </CardContent>
