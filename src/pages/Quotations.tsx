@@ -167,7 +167,7 @@ const Quotations = () => {
         toast({ title: status === "draft" ? "Saved as draft" : "Quotation sent" });
       }
       resetForm(); setDialogOpen(false); refetch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally { setSaving(false); }
   };
@@ -195,7 +195,7 @@ const Quotations = () => {
         toast({ title: "Quotation saved" });
       }
       resetForm(); setDialogOpen(false); refetch();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally { setSaving(false); }
   };

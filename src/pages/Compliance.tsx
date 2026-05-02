@@ -102,7 +102,7 @@ const Compliance = () => {
     if (!orgId || !user || !title.trim() || !docType) return;
     setSaving(true);
     try {
-      const payload: any = {
+      const payload: unknown = {
         title: title.trim(), doc_type: docType, expiry_date: expiryDate || null,
         project_id: projectId && projectId !== "none" ? projectId : null,
         file_url: fileUrl, status: docStatus as any,
