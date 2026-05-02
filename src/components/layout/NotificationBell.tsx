@@ -70,10 +70,15 @@ export const NotificationBell = () => {
     const channel = supabase
       .channel("notif-bell-global")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+        const m = payload.new as { sender_id?: string; recipient_id?: string | null; message_type?: string; subject?: string; body?: string; id?: string };
+        // Ignore messages this user authored
+        if (m.sender_id && user && m.sender_id === user.id) return;
+        // Only react to messages directed to me or broadcasts
+        if (m.message_type !== "broadcast" && m.recipient_id !== user?.id) return;
         refetch();
         // Trigger system notification if app is in background OR even if open as requested
         import("@/lib/pushNotifications").then(({ showNotification }) => {
-          showNotification(payload.new.subject || "New Message", payload.new.body, { messageId: payload.new.id });
+          showNotification(m.subject || "New Message", m.body || "", { messageId: m.id });
         });
         
         // Play notification sound
