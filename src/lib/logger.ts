@@ -5,10 +5,12 @@
 
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
+type LogPayload = unknown;
+
 class Logger {
   private isProd = import.meta.env.PROD;
 
-  private log(level: LogLevel, message: string, data?: any) {
+  private log(level: LogLevel, message: string, data?: LogPayload) {
     const timestamp = new Date().toISOString();
     const formattedMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
 
@@ -31,10 +33,10 @@ class Logger {
     }
   }
 
-  info(msg: string, data?: any) { this.log('info', msg, data); }
-  warn(msg: string, data?: any) { this.log('warn', msg, data); }
-  error(msg: string, data?: any) { this.log('error', msg, data); }
-  debug(msg: string, data?: any) { this.log('debug', msg, data); }
+  info(msg: string, data?: LogPayload) { this.log('info', msg, data); }
+  warn(msg: string, data?: LogPayload) { this.log('warn', msg, data); }
+  error(msg: string, data?: LogPayload) { this.log('error', msg, data); }
+  debug(msg: string, data?: LogPayload) { this.log('debug', msg, data); }
 }
 
 export const logger = new Logger();
