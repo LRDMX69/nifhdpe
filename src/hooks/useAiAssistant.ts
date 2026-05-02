@@ -18,12 +18,19 @@ export const useAiAssistant = ({ context }: UseAiAssistantOptions) => {
     setResponse("");
     setError(null);
 
+    if (!session?.access_token) {
+      setLoading(false);
+      setError("You must be signed in to use AI assistance.");
+      return;
+    }
+
     try {
       const resp = await fetch(AI_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({ context, prompt, data }),
       });
@@ -94,7 +101,7 @@ export const useAiAssistant = ({ context }: UseAiAssistantOptions) => {
     } finally {
       setLoading(false);
     }
-  }, [context]);
+  }, [context, session?.access_token]);
 
   const reset = useCallback(() => {
     setResponse("");
