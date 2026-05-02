@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
-import * as webpush from "https://deno.land/x/web_push@v0.1.11/mod.ts";
+import webpush from "npm:web-push@3.6.7";
 
 serve(async (req: Request) => {
   try {
