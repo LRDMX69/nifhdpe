@@ -1432,6 +1432,9 @@ export type Database = {
           id: string
           organization_id: string | null
           phone: string | null
+          terminated: boolean
+          terminated_at: string | null
+          terminated_by: string | null
           updated_at: string
           user_id: string
         }
@@ -1442,6 +1445,9 @@ export type Database = {
           id?: string
           organization_id?: string | null
           phone?: string | null
+          terminated?: boolean
+          terminated_at?: string | null
+          terminated_by?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1452,6 +1458,9 @@ export type Database = {
           id?: string
           organization_id?: string | null
           phone?: string | null
+          terminated?: boolean
+          terminated_at?: string | null
+          terminated_by?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -2134,6 +2143,7 @@ export type Database = {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
       }
+      is_user_terminated: { Args: { _uid: string }; Returns: boolean }
     }
     Enums: {
       app_role:

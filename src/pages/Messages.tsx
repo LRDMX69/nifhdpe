@@ -55,7 +55,14 @@ const Messages = () => {
     if (!orgId) return;
     const channel = supabase
       .channel("messages-realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, () => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+        const m = payload.new as { sender_id?: string; recipient_id?: string | null; message_type?: string };
+        // Don't ping the sender for their own messages
+        if (m.sender_id && user && m.sender_id === user.id) {
+          refetchMessages();
+          return;
+        }
+        if (m.message_type !== "broadcast" && m.recipient_id !== user?.id) return;
         refetchMessages();
         // Try to play notification sound - wrapped in try/catch to handle autoplay restrictions
         try {
@@ -167,7 +174,12 @@ const Messages = () => {
     };
   }).sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime());
 
-  const totalUnread = conversations.reduce((s, c) => s + c.unreadCount, 0) + broadcasts.filter((b: Database["public"]["Tables"]["messages"]["Row"]) => !b.is_read).length;
+  const totalUnread =
+    conversations.reduce((s, c) => s + c.unreadCount, 0) +
+    broadcasts.filter(
+      (b: Database["public"]["Tables"]["messages"]["Row"]) =>
+        !b.is_read && b.sender_id !== user?.id
+    ).length;
 
   // Filter conversations based on search
   const filteredConversations = conversations.filter((conv) => {

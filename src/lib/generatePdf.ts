@@ -66,32 +66,67 @@ const DARK: [number, number, number] = [10, 22, 40];
 const STAMP_RED: [number, number, number] = [180, 30, 30];
 
 function drawLetterhead(doc: jsPDF, margin: number, pageW: number): number {
-  // 1. Draw Geometric Banner Background (z-indexed behind content)
-  const bannerW = pageW * 0.7; // ~70% width
-  const bannerH = 20; 
+  // ============================================================
+  // 1. DECORATIVE TOP-CENTER BANNER (drawn FIRST so it sits behind content)
+  //    Geometry per strict spec:
+  //      - ~70% page width, top-center, never touches margins
+  //      - Bottom-right corner cut inward diagonally ~55% of width
+  //      - Color split line starts from the END of the cut and runs
+  //        diagonally upward in the OPPOSITE direction, hitting the top
+  //      - Left = COMPANY BLUE, Right = COMPANY GREEN. Solid, sharp, no gradient.
+  // ============================================================
+  const bannerW = pageW * 0.7;
+  const bannerH = 22;
   const bannerX = (pageW - bannerW) / 2;
-  const bannerY = 5;
-  const cutX = bannerX + (bannerW * 0.45); // 55% cut inward from right
-  const splitTopX = bannerX + (bannerW * 0.8); // Diagonal split sloping opposite to cut
+  const bannerY = 4;
 
-  // Draw Blue Section (Left)
+  // Cut: bottom edge runs full width up to (1 - 0.55) = 45% from left.
+  // Cut endpoint sits on the RIGHT edge somewhere up the side.
+  // We define: the diagonal cut starts on the bottom edge at 45% width
+  //            and ends on the right edge ~55% up from the bottom.
+  const cutBottomX = bannerX + bannerW * 0.45;            // bottom-edge endpoint
+  const cutBottomY = bannerY + bannerH;
+  const cutRightX  = bannerX + bannerW;                    // right edge x
+  const cutRightY  = bannerY + bannerH * 0.45;             // 55% up from bottom
+
+  // Color split: starts at the cut's bottom endpoint (cutBottomX, cutBottomY)
+  // and slopes diagonally UPWARD in the OPPOSITE direction (up-and-left → top edge).
+  // Land it on the top edge to the LEFT of cutBottomX so the slope opposes the cut.
+  const splitTopX = bannerX + bannerW * 0.30;              // opposite-direction slope
+  const splitTopY = bannerY;
+
+  // ---- BLUE polygon (left of split) ----
   doc.setFillColor(...BLUE);
-  doc.path([
-    { op: "m", c: [bannerX, bannerY] },
-    { op: "l", c: [splitTopX, bannerY] },
-    { op: "l", c: [cutX, bannerY + bannerH] },
-    { op: "l", c: [bannerX, bannerY + bannerH] },
-    { op: "h", c: [] }
-  ], "F");
+  doc.triangle(
+    bannerX, bannerY,
+    splitTopX, splitTopY,
+    bannerX, cutBottomY,
+    "F"
+  );
+  // The remaining quad on the left bottom (split point down to cut start)
+  doc.triangle(
+    splitTopX, splitTopY,
+    cutBottomX, cutBottomY,
+    bannerX, cutBottomY,
+    "F"
+  );
 
-  // Draw Green Section (Right)
+  // ---- GREEN polygon (right of split, with bottom-right corner cut) ----
   doc.setFillColor(...GREEN);
-  doc.path([
-    { op: "m", c: [splitTopX, bannerY] },
-    { op: "l", c: [bannerX + bannerW, bannerY] },
-    { op: "l", c: [cutX, bannerY + bannerH] },
-    { op: "h", c: [] }
-  ], "F");
+  // Top trapezoid: split top → top-right → cut endpoint on right edge
+  doc.triangle(
+    splitTopX, splitTopY,
+    cutRightX, bannerY,
+    cutRightX, cutRightY,
+    "F"
+  );
+  // Bottom triangle: split top → cut-right point → cut-bottom point
+  doc.triangle(
+    splitTopX, splitTopY,
+    cutRightX, cutRightY,
+    cutBottomX, cutBottomY,
+    "F"
+  );
 
   // 2. App Icon + Letterhead (Top-Left, independent of rectangle)
   let y = margin + 2;
@@ -244,27 +279,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
     showSignature = true, senderName, senderDepartment, documentId, logoUrl,
   } = options;
 
-  // Try server-side enqueue first to avoid heavy client work.
-  try {
-    const SUPABASE_URL = (import.meta as unknown as { env: Record<string, string | undefined> }).env.VITE_SUPABASE_URL;
-    const SUPABASE_PUB = (import.meta as unknown as { env: Record<string, string | undefined> }).env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    if (SUPABASE_URL && SUPABASE_PUB) {
-      const resp = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/generate-pdf`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${SUPABASE_PUB}`,
-        },
-        body: JSON.stringify({ title, content, contentSections, tableData, stampType, showSignature, senderName, senderDepartment, documentId, logoUrl }),
-      });
-      if (resp.ok) {
-        // Job queued; return so client doesn't do heavy PDF work.
-        return;
-      }
-    }
-  } catch (e) {
-    // Best-effort: if server enqueue fails, continue with client generation
-  }
+  // Client-side generation only — server-side queue table is not configured.
 
   let logoData: string | null = null;
   if (logoUrl) logoData = await loadImageAsBase64(logoUrl);
@@ -337,24 +352,41 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       }
       y += 2;
     }
-    // If this section is an attachment and contains a URL, try to embed the image
-    if (section.heading && section.heading.toLowerCase().includes("attach") && section.body) {
+    // Embed any image URL found in attachment / proof / verification sections.
+    if (
+      section.heading &&
+      /attach|proof|verification|image/i.test(section.heading) &&
+      section.body
+    ) {
       const urlMatch = section.body.match(/https?:\/\/[^\s)]+/);
-      if (urlMatch) {
+      if (urlMatch && /\.(jpe?g|png|gif|webp|bmp)(\?.*)?$/i.test(urlMatch[0])) {
         const imgUrl = urlMatch[0];
         const imgData = await loadImageAsBase64(imgUrl);
         if (imgData) {
-          y = checkPageBreak(doc, y, 40, margin);
-          // Fit image width to half content width
-          const imgW = Math.min(contentW / 2, 120);
-          const imgH = (imgW / 1.6);
+          // Use natural aspect ratio when possible
+          const dims = await new Promise<{ w: number; h: number }>((resolve) => {
+            const im = new Image();
+            im.onload = () => resolve({ w: im.naturalWidth || 1, h: im.naturalHeight || 1 });
+            im.onerror = () => resolve({ w: 4, h: 3 });
+            im.src = imgData;
+          });
+          const maxW = contentW;
+          const maxH = 110;
+          let imgW = maxW;
+          let imgH = (imgW * dims.h) / dims.w;
+          if (imgH > maxH) {
+            imgH = maxH;
+            imgW = (imgH * dims.w) / dims.h;
+          }
+          y = checkPageBreak(doc, y, imgH + 6, margin);
           try {
-            doc.addImage(imgData, 'JPEG', margin, y, imgW, imgH);
+            const fmt = /\.png(\?.*)?$/i.test(imgUrl) ? "PNG" : "JPEG";
+            doc.addImage(imgData, fmt, margin, y, imgW, imgH);
             y += imgH + 6;
-          } catch (e) {
-            // fallback: add a note
+          } catch {
             doc.setFontSize(9);
-            doc.text("[Attachment could not be embedded]", margin, y);
+            doc.setTextColor(120, 120, 120);
+            doc.text("[Attachment image could not be embedded]", margin, y);
             y += 8;
           }
         }

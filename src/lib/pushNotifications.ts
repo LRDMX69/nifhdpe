@@ -82,8 +82,15 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 
 /** Show a local notification (works when app is in background/another tab) */
 export async function showNotification(title: string, body: string, data?: Record<string, unknown>): Promise<boolean> {
-  // Try service worker notification first (works in background)
-  if (swRegistration) {
+  // Always emit an in-app toast so the user gets feedback even when
+  // OS-level notifications are denied or blocked by the platform (iOS Safari, etc.)
+  try {
+    const { toast } = await import("sonner");
+    toast(title, { description: body });
+  } catch { /* noop */ }
+
+  // Service worker notification (works when tab is backgrounded on supported browsers)
+  if (swRegistration && "Notification" in window && Notification.permission === "granted") {
     try {
       await swRegistration.showNotification(title, {
         body,
@@ -97,7 +104,7 @@ export async function showNotification(title: string, body: string, data?: Recor
     }
   }
 
-  // Fallback: basic Notification API
+  // Direct Notification API
   if ("Notification" in window && Notification.permission === "granted") {
     try {
       new Notification(title, { body, icon: "/nif-logo.png" });
