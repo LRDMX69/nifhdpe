@@ -112,7 +112,8 @@ const Compliance = () => {
         if (error) throw error;
         toast({ title: "Document updated" });
       } else {
-        const { error } = await supabase.from("compliance_documents").insert({ ...payload, organization_id: orgId, created_by: user.id });
+        const insertRow = { ...payload, organization_id: orgId, created_by: user.id } as never;
+        const { error } = await supabase.from("compliance_documents").insert(insertRow);
         if (error) throw error;
         toast({ title: "Document added" });
       }
