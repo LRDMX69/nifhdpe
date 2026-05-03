@@ -5,11 +5,8 @@ import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
 import { validateUser } from "../_shared/auth.ts";
 import { captureException, handleErrorResponse } from "../_shared/errorHandler.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 const SYSTEM_PROMPTS: Record<string, string> = {
   inventory: `You are an AI inventory analyst for an HDPE/PVC pipe company (NIF Technical) in Nigeria. Analyze the provided inventory data and give insights on:

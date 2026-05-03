@@ -22,6 +22,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { calculateNigerianSalary, SalaryBreakdown } from "@/lib/payroll";
 import type { Database } from "@/integrations/supabase/types";
 
 const HR = () => {
@@ -96,6 +97,22 @@ const HR = () => {
   const [payAmount, setPayAmount] = useState("");
   const [payDate, setPayDate] = useState("");
   const [payDesc, setPayDesc] = useState("");
+  const [salaryBreakdown, setSalaryBreakdown] = useState<SalaryBreakdown | null>(null);
+
+  // Update breakdown when employee is selected (Hard Lock Payroll)
+  useEffect(() => {
+    if (payUserId) {
+      const profile = profileMap.get(payUserId);
+      const gross = Number(profile?.basic_salary || 0);
+      if (gross > 0) {
+        setSalaryBreakdown(calculateNigerianSalary(gross));
+      } else {
+        setSalaryBreakdown(null);
+      }
+    } else {
+      setSalaryBreakdown(null);
+    }
+  }, [payUserId, profileMap]);
 
   // ID Card dialog
   const [idCardOpen, setIdCardOpen] = useState(false);
@@ -158,7 +175,7 @@ const HR = () => {
     queryKey: ["profiles-for-hr", orgId],
     queryFn: async () => {
       if (!orgId) return new Map();
-      const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, avatar_url").eq("organization_id", orgId);
+      const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, avatar_url, basic_salary").eq("organization_id", orgId);
       return new Map((profiles ?? []).map((p) => [p.user_id, p]));
     },
     enabled: !!orgId,
@@ -193,6 +210,16 @@ const HR = () => {
   const { data: promotions = [] } = useQuery({ queryKey: ["promotions", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("promotions").select("*").eq("organization_id", orgId).order("effective_date", { ascending: false }).limit(20); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
 
   // Payroll data
+  const { data: orgProfiles = [] } = useQuery({
+    queryKey: ["org-profiles", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase.from("profiles").select("user_id, full_name, avatar_url, bank_name, bank_account_number").eq("organization_id", orgId);
+      return data ?? [];
+    },
+    enabled: !!orgId,
+  });
+
   const { data: salaryPayments = [] } = useQuery({
     queryKey: ["salary-payments", orgId],
     queryFn: async () => {
@@ -333,16 +360,35 @@ const HR = () => {
 
   const submitSalary = useMutation({
     mutationFn: async () => {
-      if (!orgId || !user || !payUserId || !payAmount) throw new Error("Fill required fields");
+      if (!orgId || !user || !payUserId) throw new Error("Fill required fields");
+      
+      const profile = profileMap.get(payUserId);
+      const gross = Number(profile?.basic_salary || 0);
+      if (gross <= 0) throw new Error("Employee has no base salary configured.");
+      
+      const breakdown = calculateNigerianSalary(gross);
+      
       const { error } = await supabase.from("worker_payments").insert({
-        organization_id: orgId, created_by: user.id, user_id: payUserId,
-        type: "salary" as const, amount: parseFloat(payAmount),
+        organization_id: orgId, 
+        created_by: user.id, 
+        user_id: payUserId,
+        type: "salary" as const, 
+        amount: breakdown.netPay, // Total net amount
+        gross_pay: breakdown.grossPay,
+        net_pay: breakdown.netPay,
+        basic_salary: breakdown.basic,
+        housing_allowance: breakdown.housing,
+        transport_allowance: breakdown.transport,
+        pension_employee: breakdown.pensionEmployee,
+        pension_employer: breakdown.pensionEmployer,
+        nhf_deduction: breakdown.nhf,
+        paye_tax: breakdown.paye,
         date: payDate || new Date().toISOString().split("T")[0],
         description: payDesc || null,
-      });
+      } as any);
       if (error) throw error;
     },
-    onSuccess: () => { toast({ title: "Salary payment recorded" }); setPayrollOpen(false); setPayUserId(""); setPayAmount(""); setPayDate(""); setPayDesc(""); queryClient.invalidateQueries({ queryKey: ["salary-payments"] }); },
+    onSuccess: () => { toast({ title: "Salary payment recorded with statutory deductions" }); setPayrollOpen(false); setPayUserId(""); setPayAmount(""); setPayDate(""); setPayDesc(""); queryClient.invalidateQueries({ queryKey: ["salary-payments"] }); },
     onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
@@ -589,12 +635,27 @@ const HR = () => {
                   <DialogContent><DialogHeader><DialogTitle>Record Salary Payment</DialogTitle></DialogHeader>
                     <div className="space-y-4">
                       <div className="space-y-2"><Label>Employee *</Label><Select value={payUserId} onValueChange={setPayUserId}><SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger><SelectContent>{memberOptions.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent></Select></div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2"><Label>Amount (₦) *</Label><Input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="0.00" /></div>
-                        <div className="space-y-2"><Label>Date</Label><Input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} /></div>
-                      </div>
+                      <div className="space-y-2"><Label>Date</Label><Input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} /></div>
+                      {!salaryBreakdown && payUserId && (
+                        <p className="text-sm text-destructive font-medium">This employee does not have a base salary set in their profile.</p>
+                      )}
                       <div className="space-y-2"><Label>Description</Label><Input value={payDesc} onChange={e => setPayDesc(e.target.value)} placeholder="e.g. March 2026 Salary" /></div>
-                      <Button className="w-full" onClick={() => submitSalary.mutate()} disabled={!payUserId || !payAmount || submitSalary.isPending}>{submitSalary.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save Payment</Button>
+                      
+                      {salaryBreakdown && (
+                        <div className="bg-muted/50 p-3 rounded-lg space-y-1.5 border border-border">
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Statutory Breakdown (NGN)</p>
+                          <div className="flex justify-between text-xs"><span>Gross Salary:</span><span className="font-medium">₦{salaryBreakdown.grossPay.toLocaleString()}</span></div>
+                          <div className="flex justify-between text-xs text-destructive"><span>PAYE Tax:</span><span className="font-medium">-₦{salaryBreakdown.paye.toLocaleString()}</span></div>
+                          <div className="flex justify-between text-xs text-destructive"><span>Pension (8%):</span><span className="font-medium">-₦{salaryBreakdown.pensionEmployee.toLocaleString()}</span></div>
+                          <div className="flex justify-between text-xs text-destructive"><span>NHF (2.5%):</span><span className="font-medium">-₦{salaryBreakdown.nhf.toLocaleString()}</span></div>
+                          <div className="border-t pt-1.5 flex justify-between text-sm font-bold text-primary"><span>Net Payable:</span><span>₦{salaryBreakdown.netPay.toLocaleString()}</span></div>
+                        </div>
+                      )}
+
+                      <Button className="w-full" onClick={() => submitSalary.mutate()} disabled={!payUserId || !salaryBreakdown || submitSalary.isPending}>
+                        {submitSalary.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                        {salaryBreakdown ? `Pay ₦${salaryBreakdown.netPay.toLocaleString()}` : "Save Payment"}
+                      </Button>
                     </div>
                   </DialogContent>
                 </Dialog>

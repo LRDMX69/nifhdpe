@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Calendar, Loader2, MoreVertical, Pencil, Trash2, Users, MapPin } from "lucide-react";
+import { Plus, Search, Calendar, Loader2, MoreVertical, Pencil, Trash2, Users, MapPin, BarChart3 } from "lucide-react";
+import { ProjectPnL } from "@/components/projects/ProjectPnL";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";
@@ -39,6 +40,7 @@ const Projects = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [pnlProject, setPnlProject] = useState<ProjectItem | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<ProjectItem | null>(null);
@@ -300,6 +302,15 @@ const Projects = () => {
 
       {isLoading && <p className="text-sm text-muted-foreground">Loading projects...</p>}
 
+      <Dialog open={!!pnlProject} onOpenChange={() => setPnlProject(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Project Profit & Loss: {pnlProject?.name}</DialogTitle>
+          </DialogHeader>
+          {pnlProject && <ProjectPnL projectId={pnlProject.id} projectBudget={pnlProject.budget || 0} />}
+        </DialogContent>
+      </Dialog>
+
       <div ref={listRef} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {filtered.length === 0 && !isLoading && (
           <Card className="col-span-full"><CardContent className="p-8 text-center text-muted-foreground">No projects found.</CardContent></Card>
@@ -320,6 +331,8 @@ const Projects = () => {
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setPnlProject(project)}><BarChart3 className="h-3.5 w-3.5 mr-2" />View P&L</DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => openEdit(project)}><Pencil className="h-3.5 w-3.5 mr-2" />Edit</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {allStatuses.filter(s => s !== project.status).map(s => (

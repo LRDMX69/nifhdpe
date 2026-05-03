@@ -26,6 +26,7 @@ interface AuthContextType {
   activeOrganizationId: string | null;
   loading: boolean;
   isMaintenance: boolean;
+  isMfaEnabled: boolean;
   authError: string | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
@@ -45,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMaintenance, setIsMaintenance] = useState(false);
+  const [isMfaEnabled, setIsMfaEnabled] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const activeOrgRef = useRef<string | null>(null);
 
@@ -115,11 +117,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
 
+        // Check for MFA
         if (session?.user) {
+          const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+          if (!factorsError && factors) {
+            setIsMfaEnabled(factors.all.some(f => f.status === "verified"));
+          }
           setTimeout(() => fetchUserData(session.user.id), 0);
         } else {
           setProfile(null);
@@ -128,15 +135,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setActiveOrganizationId(null);
           activeOrgRef.current = null;
           setIsMaintenance(false);
+          setIsMfaEnabled(false);
         }
         setLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        const { data: factors } = await supabase.auth.mfa.listFactors();
+        setIsMfaEnabled(factors?.all.some(f => f.status === "verified") ?? false);
         fetchUserData(session.user.id);
       }
       setLoading(false);
@@ -198,6 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         activeOrganizationId,
         loading,
         isMaintenance,
+        isMfaEnabled,
         authError,
         signIn,
         signUp,

@@ -18,4 +18,19 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    target: "esnext",
+    minify: "esbuild",
+    cssMinify: true,
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom", "react-router-dom"],
+          ui: ["lucide-react", "clsx", "tailwind-merge", "framer-motion", "gsap"],
+          db: ["@supabase/supabase-js", "@tanstack/react-query"],
+        },
+      },
+    },
+  },
 }));

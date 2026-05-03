@@ -32,6 +32,39 @@ const statusIcons: Record<string, React.ReactNode> = {
   rejected: <XCircle className="h-4 w-4 text-destructive" />,
 };
 
+import { useSignedUrl } from "@/hooks/useSignedUrl";
+
+const ClaimImage = ({ path }: { path: string }) => {
+  const { data: signedUrl } = useSignedUrl("claim-attachments", path, 3600);
+  return (
+    <div className="mt-1 relative group w-32 h-32 rounded-md overflow-hidden border border-border bg-muted/50">
+      <img 
+        src={signedUrl || "/placeholder.svg"} 
+        alt="Proof" 
+        className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+        onClick={() => signedUrl && window.open(signedUrl, "_blank")}
+        onError={(e) => {
+          (e.target as HTMLImageElement).src = "/placeholder.svg";
+        }}
+      />
+      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+        <span className="text-[10px] text-white font-medium">Click to enlarge</span>
+      </div>
+    </div>
+  );
+};
+
+const ClaimDocumentLink = ({ path }: { path: string }) => {
+  const { data: signedUrl } = useSignedUrl("claim-attachments", path, 3600);
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-2 text-left w-fit">
+      <Button size="sm" variant="outline" className="h-8 text-xs" asChild disabled={!signedUrl}>
+        <a href={signedUrl || "#"} target="_blank" rel="noopener noreferrer">📄 Open Document Proof</a>
+      </Button>
+    </div>
+  );
+};
+
 const WorkerClaims = () => {
   const { user, activeRole, memberships, isMaintenance } = useAuth();
   const { toast } = useToast();
@@ -92,12 +125,13 @@ const WorkerClaims = () => {
         const ext = selectedFile.name.split(".").pop() || "jpg";
         const filePath = `${orgId}/${user.id}/${Date.now()}.${ext}`;
         const { error: uploadErr } = await supabase.storage
-          .from("claims-proof")
+          .from("claim-attachments")
           .upload(filePath, selectedFile);
         if (uploadErr) throw new Error("File upload failed: " + uploadErr.message);
 
-        const { data: urlData } = supabase.storage.from("claims-proof").getPublicUrl(filePath);
-        const fileUrl = urlData?.publicUrl || filePath;
+        const { data: urlData } = await supabase.storage.from("claim-attachments").createSignedUrl(filePath, 60 * 60 * 24 * 7); // 7 days
+        const fileUrl = urlData?.signedUrl || filePath;
+
 
         const { error } = await supabase.from("worker_claims").insert({
           organization_id: orgId,
@@ -308,29 +342,8 @@ const WorkerClaims = () => {
                   </div>
 
                   {/* Inline proof preview */}
-                  {hasImage && (
-                    <div className="mt-1 relative group w-32 h-32 rounded-md overflow-hidden border border-border bg-muted/50">
-                      <img 
-                        src={c.file_url} 
-                        alt="Proof" 
-                        className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
-                        onClick={() => window.open(c.file_url, "_blank")}
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = "/placeholder.svg";
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                        <span className="text-[10px] text-white font-medium">Click to enlarge</span>
-                      </div>
-                    </div>
-                  )}
-                  {c.file_url && !hasImage && (
-                    <div className="rounded-lg border border-border bg-muted/30 p-2 text-left w-fit">
-                      <Button size="sm" variant="outline" className="h-8 text-xs" asChild>
-                        <a href={c.file_url} target="_blank" rel="noopener noreferrer">📄 Open Document Proof</a>
-                      </Button>
-                    </div>
-                  )}
+                  {hasImage && <ClaimImage path={c.file_url} />}
+                  {c.file_url && !hasImage && <ClaimDocumentLink path={c.file_url} />}
                   {!c.file_url && (isAdmin || isFinance) && (
                     <p className="text-xs text-destructive flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> No proof attached</p>
                   )}

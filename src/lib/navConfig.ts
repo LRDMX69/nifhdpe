@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, FileText, Users, Package, FolderKanban, BarChart3, Calculator,
-  Truck, Settings, ClipboardList, DollarSign, Wrench, ShieldCheck, BookOpen, Target, UserCog, AlertCircle, MessageSquare,
+  Truck, Settings, ClipboardList, DollarSign, Wrench, ShieldCheck, BookOpen, Target, UserCog, AlertCircle, MessageSquare, ShoppingCart,
 } from "lucide-react";
 
 export interface NavItem {
@@ -19,6 +19,8 @@ export const navItems: NavItem[] = [
   { label: "Opportunities", icon: Target, path: "/opportunities", roles: ["administrator", "reception_sales"] },
   { label: "Claims", icon: AlertCircle, path: "/claims", roles: ["administrator", "engineer", "technician", "warehouse", "finance", "hr", "reception_sales"] },
   { label: "Messages", icon: MessageSquare, path: "/messages", roles: ["administrator", "engineer", "technician", "warehouse", "finance", "hr", "reception_sales"] },
+  { label: "Procurement", icon: ShoppingCart, path: "/procurement", roles: ["administrator", "finance", "warehouse"] },
+  { label: "HSE", icon: ShieldCheck, path: "/hse", roles: ["administrator", "engineer", "technician"] },
 
   // HR visible to ALL roles (for check-in/out) + HR/Admin for full stats
   { label: "HR", icon: UserCog, path: "/hr", roles: ["administrator", "engineer", "technician", "warehouse", "finance", "hr", "reception_sales"] },

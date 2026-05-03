@@ -223,6 +223,16 @@ const Equipment = () => {
     { label: "Maintenance", value: equipment.filter((e: EquipmentItem) => e.status === "maintenance").length, icon: AlertCircle },
   ];
 
+  const maintenanceDue = equipment.filter((e: EquipmentItem) => {
+    if (!e.next_maintenance_date) return false;
+    const maintDate = new Date(e.next_maintenance_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // normalize today to midnight for fair day diff calculation
+    const diffTime = maintDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays <= 7 && e.status !== "retired";
+  });
+
   return (
     <div ref={containerRef} className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
       <PageHeader title="Equipment" description="Track machinery, tools, and vehicles">
@@ -360,6 +370,46 @@ const Equipment = () => {
         </DialogContent>
       </Dialog>
 
+      {canManage && maintenanceDue.length > 0 && (
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-destructive flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" /> Service Due ({maintenanceDue.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {maintenanceDue.map((e: EquipmentItem) => {
+              const maintDate = new Date(e.next_maintenance_date!);
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const diffDays = Math.ceil((maintDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+              const isOverdue = diffDays < 0;
+              return (
+                <div key={`maint-${e.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg bg-background/50 border border-border/50">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{e.name}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {isOverdue ? <span className="text-destructive font-medium">Overdue by {Math.abs(diffDays)} days</span> : <span>Due in {diffDays} days</span>} 
+                      ({e.next_maintenance_date})
+                    </p>
+                  </div>
+                  <div className="flex gap-1 shrink-0 flex-wrap">
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openEdit(e)}>
+                      <Wrench className="h-3 w-3 mr-1" />Update Date
+                    </Button>
+                    {e.status !== "maintenance" && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleStatusChange(e.id, "maintenance")}>
+                        Set Status: Maintenance
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
       {isAdmin && requests.filter((r: EquipmentRequest) => r.status === "pending").length > 0 && (
         <Card className="border-warning/30">
           <CardHeader className="pb-2"><CardTitle className="text-sm text-warning flex items-center gap-2">
@@ -410,7 +460,12 @@ const Equipment = () => {
                     {e.serial_number && <span>S/N: {e.serial_number}</span>}
                     {e.usage_hours != null && <span>{Number(e.usage_hours).toLocaleString()}h</span>}
                     {e.projects?.name && <span className="text-primary">@ {e.projects.name}</span>}
-                    {e.next_maintenance_date && <span>Maint: {e.next_maintenance_date}</span>}
+                    {e.next_maintenance_date && (
+                      <span className={maintenanceDue.some(m => m.id === e.id) ? "text-destructive font-medium flex items-center gap-1" : ""}>
+                        {maintenanceDue.some(m => m.id === e.id) && <AlertCircle className="h-3 w-3" />}
+                        Maint: {e.next_maintenance_date}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-1 shrink-0">

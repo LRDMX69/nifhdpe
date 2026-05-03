@@ -8,7 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Truck, MapPin, Clock, Loader2, MoreVertical, Pencil, Trash2, CheckCircle2, Navigation } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, Search, Truck, MapPin, Clock, Loader2, MoreVertical, Pencil, Trash2, CheckCircle2, Navigation, Fuel, Car } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";
@@ -64,6 +66,26 @@ const Logistics = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("projects").select("id, name").eq("organization_id", orgId);
+      return data ?? [];
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: vehicles = [] } = useQuery({
+    queryKey: ["vehicles", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase.from("vehicles").select("*").eq("organization_id", orgId).order("plate_number");
+      return data ?? [];
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: fuelLogs = [] } = useQuery({
+    queryKey: ["fuel-logs", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase.from("fuel_logs").select("*, vehicles(plate_number)").eq("organization_id", orgId).order("date", { ascending: false });
       return data ?? [];
     },
     enabled: !!orgId,
@@ -241,10 +263,145 @@ const Logistics = () => {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <PageHeader title="Logistics" description="Delivery scheduling and tracking">
-        {canEdit && <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" /> Schedule Delivery</Button>}
-      </PageHeader>
+    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+      <PageHeader title="Logistics & Fleet" description="Delivery scheduling, vehicle tracking, and fuel logs" />
+
+      <Tabs defaultValue="deliveries" className="space-y-4">
+        <TabsList className="w-full justify-start overflow-x-auto bg-transparent p-0 gap-1 h-auto scrollbar-hide">
+          <TabsTrigger value="deliveries" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <Truck className="h-4 w-4 mr-2" /> Deliveries
+          </TabsTrigger>
+          <TabsTrigger value="vehicles" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <Car className="h-4 w-4 mr-2" /> Fleet
+          </TabsTrigger>
+          <TabsTrigger value="fuel" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <Fuel className="h-4 w-4 mr-2" /> Fuel Log
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="deliveries" className="space-y-4">
+          <div className="flex justify-between items-center gap-2">
+            <div className="flex flex-col sm:flex-row gap-3 flex-1">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search deliveries..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[150px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in_transit">In Transit</SelectItem>
+                  <SelectItem value="delivered">Delivered</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {canEdit && <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" /> New Delivery</Button>}
+          </div>
+
+          <div ref={listRef} className="space-y-3">
+            {filtered.length === 0 && (
+              <Card className="border-border/50"><CardContent className="py-8 text-center text-muted-foreground">
+                {deliveries.length === 0 ? "No deliveries yet. Schedule your first delivery above." : "No deliveries match your filter."}
+              </CardContent></Card>
+            )}
+            {filtered.map((d) => (
+              <Card key={d.id} className="gsap-card border-border/50 hover:border-primary/20 transition-all">
+                <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0"><Truck className="h-5 w-5" /></div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm truncate">{(d as any).projects?.name ?? "Unlinked delivery"}</p>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-0.5">
+                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {d.destination}</span>
+                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {d.delivery_date}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{d.vehicle ?? "—"} · {d.driver ?? "—"} · {d.distance_km ?? 0}km{d.site_name ? ` · ${d.site_name}` : ""}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-bold text-sm">{formatCurrency(d.cost ?? 0)}</span>
+                    <Badge variant={statusBadge[d.status || "pending"] ?? "outline"} className="capitalize text-xs">{(d.status ?? "pending").replace("_", " ")}</Badge>
+                    {canEdit && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(d)}><Pencil className="h-3.5 w-3.5 mr-2" />Edit</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {d.status !== "in_transit" && <DropdownMenuItem onClick={() => handleStatusChange(d.id, "in_transit")}><Navigation className="h-3.5 w-3.5 mr-2" />In Transit</DropdownMenuItem>}
+                          {d.status !== "delivered" && <DropdownMenuItem onClick="{() => handleStatusChange(d.id, 'delivered')}"><CheckCircle2 className="h-3.5 w-3.5 mr-2" />Delivered</DropdownMenuItem>}
+                          {d.status !== "pending" && <DropdownMenuItem onClick="{() => handleStatusChange(d.id, 'pending')}">Reset to Pending</DropdownMenuItem>}
+                          <DropdownMenuSeparator />
+                          {canDelete && <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(d)}><Trash2 className="h-3.5 w-3.5 mr-2" />Delete</DropdownMenuItem>}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="vehicles">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {vehicles.length === 0 ? (
+              <p className="col-span-full text-center py-12 text-muted-foreground">No vehicles registered.</p>
+            ) : (
+              vehicles.map((v: any) => (
+                <Card key={v.id} className="border-border/50">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        <Car className="h-5 w-5 text-primary" />
+                        <div>
+                          <h3 className="font-bold text-sm">{v.plate_number}</h3>
+                          <p className="text-xs text-muted-foreground">{v.make} {v.model} ({v.year})</p>
+                        </div>
+                      </div>
+                      <Badge variant={v.status === 'active' ? 'default' : 'outline'}>{v.status}</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                      <div>Current KM: <span className="text-foreground">{v.current_km?.toLocaleString()}</span></div>
+                      <div>Last Service: <span className="text-foreground">{v.last_maintenance_date || "—"}</span></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="fuel">
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader><TableRow>
+                  <TableHead>Date</TableHead><TableHead>Vehicle</TableHead><TableHead>Liters</TableHead><TableHead className="text-right">Total Cost</TableHead><TableHead className="text-right">KM Reading</TableHead>
+                </TableRow></TableHeader>
+                <TableBody>
+                  {fuelLogs.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No fuel logs recorded.</TableCell></TableRow>
+                  ) : (
+                    fuelLogs.map((log: any) => (
+                      <TableRow key={log.id}>
+                        <TableCell className="text-xs">{log.date}</TableCell>
+                        <TableCell className="text-xs font-bold">{log.vehicles?.plate_number}</TableCell>
+                        <TableCell className="text-xs">{log.liters} L</TableCell>
+                        <TableCell className="text-right text-xs font-bold">{formatCurrency(log.total_cost)}</TableCell>
+                        <TableCell className="text-right text-xs">{log.km_reading?.toLocaleString()} km</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
@@ -286,68 +443,6 @@ const Logistics = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search deliveries..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[150px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="in_transit">In Transit</SelectItem>
-            <SelectItem value="delivered">Delivered</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div ref={listRef} className="space-y-3">
-        {filtered.length === 0 && (
-          <Card className="border-border/50"><CardContent className="py-8 text-center text-muted-foreground">
-            {deliveries.length === 0 ? "No deliveries yet. Schedule your first delivery above." : "No deliveries match your filter."}
-          </CardContent></Card>
-        )}
-        {filtered.map((d) => (
-          <Card key={d.id} className="gsap-card border-border/50 hover:border-primary/20 transition-all">
-            <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0"><Truck className="h-5 w-5" /></div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-sm truncate">{(d as any).projects?.name ?? "Unlinked delivery"}</p>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-0.5">
-                    <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {d.destination}</span>
-                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {d.delivery_date}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{d.vehicle ?? "—"} · {d.driver ?? "—"} · {d.distance_km ?? 0}km{d.site_name ? ` · ${d.site_name}` : ""}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="font-bold text-sm">{formatCurrency(d.cost ?? 0)}</span>
-                <Badge variant={statusBadge[d.status || "pending"] ?? "outline"} className="capitalize text-xs">{(d.status ?? "pending").replace("_", " ")}</Badge>
-                {canEdit && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEdit(d)}><Pencil className="h-3.5 w-3.5 mr-2" />Edit</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      {d.status !== "in_transit" && <DropdownMenuItem onClick={() => handleStatusChange(d.id, "in_transit")}><Navigation className="h-3.5 w-3.5 mr-2" />In Transit</DropdownMenuItem>}
-                      {d.status !== "delivered" && <DropdownMenuItem onClick={() => handleStatusChange(d.id, "delivered")}><CheckCircle2 className="h-3.5 w-3.5 mr-2" />Delivered</DropdownMenuItem>}
-                      {d.status !== "pending" && <DropdownMenuItem onClick={() => handleStatusChange(d.id, "pending")}>Reset to Pending</DropdownMenuItem>}
-                      <DropdownMenuSeparator />
-                      {canDelete && <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(d)}><Trash2 className="h-3.5 w-3.5 mr-2" />Delete</DropdownMenuItem>}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
     </div>
   );
 };

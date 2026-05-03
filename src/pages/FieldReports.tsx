@@ -36,6 +36,37 @@ type FieldReportWithRelations = Database["public"]["Tables"]["field_reports"]["R
   structured_reports?: Database["public"]["Tables"]["structured_reports"]["Row"][];
 };
 
+import { useSignedUrl } from "@/hooks/useSignedUrl";
+import { useOfflineQueue } from "@/hooks/useOfflineQueue";
+
+const ReportPhotos = ({ photos }: { photos: any[] }) => {
+  if (!photos || photos.length === 0) return null;
+  return (
+    <div className="space-y-2 mt-4">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Site Photos</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {photos.map((p) => (
+          <ReportPhotoItem key={p.id} path={p.photo_url} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ReportPhotoItem = ({ path }: { path: string }) => {
+  const { data: signedUrl } = useSignedUrl("site-photos", path, 3600);
+  return (
+    <div className="relative group aspect-square rounded-md overflow-hidden border border-border bg-muted/50">
+      <img 
+        src={signedUrl || "/placeholder.svg"} 
+        alt="Site" 
+        className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+        onClick={() => signedUrl && window.open(signedUrl, "_blank")}
+      />
+    </div>
+  );
+};
+
 const FieldReports = () => {
   const { user, activeRole, isMaintenance, memberships } = useAuth();
   const { toast } = useToast();
@@ -45,6 +76,7 @@ const FieldReports = () => {
   const [structuredReport, setStructuredReport] = useState<string | null>(null);
   const [viewingReport, setViewingReport] = useState<FieldReportWithRelations | null>(null);
   const containerRef = useGsapAnimation("slideUp");
+  const queryClient = useQueryClient();
   const printRef = useRef<HTMLDivElement>(null);
 
   // Form state
@@ -56,10 +88,82 @@ const FieldReports = () => {
   const [clientFeedback, setClientFeedback] = useState("");
   const [photos, setPhotos] = useState<File[]>([]);
   const [sendTo, setSendTo] = useState<"engineer" | "administrator">("engineer");
+  const { queue: offlineQueue, addToQueue, removeFromQueue } = useOfflineQueue("field-reports-offline");
 
   const isTechnician = activeRole === "technician";
   const isAdmin = activeRole === "administrator" || isMaintenance;
   const isEngineer = activeRole === "engineer";
+
+  const syncOfflineReports = async () => {
+    if (offlineQueue.length === 0 || !navigator.onLine || !user) return;
+    
+    setProcessing(true);
+    let successCount = 0;
+
+    try {
+      const { data: profile } = await supabase.from("profiles").select("organization_id").eq("user_id", user.id).single();
+      if (!profile?.organization_id) return;
+
+      for (const item of offlineQueue as any[]) {
+        try {
+          const photoUrls: string[] = [];
+          if (item.photos && item.photos.length > 0) {
+            for (let i = 0; i < item.photos.length; i++) {
+              const base64 = item.photos[i];
+              // Convert base64 to Blob
+              const res = await fetch(base64);
+              const blob = await res.blob();
+              const fileName = `${user.id}/offline-${Date.now()}-${i}.jpg`;
+              const { data: uploadData } = await supabase.storage.from("site-photos").upload(fileName, blob);
+              if (uploadData) photoUrls.push(uploadData.path);
+            }
+          }
+
+          const { data: report, error } = await supabase.from("field_reports").insert({
+            organization_id: profile.organization_id,
+            created_by: user.id,
+            project_id: item.project_id || null,
+            tasks_completed: item.tasks_completed,
+            crew_members: item.crew_members,
+            safety_incidents: item.safety_incidents,
+            pressure_test_result: item.pressure_test_result,
+            client_feedback: item.client_feedback,
+            notes: item.notes,
+          }).select().single();
+
+          if (error) throw error;
+          
+          for (const url of photoUrls) {
+            await supabase.from("field_report_photos").insert({ field_report_id: report.id, photo_url: url });
+          }
+
+          successCount++;
+          await removeFromQueue(item._id);
+          // Optional: Invoke AI processing
+          await supabase.functions.invoke("process-report", { body: { reportId: report.id } });
+        } catch (itemErr) {
+          console.error("Failed to sync an offline report", itemErr);
+        }
+      }
+
+      if (successCount > 0) {
+        toast({ title: "Sync Complete", description: `Successfully uploaded ${successCount} offline reports.` });
+        queryClient.invalidateQueries({ queryKey: ["field-reports"] });
+      }
+    } catch (err) {
+      console.error("Sync failed", err);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleOnline = () => syncOfflineReports();
+    window.addEventListener("online", handleOnline);
+    // Try sync on mount if online
+    if (navigator.onLine) syncOfflineReports();
+    return () => window.removeEventListener("online", handleOnline);
+  }, [offlineQueue.length]);
 
   // Filter reports based on role & routing
   const { data: reports = [], refetch } = useQuery({
@@ -67,9 +171,10 @@ const FieldReports = () => {
     queryFn: async () => {
       let query = supabase
         .from("field_reports")
-        .select("*, structured_reports(*), projects(name)")
+        .select("*, structured_reports(*), projects(name), field_report_photos(*)")
         .order("report_date", { ascending: false })
         .limit(30);
+
 
       // Non-admin/engineer only see their own reports
       if (!isAdmin && !isEngineer && user) {
@@ -104,6 +209,13 @@ const FieldReports = () => {
     if (e.target.files) setPhotos(Array.from(e.target.files));
   };
 
+  const getPosition = (): Promise<GeolocationPosition | null> => {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), { timeout: 10000 });
+    });
+  };
+
   const handleSubmitReport = async () => {
     if (!rawNotes.trim()) {
       toast({ title: "Enter your notes", description: "Please describe the work done today.", variant: "destructive" });
@@ -112,18 +224,80 @@ const FieldReports = () => {
     if (!user) return;
 
     setSubmitting(true);
+    
+    // 1. Prepare offline item and attempt to save to queue FIRST
+    let base64Photos: string[] = [];
+    try {
+      base64Photos = await Promise.all(photos.map(file => new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = e => reject(e);
+      })));
+    } catch (e) {
+      console.error("Failed to convert photos to base64", e);
+    }
+
+    let geoTag = "";
+    try {
+      const position = await getPosition();
+      if (position) {
+        geoTag = `\n\n[GPS_LOCATION: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}]`;
+      }
+    } catch (e) {
+      console.error("Failed to get GPS location", e);
+    }
+    
+    const tasksWithGeo = rawNotes + geoTag;
+
+    const queueItem = {
+      project_id: selectedProject,
+      tasks_completed: tasksWithGeo,
+      crew_members: crewMembers,
+      safety_incidents: safetyIncidents,
+      pressure_test_result: pressureResult,
+      client_feedback: clientFeedback,
+      notes: isTechnician ? `routed_to:${sendTo}` : null,
+      photos: base64Photos
+    };
+
+    let queuedId: number | null = null;
+    try {
+      const qItemWithId = { ...queueItem, _id: Date.now() };
+      await addToQueue(qItemWithId);
+      queuedId = qItemWithId._id;
+    } catch (e) {
+      toast({ title: "Warning", description: "Could not save photos offline. Attempting direct upload.", variant: "destructive" });
+      try {
+        const fallbackItem = { ...queueItem, photos: [], _id: Date.now() };
+        await addToQueue(fallbackItem);
+        queuedId = fallbackItem._id;
+      } catch (err) {
+        console.error("Total failure to use IndexedDB", err);
+      }
+    }
+
+    // 2. Clear UI to let user proceed with other tasks
+    setRawNotes(""); setSelectedProject(""); setCrew(""); setSafety(""); setPressure(""); setClientFeedback(""); setPhotos([]);
+    setOpen(false);
+
+    if (!navigator.onLine) {
+      toast({ title: "Offline Mode", description: "Report saved locally. It will upload automatically when connection is restored." });
+      setSubmitting(false);
+      return;
+    }
+
+    // 3. Attempt actual upload
     try {
       const { data: profile } = await supabase.from("profiles").select("organization_id").eq("user_id", user.id).single();
       if (!profile?.organization_id) throw new Error("No organization found");
 
       const photoUrls: string[] = [];
-      for (const photo of photos) {
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i];
         const fileName = `${user.id}/${Date.now()}-${photo.name}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage.from("site-photos").upload(fileName, photo);
-        if (uploadData) {
-          const { data: urlData } = supabase.storage.from("site-photos").getPublicUrl(uploadData.path);
-          photoUrls.push(urlData.publicUrl);
-        }
+        const { data: uploadData } = await supabase.storage.from("site-photos").upload(fileName, photo);
+        if (uploadData) photoUrls.push(uploadData.path);
       }
 
       const { data: report, error: reportError } = await supabase
@@ -132,7 +306,7 @@ const FieldReports = () => {
           organization_id: profile.organization_id,
           created_by: user.id,
           project_id: selectedProject || null,
-          tasks_completed: rawNotes,
+          tasks_completed: queueItem.tasks_completed,
           crew_members: crewMembers || null,
           safety_incidents: safetyIncidents || null,
           pressure_test_result: pressureResult || null,
@@ -148,6 +322,11 @@ const FieldReports = () => {
         await supabase.from("field_report_photos").insert({ field_report_id: report.id, photo_url: url });
       }
 
+      // Success! Remove from offline queue
+      if (queuedId) {
+        await removeFromQueue(queuedId);
+      }
+
       setSubmitting(false);
       setProcessing(true);
 
@@ -157,15 +336,13 @@ const FieldReports = () => {
 
       if (!processError) {
         setStructuredReport(processData?.structured_content || null);
-        toast({ title: "Report processed", description: `AI has structured your report and sent it to the ${sendTo}.` });
+        toast({ title: "Report Processed", description: "Successfully uploaded and AI structured." });
       }
 
-      setRawNotes(""); setSelectedProject(""); setCrew(""); setSafety(""); setPressure(""); setClientFeedback(""); setPhotos([]);
-      setOpen(false);
       refetch();
     } catch (err: unknown) {
-      const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      console.error(err);
+      toast({ title: "Upload failed", description: "Network error. Don't worry, your report is saved safely offline in the queue.", variant: "default" });
     } finally {
       setSubmitting(false);
       setProcessing(false);
@@ -304,6 +481,21 @@ const FieldReports = () => {
         )}
       </PageHeader>
 
+      {/* Offline Queue Indicator */}
+      {offlineQueue.length > 0 && (
+        <Card className="border-warning/30 bg-warning/5 animate-pulse">
+          <CardContent className="p-3 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-warning">
+              <Clock className="h-4 w-4" />
+              <span className="text-xs font-medium">{offlineQueue.length} reports waiting for connection...</span>
+            </div>
+            <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={syncOfflineReports} disabled={!navigator.onLine}>
+              Sync Now
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Structured report preview after submission */}
       {structuredReport && (
         <Card className="border-primary/30 bg-primary/5">
@@ -376,7 +568,9 @@ const FieldReports = () => {
                   {viewingReport.client_feedback && <p><strong>Client Feedback:</strong> {viewingReport.client_feedback}</p>}
                 </div>
               )}
+              <ReportPhotos photos={viewingReport.field_report_photos || []} />
               <div className="hidden print:block mt-8">
+
                 <Separator className="my-4" />
                 <div className="flex justify-between text-sm">
                   <div><p>Signature: ___________________</p></div>

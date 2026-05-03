@@ -29,6 +29,8 @@ import Opportunities from "./pages/Opportunities";
 import HR from "./pages/HR";
 import WorkerClaims from "./pages/WorkerClaims";
 import Messages from "./pages/Messages";
+import Procurement from "./pages/Procurement";
+import HSE from "./pages/HSE";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -73,6 +75,8 @@ const App = () => {
                 <Route path="/calculator" element={<PipeCalculator />} />
                 <Route path="/claims" element={<WorkerClaims />} />
                 <Route path="/messages" element={<Messages />} />
+                <Route path="/procurement" element={<Procurement />} />
+                <Route path="/hse" element={<HSE />} />
                 <Route path="/settings" element={<AppSettings />} />
               </Route>
               <Route path="*" element={<NotFound />} />

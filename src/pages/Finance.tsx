@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, DollarSign, TrendingUp, TrendingDown, Brain, CreditCard, Loader2, MoreVertical, Pencil, Trash2, FileDown } from "lucide-react";
+import { Plus, DollarSign, TrendingUp, TrendingDown, Brain, CreditCard, Loader2, MoreVertical, Pencil, Trash2, FileDown, Receipt, FileText, AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/constants";
 import { useGsapAnimation } from "@/hooks/useGsapAnimation";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -89,12 +89,22 @@ const Finance = () => {
     enabled: !!orgId,
   });
 
-  const { data: acceptedQuotations = [] } = useQuery({
-    queryKey: ["accepted-quotations-finance", orgId],
+  const { data: invoices = [], refetch: refetchInvoices } = useQuery({
+    queryKey: ["invoices", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("quotations").select("total_amount, created_at").eq("organization_id", orgId).eq("status", "accepted");
-      return (data as unknown as QuotationItem[]) ?? [];
+      const { data } = await supabase.from("invoices").select("*, clients(name)").eq("organization_id", orgId).order("created_at", { ascending: false });
+      return data ?? [];
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: receipts = [], refetch: refetchReceipts } = useQuery({
+    queryKey: ["receipts", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase.from("receipts").select("*, clients(name)").eq("organization_id", orgId).order("created_at", { ascending: false });
+      return data ?? [];
     },
     enabled: !!orgId,
   });
@@ -108,16 +118,18 @@ const Finance = () => {
   });
 
   const financials = useMemo(() => {
-    const totalRevenue = acceptedQuotations.reduce((s: number, q: QuotationItem) => s + Number(q.total_amount ?? 0), 0);
+    const totalRevenue = invoices.reduce((s, inv) => s + Number(inv.total_amount || 0), 0);
+    const totalReceived = receipts.reduce((s, r) => s + Number(r.amount_received || 0), 0);
     const totalExpenses = expenses.reduce((s: number, e: ExpenseItem) => s + Number(e.amount ?? 0), 0);
     const totalPayments = payments.reduce((s: number, p: PaymentItem) => s + Number(p.amount ?? 0), 0);
-    const netProfit = totalRevenue - totalExpenses - totalPayments;
+    const netProfit = totalReceived - totalExpenses - totalPayments;
+    const receivables = totalRevenue - totalReceived;
 
     const monthlyMap = new Map<string, { revenue: number; expenses: number }>();
-    acceptedQuotations.forEach((q: QuotationItem) => {
-      const month = new Date(q.created_at).toLocaleString("en", { month: "short" });
+    invoices.forEach((inv) => {
+      const month = new Date(inv.created_at).toLocaleString("en", { month: "short" });
       const entry = monthlyMap.get(month) ?? { revenue: 0, expenses: 0 };
-      entry.revenue += Number(q.total_amount ?? 0);
+      entry.revenue += Number(inv.total_amount ?? 0);
       monthlyMap.set(month, entry);
     });
     expenses.forEach((e: ExpenseItem) => {
@@ -128,8 +140,8 @@ const Finance = () => {
     });
     const chartData = Array.from(monthlyMap.entries()).map(([month, data]) => ({ month, ...data })).slice(-6);
 
-    return { totalRevenue, totalExpenses: totalExpenses + totalPayments, netProfit, totalPayments, chartData };
-  }, [payments, expenses, acceptedQuotations]);
+    return { totalRevenue, totalReceived, receivables, totalExpenses: totalExpenses + totalPayments, netProfit, totalPayments, chartData };
+  }, [payments, expenses, invoices, receipts]);
 
   const getMemberName = (userId: string) => members.find(m => m.value === userId)?.label ?? "Unknown";
 
@@ -311,9 +323,9 @@ const Finance = () => {
       <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Total Revenue", value: formatCurrency(financials.totalRevenue), icon: DollarSign, color: "text-primary" },
-          { label: "Total Costs", value: formatCurrency(financials.totalExpenses), icon: TrendingDown, color: "text-red-400" },
-          { label: "Net Profit", value: formatCurrency(financials.netProfit), icon: TrendingUp, color: "text-emerald-400" },
-          { label: "Payments (Total)", value: formatCurrency(financials.totalPayments), icon: CreditCard, color: "text-blue-400" },
+          { label: "Total Received", value: formatCurrency(financials.totalReceived), icon: TrendingUp, color: "text-emerald-400" },
+          { label: "Receivables", value: formatCurrency(financials.receivables), icon: AlertCircle, color: "text-warning" },
+          { label: "Net Cash Position", value: formatCurrency(financials.netProfit), icon: CreditCard, color: "text-blue-400" },
         ].map(s => (
           <Card key={s.label} className="border-border/50 shadow-sm"><CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -337,6 +349,8 @@ const Finance = () => {
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList className="w-full justify-start overflow-x-auto bg-transparent p-0 gap-1 h-auto scrollbar-hide">
           <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Overview</TabsTrigger>
+          <TabsTrigger value="invoices" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Invoices</TabsTrigger>
+          <TabsTrigger value="receipts" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Receipts</TabsTrigger>
           <TabsTrigger value="expenses" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Expenses</TabsTrigger>
           <TabsTrigger value="payments" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Payments</TabsTrigger>
         </TabsList>
@@ -357,6 +371,91 @@ const Finance = () => {
                       <Bar dataKey="expenses" fill="hsl(var(--destructive))" radius={[4,4,0,0]} opacity={0.7} />
                     </BarChart>
                   </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="invoices">
+          <Card><CardHeader><CardTitle className="text-base flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> Client Invoices</CardTitle></CardHeader>
+            <CardContent className="p-0 overflow-x-auto">
+              {invoices.length === 0 ? (
+                <p className="p-6 text-center text-muted-foreground">No invoices generated yet.</p>
+              ) : (
+                <div className="min-w-[700px]">
+                  <Table><TableHeader><TableRow>
+                    <TableHead>Invoice #</TableHead><TableHead>Client</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="text-right">Balance</TableHead><TableHead className="w-[40px]"></TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {invoices.map((inv: any) => (
+                      <TableRow key={inv.id}>
+                        <TableCell className="text-sm font-bold">{inv.document_number}</TableCell>
+                        <TableCell className="text-sm">{inv.clients?.name}</TableCell>
+                        <TableCell className="text-sm">{inv.invoice_date}</TableCell>
+                        <TableCell><Badge variant="outline" className="capitalize">{inv.status}</Badge></TableCell>
+                        <TableCell className="text-right">{formatCurrency(inv.total_amount)}</TableCell>
+                        <TableCell className="text-right font-bold text-primary">{formatCurrency(inv.balance_due)}</TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
+                            const { generatePdf } = await import("@/lib/generatePdf");
+                            const { data: items } = await supabase.from("invoice_items").select("*").eq("invoice_id", inv.id);
+                            generatePdf({
+                              title: `Invoice ${inv.document_number}`,
+                              senderName: "NIF Technical Services Ltd",
+                              contentSections: [{ heading: "Client", body: inv.clients?.name }],
+                              tableData: items ? {
+                                columns: [
+                                  { header: "Description", dataKey: "description" },
+                                  { header: "Qty", dataKey: "quantity" },
+                                  { header: "Price (₦)", dataKey: "unit_price" },
+                                  { header: "Total (₦)", dataKey: "total_price" }
+                                ],
+                                rows: items.map((i: any) => ({
+                                  description: i.description,
+                                  quantity: i.quantity,
+                                  unit_price: Number(i.unit_price).toLocaleString(),
+                                  total_price: Number(i.total_price).toLocaleString()
+                                })),
+                                summary: [{ label: "Total Amount", value: formatCurrency(inv.total_amount) }]
+                              } : undefined,
+                              stampType: "finance",
+                              showSignature: true
+                            });
+                          }}><FileDown className="h-3.5 w-3.5" /></Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody></Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="receipts">
+          <Card><CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2"><Receipt className="h-5 w-5 text-emerald-500" /> Payment Receipts</CardTitle>
+          </CardHeader>
+            <CardContent className="p-0 overflow-x-auto">
+              {receipts.length === 0 ? (
+                <p className="p-6 text-center text-muted-foreground">No receipts found.</p>
+              ) : (
+                <div className="min-w-[600px]">
+                  <Table><TableHeader><TableRow>
+                    <TableHead>Receipt #</TableHead><TableHead>Client</TableHead><TableHead>Date</TableHead><TableHead>Method</TableHead><TableHead className="text-right">Amount Received</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {receipts.map((r: any) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="text-sm font-bold">{r.document_number}</TableCell>
+                        <TableCell className="text-sm">{r.clients?.name}</TableCell>
+                        <TableCell className="text-sm">{r.payment_date}</TableCell>
+                        <TableCell className="text-sm capitalize">{r.payment_method}</TableCell>
+                        <TableCell className="text-right font-bold text-emerald-600">{formatCurrency(r.amount_received)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody></Table>
                 </div>
               )}
             </CardContent>

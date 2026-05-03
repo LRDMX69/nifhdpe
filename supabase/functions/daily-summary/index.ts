@@ -2,11 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 async function callAI(systemPrompt: string, userMessage: string) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -57,7 +54,7 @@ serve(async (req: Request) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const [projects, inventory, expenses, payments, reports, equipment, attendance] = await Promise.all([
+    const [projects, inventory, expenses, payments, reports, equipment, attendance, compliance] = await Promise.all([
       supabase.from("projects").select("*").eq("organization_id", organization_id).in("status", ["in_progress", "planning"]),
       supabase.from("inventory").select("*").eq("organization_id", organization_id),
       supabase.from("expenses").select("*").eq("organization_id", organization_id).order("date", { ascending: false }).limit(50),
@@ -65,11 +62,19 @@ serve(async (req: Request) => {
       supabase.from("field_reports").select("*").eq("organization_id", organization_id).order("created_at", { ascending: false }).limit(10),
       supabase.from("equipment").select("*").eq("organization_id", organization_id),
       supabase.from("attendance").select("*").eq("organization_id", organization_id).eq("date", new Date().toISOString().split("T")[0]),
+      supabase.from("compliance_documents").select("*").eq("organization_id", organization_id).not("expiry_date", "is", null),
     ]);
 
     const lowStock = (inventory.data ?? []).filter((i: any) => i.quantity_meters !== null && i.min_stock_level !== null && i.quantity_meters < i.min_stock_level);
 
-    const prompt = `Generate a daily executive summary for NIF Technical operations:\n\nACTIVE PROJECTS: ${projects.data?.length ?? 0}\nLOW STOCK ITEMS: ${lowStock.length}\nRECENT EXPENSES TOTAL: ₦${(expenses.data ?? []).reduce((s: number, e: any) => s + Number(e.amount), 0).toLocaleString()}\nRECENT PAYMENTS TOTAL: ₦${(payments.data ?? []).reduce((s: number, p: any) => s + Number(p.amount), 0).toLocaleString()}\nFIELD REPORTS TODAY: ${reports.data?.length ?? 0}\nEQUIPMENT COUNT: ${equipment.data?.length ?? 0}\nATTENDANCE TODAY: ${attendance.data?.length ?? 0}\n\nProvide:\n1. Executive Summary\n2. Critical Alerts\n3. Risk Assessment\n4. Key Metrics\n5. Recommended Actions\n\nBe concise, strategic, data-driven. Use ₦.`;
+    const today = new Date();
+    const expiringSoon = (compliance.data ?? []).filter((doc: any) => {
+      const expiry = new Date(doc.expiry_date);
+      const diffDays = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 3600 * 24));
+      return diffDays <= 30; // 30 days window
+    });
+
+    const prompt = `Generate a daily executive summary for NIF Technical operations:\n\nACTIVE PROJECTS: ${projects.data?.length ?? 0}\nLOW STOCK ITEMS: ${lowStock.length}\nEXPIRING COMPLIANCE DOCS: ${expiringSoon.length}\nRECENT EXPENSES TOTAL: ₦${(expenses.data ?? []).reduce((s: number, e: any) => s + Number(e.amount), 0).toLocaleString()}\nRECENT PAYMENTS TOTAL: ₦${(payments.data ?? []).reduce((s: number, p: any) => s + Number(p.amount), 0).toLocaleString()}\nFIELD REPORTS TODAY: ${reports.data?.length ?? 0}\nEQUIPMENT COUNT: ${equipment.data?.length ?? 0}\nATTENDANCE TODAY: ${attendance.data?.length ?? 0}\n\nProvide:\n1. Executive Summary\n2. Critical Alerts (Highlight expiring compliance documents like NCDMB, DPR, etc.)\n3. Risk Assessment\n4. Key Metrics\n5. Recommended Actions\n\nBe concise, strategic, data-driven. Use ₦.`;
 
     const response = await callAI("You are an AI executive assistant for NIF Technical, generating daily operational intelligence briefs.", prompt);
 

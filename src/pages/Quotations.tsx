@@ -207,10 +207,58 @@ const Quotations = () => {
       const { error } = await supabase.from("quotations").update({ status: status as any }).eq("id", id);
       if (error) throw error;
       toast({ title: `Status → ${status}` });
+
+      // If status is accepted, offer to create invoice
+      if (status === "accepted") {
+        const q = quotations.find(q => q.id === id);
+        if (q) {
+          const createInv = window.confirm("Quotation accepted! Would you like to generate an Invoice for this client?");
+          if (createInv) {
+            await convertToInvoice(q);
+          }
+        }
+      }
+
       refetch();
     } catch (err: unknown) {
       const error = err as Error;
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const convertToInvoice = async (q: DbQuotation) => {
+    setSaving(true);
+    try {
+      const { data: invoice, error: invError } = await supabase.from("invoices").insert({
+        organization_id: orgId,
+        client_id: q.client_id,
+        quotation_id: q.id,
+        subtotal: q.subtotal,
+        total_amount: q.total_amount,
+        balance_due: q.total_amount,
+        created_by: user?.id,
+        notes: q.notes
+      } as any).select().single();
+
+      if (invError) throw invError;
+
+      // Copy items
+      const { data: items } = await supabase.from("quotation_items").select("*").eq("quotation_id", q.id);
+      if (items && items.length > 0) {
+        await supabase.from("invoice_items").insert(items.map(i => ({
+          invoice_id: invoice.id,
+          description: i.description,
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+          total_price: i.total_price
+        })));
+      }
+
+      toast({ title: "Invoice generated successfully", description: `Invoice ${invoice.document_number || ''} has been created.` });
+    } catch (err: any) {
+      toast({ title: "Failed to generate invoice", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
   };
 

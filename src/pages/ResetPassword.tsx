@@ -6,12 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { isPasswordPwned } from "@/lib/hibp";
 import nifLogo from "@/assets/nif-logo.png";
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pwnedWarning, setPwnedWarning] = useState(false);
   const [ready, setReady] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -51,6 +53,18 @@ const ResetPassword = () => {
 
     setLoading(true);
     try {
+      const isPwned = await isPasswordPwned(password);
+      if (isPwned) {
+        setPwnedWarning(true);
+        toast({ 
+          title: "Insecure Password", 
+          description: "This password has been found in data breaches (HIBP). Please choose a stronger one.", 
+          variant: "destructive" 
+        });
+        setLoading(false);
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
 
@@ -98,7 +112,8 @@ const ResetPassword = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="password">New Password</Label>
-                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} disabled={loading} />
+                <Input id="password" type="password" value={password} onChange={(e) => { setPassword(e.target.value); setPwnedWarning(false); }} placeholder="••••••••" required minLength={6} disabled={loading} className={pwnedWarning ? "border-destructive" : ""} />
+                {pwnedWarning && <p className="text-xs text-destructive font-medium">⚠ This password is known to be compromised. Use a different one.</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm New Password</Label>
