@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounting_periods: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          id: string
+          is_closed: boolean
+          organization_id: string
+          period_month: number
+          period_year: number
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          is_closed?: boolean
+          organization_id: string
+          period_month: number
+          period_year: number
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          is_closed?: boolean
+          organization_id?: string
+          period_month?: number
+          period_year?: number
+        }
+        Relationships: []
+      }
       admin_requests: {
         Row: {
           created_at: string
@@ -133,6 +166,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ai_usage_logs: {
+        Row: {
+          created_at: string
+          function_name: string
+          id: string
+          organization_id: string
+          success: boolean
+          tokens_estimate: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          function_name: string
+          id?: string
+          organization_id: string
+          success?: boolean
+          tokens_estimate?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          function_name?: string
+          id?: string
+          organization_id?: string
+          success?: boolean
+          tokens_estimate?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       attendance: {
         Row: {
@@ -485,6 +548,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      document_sequences: {
+        Row: {
+          doc_type: string
+          id: string
+          last_number: number
+          organization_id: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          doc_type: string
+          id?: string
+          last_number?: number
+          organization_id: string
+          updated_at?: string
+          year?: number
+        }
+        Update: {
+          doc_type?: string
+          id?: string
+          last_number?: number
+          organization_id?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
       }
       employee_skills: {
         Row: {
@@ -2144,6 +2234,10 @@ export type Database = {
         Returns: boolean
       }
       is_user_terminated: { Args: { _uid: string }; Returns: boolean }
+      next_doc_number: {
+        Args: { _doc_type: string; _org_id: string }
+        Returns: string
+      }
     }
     Enums: {
       app_role:
