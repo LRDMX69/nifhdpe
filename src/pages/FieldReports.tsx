@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { Plus, ClipboardList, Calendar, Users, AlertTriangle, Camera, CheckCircle2, Loader2, FileText, Send, Printer, MessageSquare } from "lucide-react";
+import { Plus, ClipboardList, Calendar, Users, AlertTriangle, Camera, CheckCircle2, Loader2, FileText, Send, Printer, MessageSquare, Clock } from "lucide-react";
 import { useGsapAnimation } from "@/hooks/useGsapAnimation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +34,7 @@ const cleanMarkdown = (text: string) =>
 type FieldReportWithRelations = Database["public"]["Tables"]["field_reports"]["Row"] & {
   projects?: { name: string } | null;
   structured_reports?: Database["public"]["Tables"]["structured_reports"]["Row"][];
+  field_report_photos?: Database["public"]["Tables"]["field_report_photos"]["Row"][];
 };
 
 import { useSignedUrl } from "@/hooks/useSignedUrl";

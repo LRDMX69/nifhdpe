@@ -65,7 +65,7 @@ const AdminDashboard = () => {
         const expiry = new Date(doc.expiry_date);
         const diff = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 3600 * 24));
         return diff <= 30;
-      }).map(doc => ({ type: 'compliance', title: doc.name, date: doc.expiry_date, severity: 'high' }));
+      }).map(doc => ({ type: 'compliance', title: doc.title, date: doc.expiry_date, severity: 'high' }));
       const openIncidents = (safety.data || []).map(inc => ({
         type: 'safety',
         title: inc.type + ': ' + inc.location,

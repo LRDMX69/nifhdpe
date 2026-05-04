@@ -16,7 +16,7 @@ export const ProjectPnL = ({ projectId, projectBudget }: ProjectPnLProps) => {
     queryKey: ["project-pnl", projectId],
     queryFn: async () => {
       // 1. Revenue (Invoices)
-      const { data: invoices } = await supabase.from("invoices").select("total_amount").eq("project_id", projectId);
+      const { data: invoices } = await (supabase.from("invoices") as any).select("total_amount").eq("project_id", projectId);
       const totalRevenue = invoices?.reduce((s, i) => s + Number(i.total_amount || 0), 0) || 0;
 
       // 2. Direct Expenses
@@ -29,8 +29,7 @@ export const ProjectPnL = ({ projectId, projectBudget }: ProjectPnLProps) => {
       const mrIds = mrs?.map(m => m.id) || [];
       let totalMaterialCost = 0;
       if (mrIds.length > 0) {
-        const { data: mrItems } = await supabase
-          .from("mr_items")
+        const { data: mrItems } = await (supabase.from("mr_items") as any)
           .select("quantity_issued, inventory(unit_cost)")
           .in("mr_id", mrIds);
         

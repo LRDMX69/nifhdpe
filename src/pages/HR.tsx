@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { RecordActions } from "@/components/hr/RecordActions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -99,21 +99,6 @@ const HR = () => {
   const [payDesc, setPayDesc] = useState("");
   const [salaryBreakdown, setSalaryBreakdown] = useState<SalaryBreakdown | null>(null);
 
-  // Update breakdown when employee is selected (Hard Lock Payroll)
-  useEffect(() => {
-    if (payUserId) {
-      const profile = profileMap.get(payUserId);
-      const gross = Number(profile?.basic_salary || 0);
-      if (gross > 0) {
-        setSalaryBreakdown(calculateNigerianSalary(gross));
-      } else {
-        setSalaryBreakdown(null);
-      }
-    } else {
-      setSalaryBreakdown(null);
-    }
-  }, [payUserId, profileMap]);
-
   // ID Card dialog
   const [idCardOpen, setIdCardOpen] = useState(false);
   const [idCardUser, setIdCardUser] = useState<{ user_id: string; role?: string } | null>(null);
@@ -180,6 +165,17 @@ const HR = () => {
     },
     enabled: !!orgId,
   });
+
+  // Update breakdown when employee is selected (Hard Lock Payroll)
+  useEffect(() => {
+    if (payUserId) {
+      const profile = profileMap.get(payUserId);
+      const gross = Number(profile?.basic_salary || 0);
+      setSalaryBreakdown(gross > 0 ? calculateNigerianSalary(gross) : null);
+    } else {
+      setSalaryBreakdown(null);
+    }
+  }, [payUserId, profileMap]);
 
   const { data: membersList = [] } = useQuery({
     queryKey: ["members-list-hr", orgId],
