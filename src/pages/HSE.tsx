@@ -26,7 +26,7 @@ const HSE = () => {
   const { data: tbts = [], isLoading: tbtsLoading } = useQuery({
     queryKey: ["toolbox-talks", orgId],
     queryFn: async () => {
-      const { data } = await supabase.from("toolbox_talks").select("*, projects(name)").order("date", { ascending: false });
+      const { data } = await supabase.from("toolbox_talks").select("*, projects(name)").order("conducted_at", { ascending: false });
       return data ?? [];
     },
     enabled: !!orgId,
@@ -103,12 +103,12 @@ const HSE = () => {
                       <CardContent className="p-4 space-y-2">
                         <div className="flex justify-between items-start">
                           <h3 className="font-bold text-sm">{t.topic}</h3>
-                          <span className="text-[10px] text-muted-foreground">{t.date}</span>
+                          <span className="text-[10px] text-muted-foreground">{t.conducted_at}</span>
                         </div>
                         <p className="text-xs text-muted-foreground">Project: {t.projects?.name}</p>
                         <div className="flex items-center gap-2 pt-2 border-t">
                           <Users className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-xs">{t.attendee_ids?.length || 0} Attendees</span>
+                          <span className="text-xs">{Array.isArray(t.attendees) ? t.attendees.length : 0} Attendees</span>
                         </div>
                       </CardContent>
                     </Card>

@@ -85,7 +85,7 @@ const Logistics = () => {
     queryKey: ["fuel-logs", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("fuel_logs").select("*, vehicles(plate_number)").eq("organization_id", orgId).order("date", { ascending: false });
+      const { data } = await supabase.from("fuel_logs").select("*, vehicles(plate_number)").eq("organization_id", orgId).order("log_date", { ascending: false });
       return data ?? [];
     },
     enabled: !!orgId,
