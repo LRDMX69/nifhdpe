@@ -966,6 +966,62 @@ export type Database = {
           },
         ]
       }
+      hse_incidents: {
+        Row: {
+          created_at: string
+          description: string | null
+          document_number: string | null
+          id: string
+          incident_date: string
+          location: string | null
+          organization_id: string
+          project_id: string | null
+          reported_by: string | null
+          severity: string
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          document_number?: string | null
+          id?: string
+          incident_date?: string
+          location?: string | null
+          organization_id: string
+          project_id?: string | null
+          reported_by?: string | null
+          severity?: string
+          status?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          document_number?: string | null
+          id?: string
+          incident_date?: string
+          location?: string | null
+          organization_id?: string
+          project_id?: string | null
+          reported_by?: string | null
+          severity?: string
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hse_incidents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory: {
         Row: {
           box_id: string | null
@@ -1517,40 +1573,52 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          basic_salary: number | null
           created_at: string
           full_name: string | null
+          housing_allowance: number | null
           id: string
           organization_id: string | null
+          other_allowances: number | null
           phone: string | null
           terminated: boolean
           terminated_at: string | null
           terminated_by: string | null
+          transport_allowance: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
+          basic_salary?: number | null
           created_at?: string
           full_name?: string | null
+          housing_allowance?: number | null
           id?: string
           organization_id?: string | null
+          other_allowances?: number | null
           phone?: string | null
           terminated?: boolean
           terminated_at?: string | null
           terminated_by?: string | null
+          transport_allowance?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
+          basic_salary?: number | null
           created_at?: string
           full_name?: string | null
+          housing_allowance?: number | null
           id?: string
           organization_id?: string | null
+          other_allowances?: number | null
           phone?: string | null
           terminated?: boolean
           terminated_at?: string | null
           terminated_by?: string | null
+          transport_allowance?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -2129,42 +2197,78 @@ export type Database = {
       worker_payments: {
         Row: {
           amount: number
+          basic_salary: number | null
           created_at: string
           created_by: string
           date: string
           description: string | null
+          document_number: string | null
           equipment_id: string | null
+          gross_pay: number | null
+          housing_allowance: number | null
           id: string
+          net_pay: number | null
+          nhf_deduction: number | null
           organization_id: string
+          other_allowances: number | null
+          other_deductions: number | null
+          paye_tax: number | null
+          pension_employee: number | null
+          pension_employer: number | null
           project_id: string | null
+          transport_allowance: number | null
           type: Database["public"]["Enums"]["payment_type"]
           user_id: string | null
           vendor_name: string | null
         }
         Insert: {
           amount?: number
+          basic_salary?: number | null
           created_at?: string
           created_by: string
           date?: string
           description?: string | null
+          document_number?: string | null
           equipment_id?: string | null
+          gross_pay?: number | null
+          housing_allowance?: number | null
           id?: string
+          net_pay?: number | null
+          nhf_deduction?: number | null
           organization_id: string
+          other_allowances?: number | null
+          other_deductions?: number | null
+          paye_tax?: number | null
+          pension_employee?: number | null
+          pension_employer?: number | null
           project_id?: string | null
+          transport_allowance?: number | null
           type: Database["public"]["Enums"]["payment_type"]
           user_id?: string | null
           vendor_name?: string | null
         }
         Update: {
           amount?: number
+          basic_salary?: number | null
           created_at?: string
           created_by?: string
           date?: string
           description?: string | null
+          document_number?: string | null
           equipment_id?: string | null
+          gross_pay?: number | null
+          housing_allowance?: number | null
           id?: string
+          net_pay?: number | null
+          nhf_deduction?: number | null
           organization_id?: string
+          other_allowances?: number | null
+          other_deductions?: number | null
+          paye_tax?: number | null
+          pension_employee?: number | null
+          pension_employer?: number | null
           project_id?: string | null
+          transport_allowance?: number | null
           type?: Database["public"]["Enums"]["payment_type"]
           user_id?: string | null
           vendor_name?: string | null
@@ -2199,6 +2303,16 @@ export type Database = {
     }
     Functions: {
       count_visible_admins: { Args: { _org_id: string }; Returns: number }
+      get_maintenance_alerts: {
+        Args: { _org_id: string }
+        Returns: {
+          alert_type: string
+          days_overdue: number
+          due_date: string
+          equipment_id: string
+          equipment_name: string
+        }[]
+      }
       get_user_org_id: { Args: { _user_id: string }; Returns: string }
       get_visible_members: {
         Args: { _org_id: string }
