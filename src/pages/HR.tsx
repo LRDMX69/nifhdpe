@@ -99,21 +99,6 @@ const HR = () => {
   const [payDesc, setPayDesc] = useState("");
   const [salaryBreakdown, setSalaryBreakdown] = useState<SalaryBreakdown | null>(null);
 
-  // Update breakdown when employee is selected (Hard Lock Payroll)
-  useEffect(() => {
-    if (payUserId) {
-      const profile = profileMap.get(payUserId);
-      const gross = Number(profile?.basic_salary || 0);
-      if (gross > 0) {
-        setSalaryBreakdown(calculateNigerianSalary(gross));
-      } else {
-        setSalaryBreakdown(null);
-      }
-    } else {
-      setSalaryBreakdown(null);
-    }
-  }, [payUserId, profileMap]);
-
   // ID Card dialog
   const [idCardOpen, setIdCardOpen] = useState(false);
   const [idCardUser, setIdCardUser] = useState<{ user_id: string; role?: string } | null>(null);
