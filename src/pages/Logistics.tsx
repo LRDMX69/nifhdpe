@@ -332,8 +332,8 @@ const Logistics = () => {
                           <DropdownMenuItem onClick={() => openEdit(d)}><Pencil className="h-3.5 w-3.5 mr-2" />Edit</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {d.status !== "in_transit" && <DropdownMenuItem onClick={() => handleStatusChange(d.id, "in_transit")}><Navigation className="h-3.5 w-3.5 mr-2" />In Transit</DropdownMenuItem>}
-                          {d.status !== "delivered" && <DropdownMenuItem onClick="{() => handleStatusChange(d.id, 'delivered')}"><CheckCircle2 className="h-3.5 w-3.5 mr-2" />Delivered</DropdownMenuItem>}
-                          {d.status !== "pending" && <DropdownMenuItem onClick="{() => handleStatusChange(d.id, 'pending')}">Reset to Pending</DropdownMenuItem>}
+                          {d.status !== "delivered" && <DropdownMenuItem onClick={() => handleStatusChange(d.id, 'delivered')}><CheckCircle2 className="h-3.5 w-3.5 mr-2" />Delivered</DropdownMenuItem>}
+                          {d.status !== "pending" && <DropdownMenuItem onClick={() => handleStatusChange(d.id, 'pending')}>Reset to Pending</DropdownMenuItem>}
                           <DropdownMenuSeparator />
                           {canDelete && <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(d)}><Trash2 className="h-3.5 w-3.5 mr-2" />Delete</DropdownMenuItem>}
                         </DropdownMenuContent>
