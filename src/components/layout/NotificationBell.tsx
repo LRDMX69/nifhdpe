@@ -36,14 +36,16 @@ export const NotificationBell = () => {
     queryKey: ["unread-notifications", orgId, user?.id],
     queryFn: async () => {
       if (!orgId || !user) return [];
+      // Only count direct messages addressed to this user. Broadcasts share a single
+      // `is_read` flag across all recipients, which would otherwise produce false counts.
       const { data } = await supabase
         .from("messages")
         .select("id, subject, body, sender_id, message_type, created_at, is_read, recipient_id")
         .eq("organization_id", orgId)
         .eq("is_read", false)
-        // Exclude messages this user sent (own broadcasts/replies should not count as unread)
+        .eq("message_type", "direct")
+        .eq("recipient_id", user.id)
         .neq("sender_id", user.id)
-        .or(`recipient_id.eq.${user.id},message_type.eq.broadcast`)
         .order("created_at", { ascending: false })
         .limit(10);
       return (data as Message[]) ?? [];
