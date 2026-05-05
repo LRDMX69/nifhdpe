@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Truck, MapPin, Clock, Loader2, MoreVertical, Pencil, Trash2, CheckCircle2, Navigation, Fuel, Car } from "lucide-react";
+import { Plus, Search, Truck, MapPin, Clock, Loader2, MoreVertical, Pencil, Trash2, CheckCircle2, Navigation, Fuel, Car, FileText } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";
@@ -19,6 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
+import { generateWaybill } from "@/lib/generateWaybill";
 
 const statusBadge: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   pending: "outline", in_transit: "secondary", delivered: "default", cancelled: "destructive",
@@ -330,6 +331,24 @@ const Logistics = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => openEdit(d)}><Pencil className="h-3.5 w-3.5 mr-2" />Edit</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={async () => {
+                            try {
+                              await generateWaybill({
+                                date: d.delivery_date,
+                                driver: d.driver ?? "",
+                                vehicle: d.vehicle ?? "",
+                                destination: d.destination,
+                                destinationState: d.destination_state,
+                                siteName: d.site_name,
+                                projectName: (d as any).projects?.name,
+                                notes: d.notes,
+                                issuedBy: user?.email ?? undefined,
+                              });
+                            } catch (err) {
+                              toast({ title: "Waybill failed", description: (err as Error).message, variant: "destructive" });
+                            }
+                          }}><FileText className="h-3.5 w-3.5 mr-2" />Print Waybill</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {d.status !== "in_transit" && <DropdownMenuItem onClick={() => handleStatusChange(d.id, "in_transit")}><Navigation className="h-3.5 w-3.5 mr-2" />In Transit</DropdownMenuItem>}
                           {d.status !== "delivered" && <DropdownMenuItem onClick={() => handleStatusChange(d.id, 'delivered')}><CheckCircle2 className="h-3.5 w-3.5 mr-2" />Delivered</DropdownMenuItem>}
