@@ -133,6 +133,20 @@ export const NotificationBell = () => {
     navigate("/messages");
   };
 
+  const markAllRead = async () => {
+    if (!user || !orgId || count === 0) return;
+    const ids = unreadMessages.map((x) => x.id);
+    const { error } = await supabase.from("messages").update({ is_read: true }).in("id", ids);
+    if (error) {
+      logger.error("Failed to mark all read:", error);
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["unread-notifications", orgId, user.id] });
+    queryClient.invalidateQueries({ queryKey: ["messages", orgId, user.id] });
+    queryClient.invalidateQueries({ queryKey: ["unread-msg-count", orgId, user.id] });
+    refetch();
+  };
+
   const count = unreadMessages.length;
 
   return (
@@ -155,7 +169,14 @@ export const NotificationBell = () => {
         <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-popover border border-border rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
           <div className="px-3 py-2 border-b border-border flex items-center justify-between">
             <p className="text-sm font-medium">Notifications</p>
-            {count > 0 && <Badge variant="outline" className="text-[10px]">{count} new</Badge>}
+            <div className="flex items-center gap-2">
+              {count > 0 && (
+                <button onClick={markAllRead} className="text-[10px] text-primary hover:underline">
+                  Mark all read
+                </button>
+              )}
+              {count > 0 && <Badge variant="outline" className="text-[10px]">{count} new</Badge>}
+            </div>
           </div>
           {count === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">All caught up!</div>
