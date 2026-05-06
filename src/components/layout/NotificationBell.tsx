@@ -134,7 +134,7 @@ export const NotificationBell = () => {
   };
 
   const markAllRead = async () => {
-    if (!user || !orgId || count === 0) return;
+    if (!user || !orgId || unreadMessages.length === 0) return;
     const ids = unreadMessages.map((x) => x.id);
     const { error } = await supabase.from("messages").update({ is_read: true }).in("id", ids);
     if (error) {
