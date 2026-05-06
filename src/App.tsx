@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,29 +9,29 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { SplashScreen } from "@/components/SplashScreen";
 import { InstallPrompt } from "@/components/InstallPrompt";
-import Login from "./pages/Login";
-import ResetPassword from "./pages/ResetPassword";
-import Dashboard from "./pages/Dashboard";
-import Quotations from "./pages/Quotations";
-import Clients from "./pages/Clients";
-import Inventory from "./pages/Inventory";
-import Projects from "./pages/Projects";
-import Logistics from "./pages/Logistics";
-import Analytics from "./pages/Analytics";
-import PipeCalculator from "./pages/PipeCalculator";
-import AppSettings from "./pages/AppSettings";
-import FieldReports from "./pages/FieldReports";
-import Finance from "./pages/Finance";
-import Equipment from "./pages/Equipment";
-import Compliance from "./pages/Compliance";
-import KnowledgeBase from "./pages/KnowledgeBase";
-import Opportunities from "./pages/Opportunities";
-import HR from "./pages/HR";
-import WorkerClaims from "./pages/WorkerClaims";
-import Messages from "./pages/Messages";
-import Procurement from "./pages/Procurement";
-import HSE from "./pages/HSE";
-import NotFound from "./pages/NotFound";
+const Login = lazy(() => import("./pages/Login"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Quotations = lazy(() => import("./pages/Quotations"));
+const Clients = lazy(() => import("./pages/Clients"));
+const Inventory = lazy(() => import("./pages/Inventory"));
+const Projects = lazy(() => import("./pages/Projects"));
+const Logistics = lazy(() => import("./pages/Logistics"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const PipeCalculator = lazy(() => import("./pages/PipeCalculator"));
+const AppSettings = lazy(() => import("./pages/AppSettings"));
+const FieldReports = lazy(() => import("./pages/FieldReports"));
+const Finance = lazy(() => import("./pages/Finance"));
+const Equipment = lazy(() => import("./pages/Equipment"));
+const Compliance = lazy(() => import("./pages/Compliance"));
+const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
+const Opportunities = lazy(() => import("./pages/Opportunities"));
+const HR = lazy(() => import("./pages/HR"));
+const WorkerClaims = lazy(() => import("./pages/WorkerClaims"));
+const Messages = lazy(() => import("./pages/Messages"));
+const Procurement = lazy(() => import("./pages/Procurement"));
+const HSE = lazy(() => import("./pages/HSE"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,6 +56,7 @@ const App = () => {
         {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
         <BrowserRouter>
           <AuthProvider>
+            <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-background"><div className="animate-pulse text-muted-foreground">Loading...</div></div>}>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/reset-password" element={<ResetPassword />} />
@@ -90,6 +91,7 @@ const App = () => {
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </Suspense>
             <InstallPrompt />
           </AuthProvider>
         </BrowserRouter>
