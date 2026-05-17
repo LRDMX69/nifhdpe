@@ -19,7 +19,7 @@ export const MobileNav = () => {
   const { theme, setTheme } = useTheme();
 
   const allItems = getNavItemsForRole(activeRole ?? undefined, isMaintenance);
-  const role = isMaintenance ? "administrator" : (activeRole ?? "technician");
+  const role = activeRole ?? (isMaintenance ? "administrator" : "technician");
   const bottomPaths = getBottomNavPaths(role);
   // Sidebar shows only items NOT in bottom nav
   const visibleItems = allItems.filter(item => !bottomPaths.has(item.path));

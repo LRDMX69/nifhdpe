@@ -74,7 +74,7 @@ export const BottomNav = () => {
   const location = useLocation();
   const { activeRole, isMaintenance } = useAuth();
 
-  const role = isMaintenance ? "administrator" : (activeRole ?? "technician");
+  const role = activeRole ?? (isMaintenance ? "administrator" : "technician");
   const items = roleBottomNav[role] ?? roleBottomNav.technician;
 
   return (

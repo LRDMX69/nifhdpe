@@ -28,27 +28,32 @@ const dashboardMap: Record<string, React.FC> = {
 const DashboardRouter = () => {
   const { memberships, activeRole, switchRole, profile, isMaintenance } = useAuth();
 
-  // Maintenance admin always sees AdminDashboard
-  const DashboardComponent = isMaintenance
-    ? AdminDashboard
-    : activeRole ? dashboardMap[activeRole] : null;
+  // Prioritize activeRole. If not selected, fallback to AdminDashboard for maintenance
+  const DashboardComponent = activeRole 
+    ? dashboardMap[activeRole] 
+    : (isMaintenance ? AdminDashboard : null);
+
+  const showSwitcher = memberships.length > 1 || isMaintenance;
+  const rolesList = isMaintenance
+    ? ["administrator", "engineer", "technician", "warehouse", "finance", "hr", "reception_sales"]
+    : memberships.map((m) => m.role);
 
   return (
     <div className="p-3 sm:p-6 space-y-4 max-w-7xl mx-auto">
-      {/* Role switcher for multi-role users */}
-      {memberships.length > 1 && !isMaintenance && (
+      {/* Role switcher for multi-role users or maintenance/testing sessions */}
+      {showSwitcher && (
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 pb-2">
-          <span className="text-xs sm:text-sm text-muted-foreground">Switch Role:</span>
+          <span className="text-xs sm:text-sm text-muted-foreground font-semibold">Operational Role Testing Switcher:</span>
           <div className="flex flex-wrap gap-1.5">
-            {memberships.map((m) => (
+            {rolesList.map((r) => (
               <Button
-                key={m.role}
-                variant={activeRole === m.role ? "default" : "outline"}
+                key={r}
+                variant={activeRole === r || (!activeRole && r === "administrator" && isMaintenance) ? "default" : "outline"}
                 size="sm"
-                onClick={() => switchRole(m.role)}
+                onClick={() => switchRole(r)}
                 className="h-7 px-3 text-[10px] sm:text-xs"
               >
-                {ROLE_LABELS[m.role] ?? m.role}
+                {ROLE_LABELS[r] ?? r}
               </Button>
             ))}
           </div>

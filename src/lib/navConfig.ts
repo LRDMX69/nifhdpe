@@ -41,12 +41,8 @@ export const navItems: NavItem[] = [
   { label: "Settings", icon: Settings, path: "/settings", roles: ["administrator"] },
 ];
 
-/**
- * If isMaintenance is true, return ALL nav items (secret admin sees everything).
- * Otherwise filter by role.
- */
 export const getNavItemsForRole = (role: string | undefined, isMaintenance = false): NavItem[] => {
+  if (role) return navItems.filter((item) => item.roles.includes(role));
   if (isMaintenance) return navItems;
-  if (!role) return [];
-  return navItems.filter((item) => item.roles.includes(role));
+  return [];
 };
