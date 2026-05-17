@@ -123,11 +123,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Check for MFA
         if (session?.user) {
-          const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
-          if (!factorsError && factors) {
-            setIsMfaEnabled(factors.all.some(f => f.status === "verified"));
-          }
-          setTimeout(() => fetchUserData(session.user.id), 0);
+          // Defer all async work so we never block the loading state from clearing.
+          setTimeout(async () => {
+            try {
+              const { data: factors } = await supabase.auth.mfa.listFactors();
+              setIsMfaEnabled(factors?.all.some(f => f.status === "verified") ?? false);
+            } catch (e) {
+              logger.error("MFA listFactors failed", e);
+            }
+            try { await fetchUserData(session.user.id); } catch (e) { logger.error("fetchUserData failed", e); }
+          }, 0);
         } else {
           setProfile(null);
           setMemberships([]);
@@ -141,18 +146,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const { data: factors } = await supabase.auth.mfa.listFactors();
-        setIsMfaEnabled(factors?.all.some(f => f.status === "verified") ?? false);
-        fetchUserData(session.user.id);
-      }
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          // Fire and forget — never block loading on these calls.
+          supabase.auth.mfa.listFactors()
+            .then(({ data: factors }) => setIsMfaEnabled(factors?.all.some(f => f.status === "verified") ?? false))
+            .catch((e) => logger.error("MFA listFactors failed", e));
+          fetchUserData(session.user.id).catch((e) => logger.error("fetchUserData failed", e));
+        }
+      })
+      .catch((e) => logger.error("getSession failed", e))
+      .finally(() => setLoading(false));
 
-    return () => subscription.unsubscribe();
+    // Safety net: never let loading hang past 8s no matter what.
+    const safety = setTimeout(() => setLoading(false), 8000);
+
+    return () => { subscription.unsubscribe(); clearTimeout(safety); };
   }, [fetchUserData]);
 
   const signIn = async (email: string, password: string) => {
