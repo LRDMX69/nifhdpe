@@ -469,7 +469,7 @@ const Procurement = () => {
                               <span className="font-bold text-sm">{mr.document_number}</span>
                               <Badge variant="outline" className="text-[10px] capitalize">{mr.status}</Badge>
                             </div>
-                            <p className="text-sm font-medium truncate">{mr.projects?.name || "General"}</p>
+                            <p className="text-sm font-medium truncate">{mr.project_id ? `Project: ${mr.project_id.slice(0, 8)}…` : "General"}</p>
                             <p className="text-[10px] text-muted-foreground">
                               Requested: {new Date(mr.created_at).toLocaleDateString()}
                             </p>
