@@ -2,6 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_LABELS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import AdminDashboard from "./AdminDashboard";
+import CEODashboard from "./CEODashboard";
 import TechnicianDashboard from "./TechnicianDashboard";
 import EngineerDashboard from "./EngineerDashboard";
 import WarehouseDashboard from "./WarehouseDashboard";
@@ -12,7 +13,7 @@ import KnowledgeManagerDashboard from "./KnowledgeManagerDashboard";
 import TraineeDashboard from "./TraineeDashboard";
 
 const dashboardMap: Record<string, React.FC> = {
-  administrator: AdminDashboard,
+  administrator: CEODashboard,
   engineer: EngineerDashboard,
   technician: TechnicianDashboard,
   warehouse: WarehouseDashboard,
