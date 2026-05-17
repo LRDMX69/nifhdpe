@@ -130,6 +130,9 @@ const Opportunities = () => {
             import("@/lib/generatePdf").then(({ generatePdf }) => {
               generatePdf({
                 title: "Opportunities Pipeline",
+                senderName: user?.user_metadata?.full_name ?? "Business Director",
+                senderDepartment: "COMMERCIAL & BD",
+                stampType: "admin",
                 tableData: {
                   columns: [
                     { header: "Opportunity Title", dataKey: "title" },
@@ -150,7 +153,6 @@ const Opportunities = () => {
                     { label: "Total Pipeline Value", value: `₦${totalValue.toLocaleString()}` },
                   ]
                 },
-                stampType: "admin",
               });
             });
           }}>
@@ -317,6 +319,9 @@ const Opportunities = () => {
                   const info = parseContactInfo(viewingOpp.description ?? "");
                   generatePdf({
                     title: `Opportunity Brief: ${viewingOpp.title}`,
+                    senderName: user?.user_metadata?.full_name ?? "Business Developer",
+                    senderDepartment: "COMMERCIAL & BD",
+                    stampType: "admin",
                     contentSections: [
                       {
                         heading: "Opportunity Overview",
@@ -341,7 +346,6 @@ const Opportunities = () => {
                       ...(info.submission ? [{ heading: "Submission Instructions", body: info.submission }] : []),
                       ...(viewingOpp.bid_strategy ? [{ heading: "AI Bid Strategy", body: viewingOpp.bid_strategy }] : []),
                     ],
-                    stampType: "admin",
                   });
                 });
               }}><Printer className="h-4 w-4 mr-1" />Print Brief</Button>

@@ -233,7 +233,8 @@ const Finance = () => {
     const { generatePdf } = await import("@/lib/generatePdf");
     generatePdf({
       title: "Financial Report",
-      senderDepartment: "Finance",
+      senderName: user?.user_metadata?.full_name ?? "Finance Director",
+      senderDepartment: "Finance & Accounts",
       contentSections: [
         { heading: "Financial Summary", bullets: [
           `Total Revenue: ${formatCurrency(financials.totalRevenue)}`,

@@ -529,7 +529,15 @@ const FieldReports = () => {
             <div className="flex gap-2 mt-4 print-hide">
               <Button size="sm" variant="outline" onClick={async () => {
                 const { generatePdf } = await import("@/lib/generatePdf");
-                generatePdf({ title: `Field Report - ${new Date().toLocaleDateString()}`, content: structuredReport ? cleanMarkdown(structuredReport) : "" });
+                const preparerName = user?.user_metadata?.full_name ?? "Field Technician";
+                const preparerRole = activeRole ?? "technician";
+                generatePdf({
+                  title: `Field Report - ${new Date().toLocaleDateString()}`,
+                  content: structuredReport ? cleanMarkdown(structuredReport) : "",
+                  senderName: preparerName,
+                  senderDepartment: preparerRole.replace(/_/g, " ").toUpperCase() + " Department",
+                  stampType: "general",
+                });
               }}><Printer className="h-4 w-4 mr-1" />PDF</Button>
               <PrintRequestButton
                 documentTitle={`Field Report - ${new Date().toLocaleDateString()}`}
@@ -586,7 +594,16 @@ const FieldReports = () => {
                 const content = viewingReport.structured_reports?.[0]?.structured_content
                   ? cleanMarkdown(viewingReport.structured_reports[0].structured_content)
                   : [viewingReport.tasks_completed, viewingReport.crew_members, viewingReport.notes].filter(Boolean).join("\n");
-                generatePdf({ title: `Report: ${viewingReport.projects?.name ?? "General"} — ${viewingReport.report_date}`, content });
+                const reportProfile = senderProfiles.get(viewingReport.created_by);
+                const preparerName = reportProfile?.full_name ?? "Field Specialist";
+                const preparerRole = senderRoles.get(viewingReport.created_by) ?? "operations";
+                generatePdf({
+                  title: `Report: ${viewingReport.projects?.name ?? "General"} — ${viewingReport.report_date}`,
+                  content,
+                  senderName: preparerName,
+                  senderDepartment: preparerRole.replace(/_/g, " ").toUpperCase() + " Department",
+                  stampType: "general",
+                });
               }}><Printer className="h-4 w-4 mr-1" />Print</Button>
               <PrintRequestButton
                 documentTitle={`Report: ${viewingReport.projects?.name ?? "General"} — ${viewingReport.report_date}`}

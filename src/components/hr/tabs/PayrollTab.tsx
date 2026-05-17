@@ -142,6 +142,7 @@ export const PayrollTab = ({
                                   generatePdf({
                                     title: `Payslip — ${p.date}`,
                                     senderName: "NIF Technical Services Ltd",
+                                    senderDepartment: "HUMAN RESOURCES & PAYROLL",
                                     contentSections: [
                                       { heading: "Employee Information", bullets: [
                                         `Name: ${getMemberName(p.user_id)}`,

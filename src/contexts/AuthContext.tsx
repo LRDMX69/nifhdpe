@@ -63,29 +63,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isMaintenanceAdmin = !!maintenanceCheck;
       setIsMaintenance(isMaintenanceAdmin);
 
-      const { data: profileData } = await supabase
+      // Resilient check: use maybeSingle() instead of single() to prevent PostgrestError rejection if trigger lag occurs
+      const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("*")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
 
-      if (profileData) {
+      if (profileError) {
+        logger.error("Error fetching profile:", profileError);
+      } else if (profileData) {
         setProfile(profileData as UserProfile);
       }
 
       // Fetch ALL memberships (up to 2 roles)
-      const { data: membershipData } = await supabase
+      const { data: membershipData, error: membershipError } = await supabase
         .from("organization_memberships")
         .select("organization_id, role, organizations(name)")
         .eq("user_id", userId);
 
-      if (membershipData && membershipData.length > 0) {
+      if (membershipError) {
+        logger.error("Error fetching memberships:", membershipError);
+      } else if (membershipData && membershipData.length > 0) {
         const mapped: UserMembership[] = membershipData.map((m) => ({
           organization_id: m.organization_id,
           role: m.role,
           organization_name: (m.organizations as unknown as { name: string })?.name ?? "",
         }));
         setMemberships(mapped);
+        
         // Set the first organization as active if not already set (use ref to avoid stale-closure re-fetch loop)
         const currentOrg = activeOrgRef.current;
         if (!currentOrg) {
@@ -108,6 +114,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: "administrator",
           organization_name: "System",
         }]);
+      } else {
+        setMemberships([]);
+        setActiveRole(null);
       }
     } catch (error) {
       logger.error("Error fetching user data/memberships:", error);
@@ -116,24 +125,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    let active = true;
 
-        // Check for MFA
-        if (session?.user) {
-          // Defer all async work so we never block the loading state from clearing.
-          setTimeout(async () => {
-            try {
-              const { data: factors } = await supabase.auth.mfa.listFactors();
+    const handleSession = async (session: Session | null) => {
+      if (!active) return;
+      
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        try {
+          // Await atomic loading of all dependencies so we do not trigger early redirects with empty memberships
+          await fetchUserData(session.user.id);
+          
+          try {
+            const { data: factors } = await supabase.auth.mfa.listFactors();
+            if (active) {
               setIsMfaEnabled(factors?.all.some(f => f.status === "verified") ?? false);
-            } catch (e) {
-              logger.error("MFA listFactors failed", e);
             }
-            try { await fetchUserData(session.user.id); } catch (e) { logger.error("fetchUserData failed", e); }
-          }, 0);
-        } else {
+          } catch (e) {
+            logger.error("MFA listFactors failed", e);
+          }
+        } catch (error) {
+          logger.error("Error inside handleSession:", error);
+        }
+      } else {
+        if (active) {
           setProfile(null);
           setMemberships([]);
           setActiveRole(null);
@@ -142,29 +159,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsMaintenance(false);
           setIsMfaEnabled(false);
         }
+      }
+      
+      if (active) {
         setLoading(false);
+      }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        logger.info(`Supabase Auth Event: ${event}`);
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+          if (active) setLoading(true);
+        }
+        await handleSession(session);
       }
     );
 
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          // Fire and forget — never block loading on these calls.
-          supabase.auth.mfa.listFactors()
-            .then(({ data: factors }) => setIsMfaEnabled(factors?.all.some(f => f.status === "verified") ?? false))
-            .catch((e) => logger.error("MFA listFactors failed", e));
-          fetchUserData(session.user.id).catch((e) => logger.error("fetchUserData failed", e));
-        }
+        handleSession(session);
       })
-      .catch((e) => logger.error("getSession failed", e))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        logger.error("getSession failed", e);
+        if (active) setLoading(false);
+      });
 
     // Safety net: never let loading hang past 8s no matter what.
-    const safety = setTimeout(() => setLoading(false), 8000);
+    const safety = setTimeout(() => {
+      if (active) setLoading(false);
+    }, 8000);
 
-    return () => { subscription.unsubscribe(); clearTimeout(safety); };
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+      clearTimeout(safety);
+    };
   }, [fetchUserData]);
 
   const signIn = async (email: string, password: string) => {

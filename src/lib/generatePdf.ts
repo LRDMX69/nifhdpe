@@ -67,103 +67,100 @@ const STAMP_RED: [number, number, number] = [180, 30, 30];
 
 function drawLetterhead(doc: jsPDF, margin: number, pageW: number): number {
   // ============================================================
-  // 1. DECORATIVE TOP-CENTER BANNER (drawn FIRST so it sits behind content)
-  //    Geometry per strict spec:
-  //      - ~70% page width, top-center, never touches margins
-  //      - Bottom-right corner cut inward diagonally ~55% of width
-  //      - Color split line starts from the END of the cut and runs
-  //        diagonally upward in the OPPOSITE direction, hitting the top
-  //      - Left = COMPANY BLUE, Right = COMPANY GREEN. Solid, sharp, no gradient.
+  // 1. TOP COLORFUL GEOMETRIC BANNERS (Matching Reference Image)
   // ============================================================
-  const bannerW = pageW * 0.7;
-  const bannerH = 22;
-  const bannerX = (pageW - bannerW) / 2;
-  const bannerY = 4;
-
-  // Cut: bottom edge runs full width up to (1 - 0.55) = 45% from left.
-  // Cut endpoint sits on the RIGHT edge somewhere up the side.
-  // We define: the diagonal cut starts on the bottom edge at 45% width
-  //            and ends on the right edge ~55% up from the bottom.
-  const cutBottomX = bannerX + bannerW * 0.45;            // bottom-edge endpoint
-  const cutBottomY = bannerY + bannerH;
-  const cutRightX  = bannerX + bannerW;                    // right edge x
-  const cutRightY  = bannerY + bannerH * 0.45;             // 55% up from bottom
-
-  // Color split: starts at the cut's bottom endpoint (cutBottomX, cutBottomY)
-  // and slopes diagonally UPWARD in the OPPOSITE direction (up-and-left → top edge).
-  // Land it on the top edge to the LEFT of cutBottomX so the slope opposes the cut.
-  const splitTopX = bannerX + bannerW * 0.30;              // opposite-direction slope
-  const splitTopY = bannerY;
-
-  // ---- BLUE polygon (left of split) ----
-  doc.setFillColor(...BLUE);
-  doc.triangle(
-    bannerX, bannerY,
-    splitTopX, splitTopY,
-    bannerX, cutBottomY,
-    "F"
-  );
-  // The remaining quad on the left bottom (split point down to cut start)
-  doc.triangle(
-    splitTopX, splitTopY,
-    cutBottomX, cutBottomY,
-    bannerX, cutBottomY,
-    "F"
-  );
-
-  // ---- GREEN polygon (right of split, with bottom-right corner cut) ----
+  
+  // Green banner on top left/center
   doc.setFillColor(...GREEN);
-  // Top trapezoid: split top → top-right → cut endpoint on right edge
-  doc.triangle(
-    splitTopX, splitTopY,
-    cutRightX, bannerY,
-    cutRightX, cutRightY,
-    "F"
-  );
-  // Bottom triangle: split top → cut-right point → cut-bottom point
-  doc.triangle(
-    splitTopX, splitTopY,
-    cutRightX, cutRightY,
-    cutBottomX, cutBottomY,
-    "F"
-  );
+  doc.triangle(0, 0, 130, 0, 0, 52, "F");
 
-  // 2. App Icon + Letterhead (Top-Left, independent of rectangle)
-  let y = margin + 2;
-  
-  // App ICON (Simplified version)
+  // Blue banner parallel diagonal strip below Green
   doc.setFillColor(...BLUE);
-  doc.rect(margin, y - 5, 12, 12, "F"); 
-  doc.setFontSize(7);
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
-  doc.text("TECHNICAL", margin + 6, y - 1, { align: "center", angle: 90 }); // Vertical "TECHNICAL"
-  doc.setFontSize(10);
-  doc.text("NIF", margin + 2, y + 2.5);
+  doc.triangle(0, 52, 130, 0, 175, 0, "F");
+  doc.triangle(0, 52, 175, 0, 0, 68, "F");
 
-  // Letterhead text immediately beside icon
-  doc.setFontSize(18);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...DARK);
-  doc.text("NIF", margin + 18, y);
-  doc.setTextColor(...GREEN);
-  doc.text("TECHNICAL", margin + 30, y);
+  // ============================================================
+  // 2. COMPANY LOGO / GRID MODERN ICON (Top-Right White Area)
+  // ============================================================
+  const logoX = 145;
+  const logoY = 10;
   
-  y += 6;
+  // Custom composite modern tech grid logo (grid structure)
+  doc.setFillColor(...BLUE);
+  doc.rect(logoX, logoY, 4.5, 4.5, "F");
+  doc.rect(logoX + 10.6, logoY, 4.5, 4.5, "F");
+  doc.rect(logoX + 15.9, logoY, 4.5, 4.5, "F");
+  doc.rect(logoX, logoY + 5.3, 4.5, 4.5, "F");
+  doc.rect(logoX + 10.6, logoY + 5.3, 4.5, 4.5, "F");
+  
+  doc.setFillColor(...GREEN);
+  doc.rect(logoX + 5.3, logoY, 4.5, 4.5, "F");
+  doc.rect(logoX + 5.3, logoY + 5.3, 4.5, 4.5, "F");
+  doc.rect(logoX, logoY + 10.6, 4.5, 4.5, "F");
+  doc.rect(logoX + 5.3, logoY + 10.6, 4.5, 4.5, "F");
+  doc.rect(logoX + 10.6, logoY + 10.6, 4.5, 4.5, "F");
+  doc.rect(logoX + 15.9, logoY + 10.6, 4.5, 4.5, "F");
+
+  // Label text under logo block
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...DARK);
+  doc.text("NIF TECHNICAL SERVICES LTD.", 190, 29, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(120, 120, 120);
+  doc.text("RC: 1872934 | PIPING SPECIALISTS", 190, 32.5, { align: "right" });
+
+  // ============================================================
+  // 3. COMPANY CONTACT DETAILS (Left Side, under polygons)
+  // ============================================================
+  const detailsY = 48;
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(100, 100, 100);
-  doc.text(TAGLINE, margin + 18, y);
+  doc.setTextColor(50, 50, 50);
+
+  // Helper function to draw circular check-dot icon next to details
+  const drawIcon = (x: number, y: number) => {
+    doc.setFillColor(...GREEN);
+    doc.circle(x, y, 1.2, "F");
+    doc.setFillColor(255, 255, 255);
+    doc.circle(x, y, 0.4, "F");
+  };
+
+  // Row 1: Address
+  drawIcon(22, detailsY + 2.5);
+  doc.setFont("helvetica", "bold");
+  doc.text("Head Office Address:", 27, detailsY + 1.5);
+  doc.setFont("helvetica", "normal");
+  doc.text("No. 15 Industrial Layout, Trans-Amadi, Port Harcourt, Rivers State, Nigeria.", 27, detailsY + 4.5);
   
-  y += 4;
-  doc.text(CONTACT, margin + 18, y);
-  
-  y += 10; // Extra padding
+  // Row 2: Phone
+  drawIcon(22, detailsY + 12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Contact Support Lines:", 27, detailsY + 11);
+  doc.setFont("helvetica", "normal");
+  doc.text("+234 803 123 4567, +234 809 876 5432", 27, detailsY + 14);
+
+  // Row 3: Email & Web
+  drawIcon(22, detailsY + 21.5);
+  doc.setFont("helvetica", "bold");
+  doc.text("Digital Channels:", 27, detailsY + 20.5);
+  doc.setFont("helvetica", "normal");
+  doc.text("info@niftechnical.com   |   www.nifhdpe.com", 27, detailsY + 23.5);
+
+  // Underline detail separators in light gray (Matching Reference Image)
+  doc.setDrawColor(230, 230, 230);
+  doc.setLineWidth(0.3);
+  doc.line(20, detailsY + 6.5, 120, detailsY + 6.5);
+  doc.line(20, detailsY + 16, 120, detailsY + 16);
+  doc.line(20, detailsY + 25.5, 120, detailsY + 25.5);
+
+  // Green bottom underline bounding the letterhead area
   doc.setDrawColor(...GREEN);
-  doc.setLineWidth(0.8);
-  doc.line(margin, y, pageW - margin, y);
-  y += 10;
-  return y;
+  doc.setLineWidth(0.6);
+  doc.line(margin, detailsY + 29.5, pageW - margin, detailsY + 29.5);
+
+  return detailsY + 36; // Returns content top boundary (~84mm)
 }
 
 function drawContinuationHeader(doc: jsPDF, margin: number, pageW: number, pageNum: number, totalPages: number): number {
@@ -473,15 +470,41 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
     y = stampY + 22;
   }
 
-  // Continuation headers & footer
+  // Continuation headers & footer styling
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
+    
+    // Draw top header separator for pages 2+
     if (i > 1) drawContinuationHeader(doc, margin, pageW, i, pageCount);
-    doc.setFontSize(6);
-    doc.setTextColor(200, 200, 200);
-    doc.text(`Generated by NIF Technical Services System — ${new Date().toISOString()}`, pageW - margin, pageH - 8, { align: "right" });
-    doc.text(`Page ${i} of ${pageCount}`, margin, pageH - 8);
+
+    // ============================================================
+    // 4. WATERMARK & FOOTER STYLING (Matching Reference Image)
+    // ============================================================
+    
+    // Draw background pipe watermark (very light gray, 246, 246, 246)
+    doc.setDrawColor(246, 246, 246);
+    doc.setLineWidth(1.5);
+    doc.circle(165, 235, 25);
+    doc.circle(165, 235, 18);
+    doc.setLineWidth(4);
+    doc.line(140, 245, 190, 225); // diagonal pipe segment
+    doc.line(143, 248, 193, 228);
+
+    // Draw bottom green divider line running across margin to the corner block
+    doc.setDrawColor(...GREEN);
+    doc.setLineWidth(0.6);
+    doc.line(margin, pageH - 20, pageW - 40, pageH - 20);
+
+    // Draw bottom right blue diagonal corner block
+    doc.setFillColor(...BLUE);
+    doc.triangle(pageW, pageH, pageW - 35, pageH, pageW, pageH - 18, "F");
+
+    // Footnotes and page count
+    doc.setFontSize(6.5);
+    doc.setTextColor(150, 150, 150);
+    doc.text(`Generated by NIF Technical Services System — ${new Date().toLocaleDateString("en-NG")}`, margin, pageH - 14);
+    doc.text(`Page ${i} of ${pageCount}`, margin, pageH - 10);
   }
 
   doc.save(`${title.replace(/\s+/g, "-").toLowerCase()}-${docId}.pdf`);

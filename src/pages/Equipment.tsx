@@ -198,6 +198,9 @@ const Equipment = () => {
     const { generatePdf } = await import("@/lib/generatePdf");
     generatePdf({
       title: "Equipment Allocation Sheet",
+      senderName: user?.user_metadata?.full_name ?? "Warehouse Dispatcher",
+      senderDepartment: "WAREHOUSE & LOGISTICS",
+      stampType: "general",
       tableData: {
         columns: [
           { header: "Name", dataKey: "name" },

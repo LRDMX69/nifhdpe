@@ -177,18 +177,15 @@ const WorkerClaims = () => {
   const handleExportClaim = async (c: WorkerClaim) => {
     const { generatePdf } = await import("@/lib/generatePdf");
     const claimProfile = profileMap.get(c.user_id);
+    const claimRole = membershipMap.get(c.user_id);
     
-    // Add proof image to PDF if it exists
+    const preparerName = claimProfile?.full_name ?? (c.user_id === user?.id ? user?.user_metadata?.full_name : null) ?? "Employee";
+    const preparerRole = claimRole ?? (c.user_id === user?.id ? activeRole : null) ?? "Employee Operations";
+
+    // Add proof image/attachment sections
     const sections: { heading?: string; body?: string; bullets?: string[] }[] = [
-      { heading: "Claim Details", bullets: [
-        `Type: ${c.claim_type}`,
-        `Category: ${c.category}`,
-        `Amount: ${formatCurrency(c.amount ?? 0)}`,
-        `Status: ${c.status}`,
-        `Date Submitted: ${new Date(c.created_at).toLocaleDateString()}`,
-      ]},
-      ...(c.description ? [{ heading: "Description", body: c.description }] : []),
-      ...(c.admin_notes ? [{ heading: "Admin Notes", body: c.admin_notes }] : []),
+      ...(c.description ? [{ heading: "Claim Description", body: c.description }] : []),
+      ...(c.admin_notes ? [{ heading: "Review Notes", body: c.admin_notes }] : []),
     ];
 
     // Embed proof: pass the URL inside a "Verification Proof" section so the
@@ -196,22 +193,43 @@ const WorkerClaims = () => {
     if (c.file_url && isImageUrl(c.file_url)) {
       sections.push({ heading: "Verification Proof", body: c.file_url });
     } else if (c.file_url) {
-      sections.push({ heading: "Attachment", body: `Document: ${c.file_url}` });
+      sections.push({ heading: "Attachment Reference", body: `Document: ${c.file_url}` });
     }
 
     generatePdf({
       title: `Worker Claim — ${c.category}`,
-      senderName: claimProfile?.full_name ?? "Employee",
+      senderName: preparerName,
+      senderDepartment: preparerRole.replace(/_/g, " ").toUpperCase(),
       contentSections: sections,
       stampType: c.status === "approved" ? "admin" : null,
       showSignature: true,
+      tableData: {
+        columns: [
+          { header: "Detail Property", dataKey: "key", width: 50 },
+          { header: "Record Value", dataKey: "value" }
+        ],
+        rows: [
+          { key: "Claim Type", value: c.claim_type.toUpperCase() },
+          { key: "Category", value: c.category },
+          { key: "Amount Requested", value: formatCurrency(c.amount ?? 0) },
+          { key: "Current Status", value: c.status.toUpperCase() },
+          { key: "Date Submitted", value: new Date(c.created_at).toLocaleDateString() }
+        ]
+      }
     });
   };
 
   const pendingCount = claims.filter((c: WorkerClaim) => c.status === "pending" || c.status === "flagged").length;
   const totalAmount = claims.filter((c: WorkerClaim) => c.status === "approved").reduce((s: number, c: WorkerClaim) => s + (c.amount || 0), 0);
   const getInitials = (name: string) => (name || "?").split(" ").map((n: string) => n[0]).join("").slice(0, 2);
-  const isImageUrl = (url: string) => /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
+  const isImageUrl = (url: string) => {
+    try {
+      const path = url.split("?")[0];
+      return /\.(jpg|jpeg|png|gif|webp)$/i.test(path);
+    } catch {
+      return false;
+    }
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-7xl mx-auto">
