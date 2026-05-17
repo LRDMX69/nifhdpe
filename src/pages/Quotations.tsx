@@ -145,7 +145,7 @@ const Quotations = () => {
         await supabase.from("quotation_items").delete().eq("quotation_id", editingQuotation.id);
         if (items.length > 0) {
           await supabase.from("quotation_items").insert(items.map(i => ({
-            quotation_id: editingQuotation.id, description: i.description, item_type: i.type as Database["public"]["Enums"]["item_type"],
+            quotation_id: editingQuotation.id, description: i.description, item_type: i.type as Database["public"]["Enums"]["quotation_item_type"],
             quantity: i.quantity, unit_price: i.unitPrice, total_price: i.total,
           })));
         }
@@ -160,7 +160,7 @@ const Quotations = () => {
         if (error) throw error;
         if (items.length > 0 && quotation) {
           await supabase.from("quotation_items").insert(items.map(i => ({
-            quotation_id: quotation.id, description: i.description, item_type: i.type as Database["public"]["Enums"]["item_type"],
+            quotation_id: quotation.id, description: i.description, item_type: i.type as Database["public"]["Enums"]["quotation_item_type"],
             quantity: i.quantity, unit_price: i.unitPrice, total_price: i.total,
           })));
         }

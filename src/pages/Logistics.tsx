@@ -91,7 +91,7 @@ const Logistics = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("fuel_logs").select("*, vehicles(plate_number)").eq("organization_id", orgId).order("log_date", { ascending: false });
-      return data ?? [];
+      return (data ?? []) as unknown as FuelLogRow[];
     },
     enabled: !!orgId,
   });
@@ -344,7 +344,7 @@ const Logistics = () => {
                                 destination: d.destination,
                                 destinationState: d.destination_state,
                                 siteName: d.site_name,
-                                projectName: (d as any).projects?.name,
+                                projectName: (d as DeliveryRow).projects?.name,
                                 notes: d.notes,
                                 issuedBy: user?.email ?? undefined,
                               });
@@ -387,8 +387,8 @@ const Logistics = () => {
                       <Badge variant={v.status === 'active' ? 'default' : 'outline'}>{v.status}</Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-2 pt-2 border-t text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
-                      <div>Current KM: <span className="text-foreground">{v.current_km?.toLocaleString()}</span></div>
-                      <div>Last Service: <span className="text-foreground">{v.last_maintenance_date || "—"}</span></div>
+                      <div>Current KM: <span className="text-foreground">{(v as Record<string, unknown>).current_km != null ? Number((v as Record<string, unknown>).current_km).toLocaleString() : "—"}</span></div>
+                      <div>Last Service: <span className="text-foreground">{(v as Record<string, unknown>).last_maintenance_date as string || "—"}</span></div>
                     </div>
                   </CardContent>
                 </Card>
@@ -410,11 +410,11 @@ const Logistics = () => {
                   ) : (
                     fuelLogs.map((log: FuelLogRow) => (
                       <TableRow key={log.id}>
-                        <TableCell className="text-xs">{log.date}</TableCell>
+                        <TableCell className="text-xs">{log.log_date}</TableCell>
                         <TableCell className="text-xs font-bold">{log.vehicles?.plate_number}</TableCell>
                         <TableCell className="text-xs">{log.liters} L</TableCell>
-                        <TableCell className="text-right text-xs font-bold">{formatCurrency(log.total_cost)}</TableCell>
-                        <TableCell className="text-right text-xs">{log.km_reading?.toLocaleString()} km</TableCell>
+                        <TableCell className="text-right text-xs font-bold">{formatCurrency(log.cost)}</TableCell>
+                        <TableCell className="text-right text-xs">{log.odometer?.toLocaleString()} km</TableCell>
                       </TableRow>
                     ))
                   )}

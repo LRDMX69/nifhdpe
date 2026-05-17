@@ -97,7 +97,7 @@ const Finance = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("invoices").select("*, clients(name)").eq("organization_id", orgId).order("created_at", { ascending: false });
-      return (data ?? []) as InvoiceItem[];
+      return (data ?? []) as unknown as InvoiceItem[];
     },
     enabled: !!orgId,
   });
@@ -107,7 +107,7 @@ const Finance = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("receipts").select("*, clients(name)").eq("organization_id", orgId).order("created_at", { ascending: false });
-      return (data ?? []) as ReceiptItem[];
+      return (data ?? []) as unknown as ReceiptItem[];
     },
     enabled: !!orgId,
   });

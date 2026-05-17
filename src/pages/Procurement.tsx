@@ -16,11 +16,11 @@ import type { Database } from "@/integrations/supabase/types";
 
 type VendorRow = Database["public"]["Tables"]["vendors"]["Row"];
 type PoRow = Database["public"]["Tables"]["purchase_orders"]["Row"] & { vendors?: { name: string } | null };
-type MrRow = Database["public"]["Tables"]["material_requisitions"]["Row"] & { projects?: { name: string } | null };
+type MrRow = Database["public"]["Tables"]["material_requisitions"]["Row"];
 type PoItemRow = Database["public"]["Tables"]["purchase_order_items"]["Row"];
 
 const Procurement = () => {
-  const { activeRole, memberships } = useAuth();
+  const { user, activeRole, memberships } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const orgId = memberships[0]?.organization_id;
@@ -30,7 +30,21 @@ const Procurement = () => {
 
   const [vendorOpen, setVendorOpen] = useState(false);
   const [poOpen, setPoOpen] = useState(false);
+  const [grnOpen, setGrnOpen] = useState(false);
+  const [mrOpen, setMrOpen] = useState(false);
+
   const [newVendor, setNewVendor] = useState({ name: "", email: "", phone: "", address: "", category: "" });
+  
+  // PO state
+  const [poVendorId, setPoVendorId] = useState("");
+  const [poAmount, setPoAmount] = useState("");
+  
+  // GRN state
+  const [grnPoId, setGrnPoId] = useState("");
+  
+  // MR state
+  const [mrProjectId, setMrProjectId] = useState("");
+  const [mrRequiredDate, setMrRequiredDate] = useState("");
 
   const { data: vendors = [], isLoading: vendorsLoading } = useQuery({
     queryKey: ["vendors", orgId],
@@ -53,7 +67,7 @@ const Procurement = () => {
   const { data: mrs = [], isLoading: mrsLoading } = useQuery({
     queryKey: ["material-requisitions", orgId],
     queryFn: async () => {
-      const { data } = await supabase.from("material_requisitions").select("*, projects(name)").order("created_at", { ascending: false });
+      const { data } = await supabase.from("material_requisitions").select("*").order("created_at", { ascending: false });
       return (data ?? []) as MrRow[];
     },
     enabled: !!orgId,
@@ -70,6 +84,57 @@ const Procurement = () => {
       setVendorOpen(false);
       setNewVendor({ name: "", email: "", phone: "", address: "", category: "" });
       queryClient.invalidateQueries({ queryKey: ["vendors"] });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const createPo = useMutation({
+    mutationFn: async () => {
+      if (!orgId) throw new Error("No organization");
+      const currentUser = user ?? (await supabase.auth.getUser()).data.user;
+      if (!currentUser) throw new Error("Not logged in");
+      const { error } = await supabase.from("purchase_orders").insert({
+        organization_id: orgId,
+        vendor_id: poVendorId,
+        total_amount: parseFloat(poAmount) || 0,
+        currency: "NGN",
+        status: "draft",
+        document_number: `PO-${Date.now().toString().slice(-6)}`,
+        created_by: currentUser.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Purchase Order created" });
+      setPoOpen(false);
+      setPoVendorId("");
+      setPoAmount("");
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const createMr = useMutation({
+    mutationFn: async () => {
+      if (!orgId) throw new Error("No organization");
+      const currentUser = user ?? (await supabase.auth.getUser()).data.user;
+      if (!currentUser) throw new Error("Not logged in");
+      const { error } = await supabase.from("material_requisitions").insert({
+        organization_id: orgId,
+        project_id: mrProjectId || null,
+        required_date: mrRequiredDate || null,
+        status: "draft",
+        document_number: `MR-${Date.now().toString().slice(-6)}`,
+        requested_by: currentUser.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Material Requisition created" });
+      setMrOpen(false);
+      setMrProjectId("");
+      setMrRequiredDate("");
+      queryClient.invalidateQueries({ queryKey: ["material-requisitions"] });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -249,7 +314,31 @@ const Procurement = () => {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Purchase Orders</CardTitle>
               {(isAdmin || isFinance) && (
-                <Button size="sm"><Plus className="h-4 w-4 mr-1" />New PO</Button>
+                <Dialog open={poOpen} onOpenChange={setPoOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm"><Plus className="h-4 w-4 mr-1" />New PO</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader><DialogTitle>Create Purchase Order</DialogTitle></DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label>Vendor *</Label>
+                        <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={poVendorId} onChange={(e) => setPoVendorId(e.target.value)}>
+                          <option value="">Select a vendor...</option>
+                          {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Total Amount (₦)</Label>
+                        <Input type="number" value={poAmount} onChange={e => setPoAmount(e.target.value)} placeholder="0" />
+                      </div>
+                      <Button className="w-full" onClick={() => createPo.mutate()} disabled={!poVendorId || createPo.isPending}>
+                        {createPo.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                        Create PO
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               )}
             </CardHeader>
             <CardContent>
@@ -306,7 +395,27 @@ const Procurement = () => {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Goods Received Notes (GRN)</CardTitle>
               {(isAdmin || isWarehouse) && (
-                <Button size="sm"><Plus className="h-4 w-4 mr-1" />Receive Goods</Button>
+                <Dialog open={grnOpen} onOpenChange={setGrnOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm"><Plus className="h-4 w-4 mr-1" />Receive Goods</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader><DialogTitle>Receive Goods via PO</DialogTitle></DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label>Purchase Order *</Label>
+                        <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={grnPoId} onChange={(e) => setGrnPoId(e.target.value)}>
+                          <option value="">Select pending PO...</option>
+                          {pos.filter((p: PoRow) => p.status !== 'received').map((p: PoRow) => <option key={p.id} value={p.id}>{p.document_number} - {p.vendors?.name}</option>)}
+                        </select>
+                      </div>
+                      <Button className="w-full" onClick={() => { receiveGoods.mutate(grnPoId); setGrnOpen(false); }} disabled={!grnPoId || receiveGoods.isPending}>
+                        {receiveGoods.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                        Receive GRN
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               )}
             </CardHeader>
             <CardContent>
@@ -322,7 +431,24 @@ const Procurement = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Material Requisitions</CardTitle>
-              <Button size="sm"><Plus className="h-4 w-4 mr-1" />New Requisition</Button>
+              <Dialog open={mrOpen} onOpenChange={setMrOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm"><Plus className="h-4 w-4 mr-1" />New Requisition</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>New Material Requisition</DialogTitle></DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Required Date</Label>
+                      <Input type="date" value={mrRequiredDate} onChange={e => setMrRequiredDate(e.target.value)} />
+                    </div>
+                    <Button className="w-full" onClick={() => createMr.mutate()} disabled={createMr.isPending}>
+                      {createMr.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Create Requisition
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               {mrsLoading ? (
