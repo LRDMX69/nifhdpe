@@ -50,7 +50,7 @@ export const useOfflineQueue = <T extends { _id?: number }>(queueKey: string) =>
 
   const removeFromQueue = async (queuedId: number) => {
     const currentQueue = (await get<T[]>(queueKey)) || [];
-    const newQueue = currentQueue.filter((item: any) => item._id !== queuedId);
+    const newQueue = currentQueue.filter((item) => item._id !== queuedId);
     await saveQueue(newQueue);
   };
 

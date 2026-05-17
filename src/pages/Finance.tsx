@@ -24,6 +24,9 @@ import type { Database } from "@/integrations/supabase/types";
 
 type ExpenseItem = Database["public"]["Tables"]["expenses"]["Row"];
 type PaymentItem = Database["public"]["Tables"]["worker_payments"]["Row"];
+type InvoiceItem = Database["public"]["Tables"]["invoices"]["Row"] & { clients?: { name: string } | null };
+type ReceiptItem = Database["public"]["Tables"]["receipts"]["Row"] & { clients?: { name: string } | null };
+type InvoiceLineItem = Database["public"]["Tables"]["invoice_items"]["Row"];
 type QuotationItem = { total_amount: number | null; created_at: string };
 
 const PAYMENT_TYPES = ["salary", "overtime", "fuel", "maintenance", "bonus", "transport", "vendor"] as const;
@@ -94,7 +97,7 @@ const Finance = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("invoices").select("*, clients(name)").eq("organization_id", orgId).order("created_at", { ascending: false });
-      return data ?? [];
+      return (data ?? []) as InvoiceItem[];
     },
     enabled: !!orgId,
   });
@@ -104,7 +107,7 @@ const Finance = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("receipts").select("*, clients(name)").eq("organization_id", orgId).order("created_at", { ascending: false });
-      return data ?? [];
+      return (data ?? []) as ReceiptItem[];
     },
     enabled: !!orgId,
   });
@@ -166,7 +169,7 @@ const Finance = () => {
     try {
       const payload: Database["public"]["Tables"]["worker_payments"]["Insert"] = {
         organization_id: orgId, created_by: user.id,
-        type: payType as any, amount: parseFloat(payAmount),
+        type: payType as Database["public"]["Enums"]["payment_type"], amount: parseFloat(payAmount),
         description: payDesc || null, date: payDate, user_id: payUserId || null,
       };
       if (editingPayment) {
@@ -192,7 +195,7 @@ const Finance = () => {
     try {
       const payload: Database["public"]["Tables"]["expenses"]["Insert"] = {
         organization_id: orgId, created_by: user.id,
-        category: expCategory as any, amount: parseFloat(expAmount),
+        category: expCategory as Database["public"]["Enums"]["expense_category"], amount: parseFloat(expAmount),
         description: expDesc || null, date: expDate,
       };
       if (editingExpense) {
@@ -388,7 +391,7 @@ const Finance = () => {
                     <TableHead>Invoice #</TableHead><TableHead>Client</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="text-right">Balance</TableHead><TableHead className="w-[40px]"></TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
-                    {invoices.map((inv: any) => (
+                    {(invoices as InvoiceItem[]).map((inv) => (
                       <TableRow key={inv.id}>
                         <TableCell className="text-sm font-bold">{inv.document_number}</TableCell>
                         <TableCell className="text-sm">{inv.clients?.name}</TableCell>
@@ -411,7 +414,7 @@ const Finance = () => {
                                   { header: "Price (₦)", dataKey: "unit_price" },
                                   { header: "Total (₦)", dataKey: "total_price" }
                                 ],
-                                rows: items.map((i: any) => ({
+                                rows: (items as InvoiceLineItem[]).map((i) => ({
                                   description: i.description,
                                   quantity: i.quantity,
                                   unit_price: Number(i.unit_price).toLocaleString(),
@@ -446,7 +449,7 @@ const Finance = () => {
                     <TableHead>Receipt #</TableHead><TableHead>Client</TableHead><TableHead>Date</TableHead><TableHead>Method</TableHead><TableHead className="text-right">Amount Received</TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
-                    {receipts.map((r: any) => (
+                    {(receipts as ReceiptItem[]).map((r) => (
                       <TableRow key={r.id}>
                         <TableCell className="text-sm font-bold">{r.document_number}</TableCell>
                         <TableCell className="text-sm">{r.clients?.name}</TableCell>

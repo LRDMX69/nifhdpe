@@ -136,16 +136,16 @@ const Quotations = () => {
       if (editingQuotation) {
         // Update existing
         const { error } = await supabase.from("quotations").update({
-          client_id: clientId || null, pipe_type: pipeType as any,
+          client_id: clientId || null, pipe_type: pipeType as Database["public"]["Enums"]["pipe_type"],
           profit_margin_percent: profitMargin, labor_cost_per_meter: laborCost,
-          transport_cost: transportCost, subtotal, total_amount: grandTotal, status: status as any, is_lump_sum: false,
+          transport_cost: transportCost, subtotal, total_amount: grandTotal, status: status as Database["public"]["Enums"]["quotation_status"], is_lump_sum: false,
         } as Database["public"]["Tables"]["quotations"]["Update"]).eq("id", editingQuotation.id);
         if (error) throw error;
         // Replace line items
         await supabase.from("quotation_items").delete().eq("quotation_id", editingQuotation.id);
         if (items.length > 0) {
           await supabase.from("quotation_items").insert(items.map(i => ({
-            quotation_id: editingQuotation.id, description: i.description, item_type: i.type as any,
+            quotation_id: editingQuotation.id, description: i.description, item_type: i.type as Database["public"]["Enums"]["item_type"],
             quantity: i.quantity, unit_price: i.unitPrice, total_price: i.total,
           })));
         }
@@ -154,13 +154,13 @@ const Quotations = () => {
         const qNum = `QT-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 999) + 1).padStart(3, "0")}`;
         const { data: quotation, error } = await supabase.from("quotations").insert({
           organization_id: orgId, created_by: user.id, client_id: clientId || null, quotation_number: qNum,
-          pipe_type: pipeType as any, profit_margin_percent: profitMargin, labor_cost_per_meter: laborCost,
-          transport_cost: transportCost, subtotal, total_amount: grandTotal, status: status as any, is_lump_sum: false,
+          pipe_type: pipeType as Database["public"]["Enums"]["pipe_type"], profit_margin_percent: profitMargin, labor_cost_per_meter: laborCost,
+          transport_cost: transportCost, subtotal, total_amount: grandTotal, status: status as Database["public"]["Enums"]["quotation_status"], is_lump_sum: false,
         } as Database["public"]["Tables"]["quotations"]["Insert"]).select().single();
         if (error) throw error;
         if (items.length > 0 && quotation) {
           await supabase.from("quotation_items").insert(items.map(i => ({
-            quotation_id: quotation.id, description: i.description, item_type: i.type as any,
+            quotation_id: quotation.id, description: i.description, item_type: i.type as Database["public"]["Enums"]["item_type"],
             quantity: i.quantity, unit_price: i.unitPrice, total_price: i.total,
           })));
         }
@@ -204,7 +204,7 @@ const Quotations = () => {
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
-      const { error } = await supabase.from("quotations").update({ status: status as any }).eq("id", id);
+      const { error } = await supabase.from("quotations").update({ status: status as Database["public"]["Enums"]["quotation_status"] }).eq("id", id);
       if (error) throw error;
       toast({ title: `Status → ${status}` });
 
@@ -238,7 +238,7 @@ const Quotations = () => {
         balance_due: q.total_amount,
         created_by: user?.id,
         notes: q.notes
-      } as any).select().single();
+      } as Database["public"]["Tables"]["invoices"]["Insert"]).select().single();
 
       if (invError) throw invError;
 
@@ -255,8 +255,9 @@ const Quotations = () => {
       }
 
       toast({ title: "Invoice generated successfully", description: `Invoice ${invoice.document_number || ''} has been created.` });
-    } catch (err: any) {
-      toast({ title: "Failed to generate invoice", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const e = err as Error;
+      toast({ title: "Failed to generate invoice", description: e.message, variant: "destructive" });
     } finally {
       setSaving(false);
     }

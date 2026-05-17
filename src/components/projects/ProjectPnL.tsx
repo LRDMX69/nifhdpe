@@ -5,6 +5,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/constants";
 import { TrendingUp, TrendingDown, DollarSign, Users, Package, CreditCard, Loader2 } from "lucide-react";
+import type { Database } from "@/integrations/supabase/types";
+
+type ExpenseRow = Database["public"]["Tables"]["expenses"]["Row"];
 
 interface ProjectPnLProps {
   projectId: string;
@@ -34,7 +37,8 @@ export const ProjectPnL = ({ projectId, projectBudget }: ProjectPnLProps) => {
           .in("mr_id", mrIds);
         
         totalMaterialCost = mrItems?.reduce((s, item) => {
-          const unitCost = (item.inventory as any)?.unit_cost || 0;
+          const inventory = item.inventory as unknown as { unit_cost: number } | null;
+          const unitCost = inventory?.unit_cost || 0;
           return s + (Number(item.quantity_issued || 0) * Number(unitCost));
         }, 0) || 0;
       }
@@ -121,7 +125,7 @@ export const ProjectPnL = ({ projectId, projectBudget }: ProjectPnLProps) => {
             <Table>
               <TableHeader><TableRow><TableHead className="text-xs">Date</TableHead><TableHead className="text-xs">Category</TableHead><TableHead className="text-xs">Description</TableHead><TableHead className="text-right text-xs">Amount</TableHead></TableRow></TableHeader>
               <TableBody>
-                {pnl.expenses.map((e: any) => (
+                {(pnl.expenses as ExpenseRow[]).map((e) => (
                   <TableRow key={e.id}>
                     <TableCell className="text-xs">{e.date}</TableCell>
                     <TableCell><Badge variant="outline" className="text-[10px] capitalize">{e.category}</Badge></TableCell>

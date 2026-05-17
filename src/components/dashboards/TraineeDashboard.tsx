@@ -13,6 +13,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS } from "@/lib/constants";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
+
+type ArticleRow = Pick<Database["public"]["Tables"]["knowledge_articles"]["Row"], "id" | "title" | "category" | "created_at">;
+type ReflectionRow = Database["public"]["Tables"]["learning_reflections"]["Row"];
 
 const TraineeDashboard = () => {
   const { user, profile, activeRole, memberships } = useAuth();
@@ -38,7 +42,7 @@ const TraineeDashboard = () => {
         .eq("organization_id", orgId)
         .order("created_at", { ascending: false })
         .limit(10);
-      return data ?? [];
+      return (data ?? []) as ArticleRow[];
     },
     enabled: !!orgId,
   });
@@ -54,7 +58,7 @@ const TraineeDashboard = () => {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(20);
-      return data ?? [];
+      return (data ?? []) as ReflectionRow[];
     },
     enabled: !!orgId && !!user,
   });
@@ -80,7 +84,7 @@ const TraineeDashboard = () => {
       setReflWeek("");
       queryClient.invalidateQueries({ queryKey: ["learning-reflections"] });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const roleLabel = ROLE_LABELS[activeRole ?? ""] ?? "Trainee";
@@ -161,7 +165,7 @@ const TraineeDashboard = () => {
         <CardContent>
           {reflections.length > 0 ? (
             <div className="space-y-2">
-              {reflections.map((r: any) => (
+              {reflections.map((r: ReflectionRow) => (
                 <div key={r.id} className="py-3 px-3 rounded-lg bg-muted/30 space-y-1">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium truncate">{r.title}</p>
@@ -196,7 +200,7 @@ const TraineeDashboard = () => {
         <CardContent>
           {articles.length > 0 ? (
             <div className="space-y-2">
-              {articles.map((a: any) => (
+              {articles.map((a: ArticleRow) => (
                 <div key={a.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navigate("/knowledge-base")}>
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{a.title}</p>

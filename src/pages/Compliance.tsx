@@ -105,7 +105,7 @@ const Compliance = () => {
       const payload: Record<string, unknown> = {
         title: title.trim(), doc_type: docType, expiry_date: expiryDate || null,
         project_id: projectId && projectId !== "none" ? projectId : null,
-        file_url: fileUrl, status: docStatus as any,
+        file_url: fileUrl, status: docStatus as Database["public"]["Enums"]["compliance_status"],
       };
       if (editingDoc) {
         const { error } = await supabase.from("compliance_documents").update(payload).eq("id", editingDoc.id);
@@ -126,7 +126,7 @@ const Compliance = () => {
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
-      const { error } = await supabase.from("compliance_documents").update({ status: status as any }).eq("id", id);
+      const { error } = await supabase.from("compliance_documents").update({ status: status as Database["public"]["Enums"]["compliance_status"] }).eq("id", id);
       if (error) throw error;
       toast({ title: `Status → ${status}` });
       refetch();

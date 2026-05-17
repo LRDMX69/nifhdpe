@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
 
 interface PrintableDocumentProps {
@@ -38,7 +39,7 @@ const extractTextFromChildren = (children: ReactNode): string => {
   if (!children) return "";
   if (Array.isArray(children)) return children.map(extractTextFromChildren).join("\n");
   if (typeof children === "object" && "props" in children) {
-    const props = (children as any).props;
+    const props = (children as React.ReactElement<{ children?: ReactNode }>).props;
     if (props?.children) return extractTextFromChildren(props.children);
   }
   return "";

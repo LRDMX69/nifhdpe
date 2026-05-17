@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,7 @@ type FieldReportWithRelations = Database["public"]["Tables"]["field_reports"]["R
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { useOfflineQueue } from "@/hooks/useOfflineQueue";
 
-const ReportPhotos = ({ photos }: { photos: any[] }) => {
+const ReportPhotos = ({ photos }: { photos: { id: string; photo_url: string }[] }) => {
   if (!photos || photos.length === 0) return null;
   return (
     <div className="space-y-2 mt-4">
@@ -105,7 +105,7 @@ const FieldReports = () => {
       const { data: profile } = await supabase.from("profiles").select("organization_id").eq("user_id", user.id).single();
       if (!profile?.organization_id) return;
 
-      for (const item of offlineQueue as any[]) {
+      for (const item of offlineQueue as Array<{ _id: number; project_id?: string; tasks_completed: string; crew_members: string; safety_incidents: string; pressure_test_result: string; client_feedback: string; notes: string | null; photos: string[] }>) {
         try {
           const photoUrls: string[] = [];
           if (item.photos && item.photos.length > 0) {
@@ -164,6 +164,7 @@ const FieldReports = () => {
     // Try sync on mount if online
     if (navigator.onLine) syncOfflineReports();
     return () => window.removeEventListener("online", handleOnline);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offlineQueue.length]);
 
   // Filter reports based on role & routing

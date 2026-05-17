@@ -11,6 +11,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
+
+type HolidayRow = Database["public"]["Tables"]["holidays"]["Row"];
 
 export const HolidayManager = () => {
   const { user, memberships } = useAuth();
@@ -31,7 +34,7 @@ export const HolidayManager = () => {
         .select("*")
         .eq("organization_id", orgId)
         .order("date", { ascending: false });
-      return data ?? [];
+      return (data ?? []) as HolidayRow[];
     },
     enabled: !!orgId,
   });
@@ -53,8 +56,9 @@ export const HolidayManager = () => {
       setName(""); setDate(""); setIsExtended(false);
       setDialogOpen(false);
       refetch();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const e = err as Error;
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -103,7 +107,7 @@ export const HolidayManager = () => {
       </CardHeader>
       <CardContent className="space-y-2">
         {holidays.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No holidays configured</p>}
-        {holidays.map((h: any) => (
+        {holidays.map((h: HolidayRow) => (
           <div key={h.id} className={`flex items-center justify-between p-2 rounded-lg ${h.date === today ? "bg-primary/10 border border-primary/20" : "bg-muted/30"}`}>
             <div>
               <p className="text-sm font-medium">{h.name}</p>

@@ -6,8 +6,13 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import type { Database } from "@/integrations/supabase/types";
 
 interface PayrollTabProps {
-  salaryPayments: any[];
-  profileMap: Map<string, { full_name: string; avatar_url: string | null }>;
+  salaryPayments: Database["public"]["Tables"]["worker_payments"]["Row"][];
+  profileMap: Map<string, { 
+    full_name: string; 
+    avatar_url: string | null;
+    bank_name?: string | null;
+    bank_account_number?: string | null;
+  }>;
   getMemberName: (userId: string) => string;
   memberOptions: { value: string; label: string }[];
   onAddPayment: () => void;
@@ -38,11 +43,9 @@ export const PayrollTab = ({
     ];
 
     monthPayments.forEach(p => {
-      // @ts-ignore
       const bankName = profileMap.get(p.user_id)?.bank_name || "NOT_SET";
-      // @ts-ignore
       const acctNum = profileMap.get(p.user_id)?.bank_account_number || "NOT_SET";
-      const acctName = getMemberName(p.user_id);
+      const acctName = getMemberName(p.user_id!);
       const amount = Number(p.net_pay || p.amount);
       csvRows.push([acctName, acctNum, bankName, amount.toString(), `Salary ${thisMonth}`]);
     });

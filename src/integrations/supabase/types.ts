@@ -1934,6 +1934,8 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bank_account_number: string | null
+          bank_name: string | null
           basic_salary: number | null
           created_at: string
           full_name: string | null
@@ -1951,6 +1953,8 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
           basic_salary?: number | null
           created_at?: string
           full_name?: string | null
@@ -1968,6 +1972,8 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
           basic_salary?: number | null
           created_at?: string
           full_name?: string | null

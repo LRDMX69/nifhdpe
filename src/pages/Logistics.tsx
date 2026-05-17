@@ -20,6 +20,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 
+type DeliveryRow = Database["public"]["Tables"]["deliveries"]["Row"] & { projects?: { name: string } | null };
+type VehicleRow = Database["public"]["Tables"]["vehicles"]["Row"];
+type FuelLogRow = Database["public"]["Tables"]["fuel_logs"]["Row"] & { vehicles?: { plate_number: string } | null };
+
 const statusBadge: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   pending: "outline", in_transit: "secondary", delivered: "default", cancelled: "destructive",
 };
@@ -56,7 +60,7 @@ const Logistics = () => {
       if (!orgId) return [];
       const { data, error } = await supabase.from("deliveries").select("*, projects(name)").eq("organization_id", orgId).order("delivery_date", { ascending: false });
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as DeliveryRow[];
     },
     enabled: !!orgId,
   });
@@ -76,7 +80,7 @@ const Logistics = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("vehicles").select("*").eq("organization_id", orgId).order("plate_number");
-      return data ?? [];
+      return (data ?? []) as VehicleRow[];
     },
     enabled: !!orgId,
   });
@@ -176,10 +180,9 @@ const Logistics = () => {
       if (newStatus === "delivered") {
         payload.delivered_at = new Date().toISOString();
 
-        // Find the delivery to check destination coordinates
-        const delivery = deliveries.find((d) => (d as any).id === id);
-        const destLat = (delivery as any)?.destination_lat;
-        const destLng = (delivery as any)?.destination_lng;
+        const delivery = (deliveries as DeliveryRow[]).find((d) => d.id === id);
+        const destLat = delivery?.destination_lat;
+        const destLng = delivery?.destination_lng;
 
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
@@ -252,7 +255,7 @@ const Logistics = () => {
   };
 
   const filtered = deliveries.filter((d) => {
-    const projectName = (d as any).projects?.name ?? "";
+    const projectName = (d as DeliveryRow).projects?.name ?? "";
     const matchSearch = projectName.toLowerCase().includes(search.toLowerCase()) || (d.driver ?? "").toLowerCase().includes(search.toLowerCase()) || d.destination.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || d.status === statusFilter;
     return matchSearch && matchStatus;
@@ -312,7 +315,7 @@ const Logistics = () => {
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0"><Truck className="h-5 w-5" /></div>
                     <div className="min-w-0">
-                      <p className="font-semibold text-sm truncate">{(d as any).projects?.name ?? "Unlinked delivery"}</p>
+                      <p className="font-semibold text-sm truncate">{(d as DeliveryRow).projects?.name ?? "Unlinked delivery"}</p>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-0.5">
                         <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {d.destination}</span>
                         <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {d.delivery_date}</span>
@@ -351,7 +354,7 @@ const Logistics = () => {
             {vehicles.length === 0 ? (
               <p className="col-span-full text-center py-12 text-muted-foreground">No vehicles registered.</p>
             ) : (
-              vehicles.map((v: any) => (
+              vehicles.map((v: VehicleRow) => (
                 <Card key={v.id} className="border-border/50">
                   <CardContent className="p-4 space-y-3">
                     <div className="flex justify-between items-start">
@@ -386,7 +389,7 @@ const Logistics = () => {
                   {fuelLogs.length === 0 ? (
                     <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No fuel logs recorded.</TableCell></TableRow>
                   ) : (
-                    fuelLogs.map((log: any) => (
+                    fuelLogs.map((log: FuelLogRow) => (
                       <TableRow key={log.id}>
                         <TableCell className="text-xs">{log.date}</TableCell>
                         <TableCell className="text-xs font-bold">{log.vehicles?.plate_number}</TableCell>

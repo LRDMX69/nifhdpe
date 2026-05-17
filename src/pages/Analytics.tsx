@@ -8,6 +8,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMemo } from "react";
+import type { Database } from "@/integrations/supabase/types";
+
+type QuotationRow = Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null };
+type ExpenseRow = Database["public"]["Tables"]["expenses"]["Row"];
+type PaymentRow = Database["public"]["Tables"]["worker_payments"]["Row"];
+type InventoryRow = Database["public"]["Tables"]["inventory"]["Row"];
 
 const COLORS = ["hsl(105,73%,49%)", "hsl(207,80%,40%)", "hsl(38,92%,50%)", "hsl(0,72%,51%)", "hsl(210,10%,60%)"];
 
@@ -21,7 +27,7 @@ const Analytics = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("worker_payments").select("amount, date, type").eq("organization_id", orgId).order("date", { ascending: false }).limit(500);
-      return data ?? [];
+      return (data ?? []) as PaymentRow[];
     },
     enabled: !!orgId,
   });
@@ -31,7 +37,7 @@ const Analytics = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("expenses").select("amount, date, category").eq("organization_id", orgId).order("date", { ascending: false }).limit(500);
-      return data ?? [];
+      return (data ?? []) as ExpenseRow[];
     },
     enabled: !!orgId,
   });
@@ -41,7 +47,7 @@ const Analytics = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("quotations").select("total_amount, status, created_at, client_id, clients(name)").eq("organization_id", orgId).limit(500);
-      return data ?? [];
+      return (data ?? []) as QuotationRow[];
     },
     enabled: !!orgId,
   });
@@ -51,32 +57,32 @@ const Analytics = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("inventory").select("item_name, diameter_mm, quantity_meters, unit_cost, item_type").eq("organization_id", orgId);
-      return data ?? [];
+      return (data ?? []) as InventoryRow[];
     },
     enabled: !!orgId,
   });
 
   const analytics = useMemo(() => {
-    const totalRevenue = (quotations as any[]).filter((q) => q.status === "accepted").reduce((s: number, q) => s + Number(q.total_amount ?? 0), 0);
-    const totalExpenses = (expenses as any[]).reduce((s: number, e) => s + Number(e.amount ?? 0), 0);
-    const totalPayments = (payments as any[]).reduce((s: number, p) => s + Number(p.amount ?? 0), 0);
+    const totalRevenue = quotations.filter((q) => q.status === "accepted").reduce((s: number, q) => s + Number(q.total_amount ?? 0), 0);
+    const totalExpenses = expenses.reduce((s: number, e) => s + Number(e.amount ?? 0), 0);
+    const totalPayments = payments.reduce((s: number, p) => s + Number(p.amount ?? 0), 0);
     const netProfit = totalRevenue - totalExpenses - totalPayments;
 
-    const sentCount = (quotations as any[]).filter((q) => ["sent", "accepted", "rejected"].includes(q.status)).length;
-    const acceptedCount = (quotations as any[]).filter((q) => q.status === "accepted").length;
+    const sentCount = quotations.filter((q) => ["sent", "accepted", "rejected"].includes(q.status)).length;
+    const acceptedCount = quotations.filter((q) => q.status === "accepted").length;
     const conversionRate = sentCount > 0 ? Math.round((acceptedCount / sentCount) * 100) : 0;
 
-    const inventoryValue = (inventory as any[]).reduce((s: number, i) => s + (i.quantity_meters ?? 0) * (i.unit_cost ?? 0), 0);
+    const inventoryValue = inventory.reduce((s: number, i) => s + (i.quantity_meters ?? 0) * (i.unit_cost ?? 0), 0);
 
     // Monthly revenue data
     const monthlyMap = new Map<string, { revenue: number; expenses: number }>();
-    (quotations as any[]).filter((q) => q.status === "accepted").forEach((q) => {
+    quotations.filter((q) => q.status === "accepted").forEach((q) => {
       const month = new Date(q.created_at).toLocaleString("en", { month: "short" });
       const entry = monthlyMap.get(month) ?? { revenue: 0, expenses: 0 };
       entry.revenue += Number(q.total_amount ?? 0);
       monthlyMap.set(month, entry);
     });
-    (expenses as any[]).forEach((e) => {
+    expenses.forEach((e) => {
       const month = new Date(e.date).toLocaleString("en", { month: "short" });
       const entry = monthlyMap.get(month) ?? { revenue: 0, expenses: 0 };
       entry.expenses += Number(e.amount ?? 0);
@@ -86,7 +92,7 @@ const Analytics = () => {
 
     // Pipe usage by diameter
     const diameterMap = new Map<string, number>();
-    (inventory as any[]).forEach((i) => {
+    inventory.forEach((i) => {
       const key = i.diameter_mm ? `${i.diameter_mm}mm` : "Other";
       diameterMap.set(key, (diameterMap.get(key) ?? 0) + Number(i.quantity_meters ?? 0));
     });
@@ -94,7 +100,7 @@ const Analytics = () => {
 
     // Quotation conversion by month
     const convMap = new Map<string, { sent: number; accepted: number }>();
-    (quotations as any[]).forEach((q) => {
+    quotations.forEach((q) => {
       const month = new Date(q.created_at).toLocaleString("en", { month: "short" });
       const entry = convMap.get(month) ?? { sent: 0, accepted: 0 };
       if (["sent", "accepted", "rejected"].includes(q.status)) entry.sent++;
@@ -105,7 +111,7 @@ const Analytics = () => {
 
     // Top clients
     const clientMap = new Map<string, number>();
-    (quotations as any[]).filter((q) => q.status === "accepted").forEach((q) => {
+    quotations.filter((q) => q.status === "accepted").forEach((q) => {
       const name = q.clients?.name ?? "Unknown";
       clientMap.set(name, (clientMap.get(name) ?? 0) + Number(q.total_amount ?? 0));
     });

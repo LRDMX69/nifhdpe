@@ -3,6 +3,7 @@ import { AppSidebar } from "./AppSidebar";
 import { MobileNav } from "./MobileNav";
 import { BottomNav } from "./BottomNav";
 import { MFAEnforcer } from "../auth/MFAEnforcer";
+import { RoleBasedOnboarding } from "./RoleBasedOnboarding";
 
 export const AppLayout = () => {
   return (
@@ -19,6 +20,7 @@ export const AppLayout = () => {
         </main>
         {/* Mobile bottom nav */}
         <BottomNav />
+        <RoleBasedOnboarding />
       </div>
     </MFAEnforcer>
   );

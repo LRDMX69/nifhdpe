@@ -27,6 +27,12 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, 
   ResponsiveContainer, CartesianGrid
 } from "recharts";
+import type { Database } from "@/integrations/supabase/types";
+
+type SummaryRow = Database["public"]["Tables"]["ai_summaries"]["Row"];
+type EquipReqRow = Database["public"]["Tables"]["equipment_requests"]["Row"] & { profiles: { full_name: string } | null };
+type ClaimRow = Database["public"]["Tables"]["worker_claims"]["Row"] & { profiles: { full_name: string } | null };
+type ReportRow = Database["public"]["Tables"]["field_reports"]["Row"] & { projects: { name: string } | null, profiles: { full_name: string } | null };
 
 const AdminDashboard = () => {
   const { profile, memberships, user } = useAuth();
@@ -72,7 +78,15 @@ const AdminDashboard = () => {
         date: inc.incident_date,
         severity: inc.severity
       }));
-      const maintenanceAlerts = (maintenance.data || []).map((m: any) => ({
+
+      interface MaintenanceAlert {
+        alert_type: string;
+        equipment_name: string;
+        due_date: string;
+        days_overdue: number;
+      }
+
+      const maintenanceAlerts = (maintenance.data || []).map((m: MaintenanceAlert) => ({
         type: 'maintenance',
         title: `${m.alert_type}: ${m.equipment_name}`,
         date: m.due_date,
@@ -150,7 +164,7 @@ const AdminDashboard = () => {
         .in("context", ["central_ai", "admin_daily", "finance", "hr", "warehouse", "engineering", "field_report", "opportunities", "anomaly_detection", "stock_analysis"])
         .order("created_at", { ascending: false })
         .limit(10);
-      return data ?? [];
+      return (data ?? []) as SummaryRow[];
     },
     enabled: !!orgId,
   });
@@ -160,7 +174,7 @@ const AdminDashboard = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("field_reports").select("*, structured_reports(*), projects(name)").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(8);
-      return data ?? [];
+      return (data ?? []) as ReportRow[];
     },
     enabled: !!orgId,
   });
@@ -170,7 +184,7 @@ const AdminDashboard = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("worker_claims").select("*").eq("organization_id", orgId).eq("status", "pending").order("created_at", { ascending: false }).limit(10);
-      return data ?? [];
+      return (data ?? []) as ClaimRow[];
     },
     enabled: !!orgId,
   });
@@ -180,7 +194,7 @@ const AdminDashboard = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("equipment_requests").select("*, equipment(name)").eq("organization_id", orgId).eq("status", "pending").order("created_at", { ascending: false }).limit(5);
-      return data ?? [];
+      return (data ?? []) as EquipReqRow[];
     },
     enabled: !!orgId,
   });
@@ -389,7 +403,7 @@ const AdminDashboard = () => {
               {aiLoading ? (
                 <div className="space-y-2"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /></div>
               ) : aiSummary.length > 0 ? (
-                (aiSummary as any[]).map((s) => (
+                (aiSummary as SummaryRow[]).map((s) => (
                   <div key={s.id} className="bg-muted/30 rounded-lg p-3 text-sm space-y-1">
                     <Badge variant="outline" className="text-[10px]">{contextLabels[s.context] ?? s.context.replace(/_/g, " ")}</Badge>
                     <p className="leading-relaxed text-xs sm:text-sm break-words-safe">{formatContent(s.summary.substring(0, 400))}{s.summary.length > 400 ? "..." : ""}</p>
@@ -409,7 +423,7 @@ const AdminDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 max-h-[300px] overflow-y-auto">
-              {(pendingEquipReqs as any[]).map((r) => (
+              {(pendingEquipReqs as EquipReqRow[]).map((r) => (
                 <div key={r.id} className="bg-muted/30 rounded-lg p-3 text-xs space-y-2">
                   <div className="flex justify-between items-start gap-1">
                     <span className="font-medium truncate">🔧 {r.equipment?.name}</span>
@@ -426,10 +440,8 @@ const AdminDashboard = () => {
                   </div>
                 </div>
               ))}
-              {pendingClaims.length === 0 && pendingEquipReqs.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No pending items.</p>
-              ) : (
-                (pendingClaims as any[]).slice(0, 5).map((c) => (
+              {pendingClaims && pendingClaims.length > 0 ? (
+                (pendingClaims as ClaimRow[]).slice(0, 5).map((c) => (
                   <div key={c.id} className="bg-muted/30 rounded-lg p-3 text-xs space-y-2">
                     <div className="flex justify-between items-start gap-1">
                       <div className="min-w-0 flex-1">
@@ -448,7 +460,9 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                 ))
-              )}
+              ) : pendingEquipReqs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No pending items.</p>
+              ) : null}
             </CardContent>
           </Card>
         </div>
@@ -493,7 +507,7 @@ const AdminDashboard = () => {
                 <p className="text-sm text-muted-foreground">No reports submitted yet.</p>
               ) : (
                 <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                  {(recentReports as any[]).map((r) => {
+                  {(recentReports as ReportRow[]).map((r) => {
                     const hasStructured = r.structured_reports && r.structured_reports.length > 0;
                     const routedTo = r.notes?.startsWith("routed_to:") ? r.notes.replace("routed_to:", "") : null;
                     return (

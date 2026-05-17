@@ -99,6 +99,30 @@ const HR = () => {
   const [payDesc, setPayDesc] = useState("");
   const [salaryBreakdown, setSalaryBreakdown] = useState<SalaryBreakdown | null>(null);
 
+  const { data: profileMap = new Map() } = useQuery({
+    queryKey: ["profiles-for-hr", orgId],
+    queryFn: async () => {
+      if (!orgId) return new Map();
+      const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, avatar_url, basic_salary, bank_name, bank_account_number").eq("organization_id", orgId);
+      return new Map((profiles ?? []).map((p) => [p.user_id, p]));
+    },
+    enabled: !!orgId,
+  });
+
+  // Update breakdown when employee is selected (Hard Lock Payroll)
+  useEffect(() => {
+    if (payUserId) {
+      const profile = profileMap.get(payUserId);
+      const gross = Number(profile?.basic_salary || 0);
+      if (gross > 0) {
+        setSalaryBreakdown(calculateNigerianSalary(gross));
+      } else {
+        setSalaryBreakdown(null);
+      }
+    } else {
+      setSalaryBreakdown(null);
+    }
+  }, [payUserId, profileMap]);
   // ID Card dialog
   const [idCardOpen, setIdCardOpen] = useState(false);
   const [idCardUser, setIdCardUser] = useState<{ user_id: string; role?: string } | null>(null);
@@ -156,26 +180,6 @@ const HR = () => {
     return { lateArrivals, missingCheckouts, absentUsers };
   })();
 
-  const { data: profileMap = new Map() } = useQuery({
-    queryKey: ["profiles-for-hr", orgId],
-    queryFn: async () => {
-      if (!orgId) return new Map();
-      const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, avatar_url, basic_salary").eq("organization_id", orgId);
-      return new Map((profiles ?? []).map((p) => [p.user_id, p]));
-    },
-    enabled: !!orgId,
-  });
-
-  // Update breakdown when employee is selected (Hard Lock Payroll)
-  useEffect(() => {
-    if (payUserId) {
-      const profile = profileMap.get(payUserId);
-      const gross = Number(profile?.basic_salary || 0);
-      setSalaryBreakdown(gross > 0 ? calculateNigerianSalary(gross) : null);
-    } else {
-      setSalaryBreakdown(null);
-    }
-  }, [payUserId, profileMap]);
 
   const { data: membersList = [] } = useQuery({
     queryKey: ["members-list-hr", orgId],
@@ -204,17 +208,6 @@ const HR = () => {
   const { data: skills = [] } = useQuery({ queryKey: ["employee-skills", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("employee_skills").select("*").eq("organization_id", orgId).order("skill_name"); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
   const { data: disciplinary = [] } = useQuery({ queryKey: ["disciplinary", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("disciplinary_records").select("*").eq("organization_id", orgId).order("incident_date", { ascending: false }).limit(20); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
   const { data: promotions = [] } = useQuery({ queryKey: ["promotions", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("promotions").select("*").eq("organization_id", orgId).order("effective_date", { ascending: false }).limit(20); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
-
-  // Payroll data
-  const { data: orgProfiles = [] } = useQuery({
-    queryKey: ["org-profiles", orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await supabase.from("profiles").select("user_id, full_name, avatar_url, bank_name, bank_account_number").eq("organization_id", orgId);
-      return data ?? [];
-    },
-    enabled: !!orgId,
-  });
 
   const { data: salaryPayments = [] } = useQuery({
     queryKey: ["salary-payments", orgId],
@@ -381,7 +374,7 @@ const HR = () => {
         paye_tax: breakdown.paye,
         date: payDate || new Date().toISOString().split("T")[0],
         description: payDesc || null,
-      } as any);
+      });
       if (error) throw error;
     },
     onSuccess: () => { toast({ title: "Salary payment recorded with statutory deductions" }); setPayrollOpen(false); setPayUserId(""); setPayAmount(""); setPayDate(""); setPayDesc(""); queryClient.invalidateQueries({ queryKey: ["salary-payments"] }); },

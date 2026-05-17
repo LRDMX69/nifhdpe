@@ -12,6 +12,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
+
+type VendorRow = Database["public"]["Tables"]["vendors"]["Row"];
+type PoRow = Database["public"]["Tables"]["purchase_orders"]["Row"] & { vendors?: { name: string } | null };
+type MrRow = Database["public"]["Tables"]["material_requisitions"]["Row"] & { projects?: { name: string } | null };
+type PoItemRow = Database["public"]["Tables"]["purchase_order_items"]["Row"];
 
 const Procurement = () => {
   const { activeRole, memberships } = useAuth();
@@ -30,7 +36,7 @@ const Procurement = () => {
     queryKey: ["vendors", orgId],
     queryFn: async () => {
       const { data } = await supabase.from("vendors").select("*").order("name");
-      return data ?? [];
+      return (data ?? []) as VendorRow[];
     },
     enabled: !!orgId,
   });
@@ -39,7 +45,7 @@ const Procurement = () => {
     queryKey: ["purchase-orders", orgId],
     queryFn: async () => {
       const { data } = await supabase.from("purchase_orders").select("*, vendors(name)").order("created_at", { ascending: false });
-      return data ?? [];
+      return (data ?? []) as PoRow[];
     },
     enabled: !!orgId,
   });
@@ -48,7 +54,7 @@ const Procurement = () => {
     queryKey: ["material-requisitions", orgId],
     queryFn: async () => {
       const { data } = await supabase.from("material_requisitions").select("*, projects(name)").order("created_at", { ascending: false });
-      return data ?? [];
+      return (data ?? []) as MrRow[];
     },
     enabled: !!orgId,
   });
@@ -65,7 +71,7 @@ const Procurement = () => {
       setNewVendor({ name: "", email: "", phone: "", address: "", category: "" });
       queryClient.invalidateQueries({ queryKey: ["vendors"] });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const receiveGoods = useMutation({
@@ -74,7 +80,7 @@ const Procurement = () => {
       const user = (await supabase.auth.getUser()).data.user;
       if (!user) throw new Error("Not logged in");
 
-      const po = pos.find((p: any) => p.id === poId);
+      const po = pos.find((p: PoRow) => p.id === poId);
       if (!po) throw new Error("PO not found");
 
       // 1. Create GRN as pending
@@ -100,7 +106,7 @@ const Procurement = () => {
 
       // 3. Create GRN items
       if (items && items.length > 0) {
-        const grnItems = items.map((item: any) => ({
+        const grnItems = (items as PoItemRow[]).map((item) => ({
           grn_id: grn.id,
           purchase_order_item_id: item.id,
           item_name: item.item_name,
@@ -131,7 +137,7 @@ const Procurement = () => {
       // The user wants to update Inventory.tsx on GRN receipt, let's invalidate inventory query if it exists
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
-    onError: (err: any) => toast({ title: "Error receiving goods", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error receiving goods", description: err.message, variant: "destructive" }),
   });
 
   return (
@@ -212,7 +218,7 @@ const Procurement = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {vendors.map((v: any) => (
+                  {(vendors as VendorRow[]).map((v) => (
                     <Card key={v.id} className="border-border/50">
                       <CardContent className="p-4 space-y-3">
                         <div className="flex justify-between items-start">
@@ -256,7 +262,7 @@ const Procurement = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {pos.map((po: any) => (
+                  {(pos as PoRow[]).map((po) => (
                     <Card key={po.id} className="border-border/50 hover:border-primary/20 transition-colors cursor-pointer">
                       <CardContent className="p-3 sm:p-4">
                         <div className="flex justify-between items-start gap-2">
@@ -328,7 +334,7 @@ const Procurement = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {mrs.map((mr: any) => (
+                  {(mrs as MrRow[]).map((mr) => (
                     <Card key={mr.id} className="border-border/50 hover:border-primary/20 transition-colors cursor-pointer">
                       <CardContent className="p-3 sm:p-4">
                         <div className="flex justify-between items-start gap-2">

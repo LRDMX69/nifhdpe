@@ -13,9 +13,15 @@ interface Conversation {
   unreadCount: number;
 }
 
+interface Broadcast {
+  id: string;
+  body: string;
+  is_read: boolean;
+}
+
 interface ConversationListProps {
   conversations: Conversation[];
-  broadcasts: any[];
+  broadcasts: Broadcast[];
   onSelectChat: (conv: Conversation) => void;
   onSelectBroadcasts: () => void;
 }
@@ -38,9 +44,9 @@ export const ConversationList = ({ conversations, broadcasts, onSelectChat, onSe
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium">Announcements</p>
-                {broadcasts.filter((b: any) => !b.is_read).length > 0 && (
+                {broadcasts.filter((b) => !b.is_read).length > 0 && (
                   <Badge className="bg-primary text-primary-foreground text-[10px]">
-                    {broadcasts.filter((b: any) => !b.is_read).length}
+                    {broadcasts.filter((b) => !b.is_read).length}
                   </Badge>
                 )}
               </div>

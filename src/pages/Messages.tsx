@@ -85,6 +85,7 @@ const Messages = () => {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId, refetchMessages]);
 
   // When the user opens the Messages page mark all their messages as read

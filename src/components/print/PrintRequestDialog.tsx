@@ -11,6 +11,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { PrintableDocument, cleanForPrint } from "./PrintableDocument";
+import type { Database } from "@/integrations/supabase/types";
+
+type PrintRequestRow = Database["public"]["Tables"]["print_requests"]["Row"];
+type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+type MembershipRow = Database["public"]["Tables"]["organization_memberships"]["Row"];
 
 interface PrintRequestDialogProps {
   open: boolean;
@@ -51,7 +56,7 @@ export const PrintRequestDialog = ({
       onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: ["print-requests"] });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   return (
@@ -108,18 +113,18 @@ export const PrintRequestsInbox = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("print_requests").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(50);
-      return data ?? [];
+      return (data ?? []) as PrintRequestRow[];
     },
     enabled: !!orgId,
   });
 
-  const requesterIds = [...new Set(requests.map((r: any) => r.requested_by))];
+  const requesterIds = [...new Set(requests.map((r: PrintRequestRow) => r.requested_by))];
   const { data: requesterProfiles = new Map() } = useQuery({
     queryKey: ["print-requester-profiles", requesterIds.join(",")],
     queryFn: async () => {
       if (requesterIds.length === 0) return new Map();
       const { data } = await supabase.from("profiles").select("user_id, full_name").in("user_id", requesterIds);
-      return new Map((data ?? []).map((p: any) => [p.user_id, p.full_name]));
+      return new Map((data ?? []).map((p: Pick<ProfileRow, "user_id" | "full_name">) => [p.user_id, p.full_name]));
     },
     enabled: requesterIds.length > 0,
   });
@@ -130,7 +135,7 @@ export const PrintRequestsInbox = () => {
     queryFn: async () => {
       if (requesterIds.length === 0) return new Map();
       const { data } = await supabase.from("organization_memberships").select("user_id, role").in("user_id", requesterIds);
-      return new Map((data ?? []).map((m: any) => [m.user_id, m.role]));
+      return new Map((data ?? []).map((m: Pick<MembershipRow, "user_id" | "role">) => [m.user_id, m.role]));
     },
     enabled: requesterIds.length > 0,
   });
@@ -167,7 +172,7 @@ export const PrintRequestsInbox = () => {
       {requests.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">No print requests.</p>
       ) : (
-        requests.map((r: any) => {
+        requests.map((r: PrintRequestRow) => {
           const senderName = requesterProfiles.get(r.requested_by) ?? "Unknown";
           const senderRole = requesterRoles.get(r.requested_by) ?? "";
           return (

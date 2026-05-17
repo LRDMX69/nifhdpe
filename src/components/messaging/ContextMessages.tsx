@@ -7,6 +7,10 @@ import { Send, Loader2, MessageSquare } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { Database } from "@/integrations/supabase/types";
+
+type MessageRow = Database["public"]["Tables"]["messages"]["Row"];
+type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 
 interface ContextMessagesProps {
   contextType: string; // "field_report" | "worker_claim" | "project"
@@ -30,7 +34,7 @@ export const ContextMessages = ({ contextType, contextId, orgId }: ContextMessag
         .eq("context_id", contextId)
         .eq("message_type", "context")
         .order("created_at", { ascending: true });
-      return data ?? [];
+      return (data ?? []) as MessageRow[];
     },
     enabled: !!orgId && !!contextId,
   });
@@ -39,7 +43,7 @@ export const ContextMessages = ({ contextType, contextId, orgId }: ContextMessag
     queryKey: ["context-msg-profiles", orgId],
     queryFn: async () => {
       const { data } = await supabase.from("profiles").select("user_id, full_name").eq("organization_id", orgId);
-      return new Map((data ?? []).map((p: any) => [p.user_id, p.full_name]));
+      return new Map((data ?? []).map((p: Pick<ProfileRow, "user_id" | "full_name">) => [p.user_id, p.full_name]));
     },
     enabled: !!orgId,
   });
@@ -76,7 +80,7 @@ export const ContextMessages = ({ contextType, contextId, orgId }: ContextMessag
       {messages.length > 0 && (
         <ScrollArea className="max-h-48 p-3">
           <div className="space-y-2">
-            {messages.map((m: any) => {
+            {messages.map((m: MessageRow) => {
               const isMine = m.sender_id === user?.id;
               const name = profileMap.get(m.sender_id) ?? "Unknown";
               return (

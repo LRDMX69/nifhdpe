@@ -7,6 +7,9 @@ import { useGsapFadeUp, useGsapStagger } from "@/hooks/useGsapAnimation";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import type { Database } from "@/integrations/supabase/types";
+
+type QuotationRow = Database["public"]["Tables"]["quotations"]["Row"] & { clients: { name: string } | null };
 
 const SalesDashboard = () => {
   const { profile, memberships } = useAuth();
@@ -25,7 +28,7 @@ const SalesDashboard = () => {
         .eq("organization_id", orgId)
         .order("created_at", { ascending: false })
         .limit(5);
-      return data ?? [];
+      return (data ?? []) as QuotationRow[];
     },
     enabled: !!orgId,
   });
@@ -93,7 +96,7 @@ const SalesDashboard = () => {
         <CardContent>
           {recentQuotations && recentQuotations.length > 0 ? (
             <div className="space-y-2">
-              {recentQuotations.map((q: any) => (
+              {recentQuotations.map((q: QuotationRow) => (
                 <div key={q.id} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
                   <div className="min-w-0">
                     <p className="text-sm font-medium">{q.quotation_number}</p>

@@ -9,6 +9,10 @@ import { Plus, AlertTriangle, BookOpen, ShieldCheck, Users, Loader2 } from "luci
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import type { Database } from "@/integrations/supabase/types";
+
+type IncidentRow = Database["public"]["Tables"]["hse_incidents"]["Row"] & { projects?: { name: string } | null };
+type TbtRow = Database["public"]["Tables"]["toolbox_talks"]["Row"] & { projects?: { name: string } | null };
 
 const HSE = () => {
   const { activeRole, memberships } = useAuth();
@@ -18,7 +22,7 @@ const HSE = () => {
     queryKey: ["hse-incidents", orgId],
     queryFn: async () => {
       const { data } = await supabase.from("hse_incidents").select("*, projects(name)").order("incident_date", { ascending: false });
-      return data ?? [];
+      return (data ?? []) as IncidentRow[];
     },
     enabled: !!orgId,
   });
@@ -66,7 +70,7 @@ const HSE = () => {
                     <TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Project</TableHead><TableHead>Severity</TableHead><TableHead>Status</TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
-                    {incidents.map((i: any) => (
+                    {incidents.map((i: IncidentRow) => (
                       <TableRow key={i.id}>
                         <TableCell className="text-xs">{i.incident_date}</TableCell>
                         <TableCell className="text-xs font-medium capitalize">{i.type?.replace("_", " ")}</TableCell>
@@ -98,7 +102,7 @@ const HSE = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {tbts.map((t: any) => (
+                  {tbts.map((t: TbtRow) => (
                     <Card key={t.id} className="border-border/50">
                       <CardContent className="p-4 space-y-2">
                         <div className="flex justify-between items-start">

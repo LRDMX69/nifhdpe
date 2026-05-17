@@ -7,6 +7,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
+
+type IntelligenceLogRow = Database["public"]["Tables"]["ai_intelligence_logs"]["Row"];
 
 const severityConfig: Record<string, { icon: typeof AlertTriangle; color: string }> = {
   critical: { icon: AlertTriangle, color: "text-red-500 bg-red-500/10 border-red-500/20" },
@@ -28,9 +31,8 @@ export const IntelligenceFeed = () => {
         .from("ai_intelligence_logs")
         .select("*")
         .eq("organization_id", orgId)
-        .order("created_at", { ascending: false })
         .limit(20);
-      return data ?? [];
+      return (data ?? []) as IntelligenceLogRow[];
     },
     enabled: !!orgId,
   });
@@ -48,7 +50,7 @@ export const IntelligenceFeed = () => {
       queryClient.invalidateQueries({ queryKey: ["intelligence-logs"] });
       queryClient.invalidateQueries({ queryKey: ["ai-summary"] });
     },
-    onError: (err: any) => toast({ title: "Scan failed", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Scan failed", description: err.message, variant: "destructive" }),
   });
 
   const markReviewed = useMutation({
@@ -58,7 +60,7 @@ export const IntelligenceFeed = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["intelligence-logs"] }),
   });
 
-  const unreviewed = logs.filter((l: any) => !l.is_reviewed);
+  const unreviewed = logs.filter((l: IntelligenceLogRow) => !l.is_reviewed);
 
   return (
     <Card className="border-border/50">
@@ -82,7 +84,7 @@ export const IntelligenceFeed = () => {
         ) : logs.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">No intelligence flags yet. Run a scan to detect anomalies.</p>
         ) : (
-          logs.map((log: any) => {
+          logs.map((log: IntelligenceLogRow) => {
             const config = severityConfig[log.severity] ?? severityConfig.info;
             const Icon = config.icon;
             return (

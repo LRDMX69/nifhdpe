@@ -30,8 +30,9 @@ export const MFAEnrollment = ({ onComplete }: { onComplete: () => void }) => {
       setFactorId(data.id);
       setQrCode(data.totp.qr_code);
       setStep("qr");
-    } catch (error: any) {
-      toast({ title: "Enrollment failed", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      const e = error as Error;
+      toast({ title: "Enrollment failed", description: e.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -49,7 +50,7 @@ export const MFAEnrollment = ({ onComplete }: { onComplete: () => void }) => {
       
       toast({ title: "MFA Enabled", description: "Your account is now protected with 2FA." });
       onComplete();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ title: "Verification failed", description: "Invalid code. Please try again.", variant: "destructive" });
     } finally {
       setLoading(false);
