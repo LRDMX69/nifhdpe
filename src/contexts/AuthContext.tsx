@@ -82,10 +82,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .select("organization_id, role, organizations(name)")
         .eq("user_id", userId);
 
+      let loadedMemberships = membershipData || [];
+
+      if (!membershipError && loadedMemberships.length === 0 && profileData?.organization_id) {
+        const pendingRolesStr = localStorage.getItem("nif_pending_roles");
+        let rolesToAssign: string[] = ["technician"];
+        if (pendingRolesStr) {
+          try {
+            const parsed = JSON.parse(pendingRolesStr);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              rolesToAssign = parsed;
+            }
+          } catch (e) {
+            logger.error("Error parsing pending roles from localStorage:", e);
+          }
+        }
+
+        logger.info(`Auto-assigning memberships for user ${userId} to org ${profileData.organization_id} with roles ${rolesToAssign.join(", ")}`);
+        
+        // Insert into organization_memberships
+        const insertPromises = rolesToAssign.slice(0, 2).map(role => 
+          supabase.from("organization_memberships").insert({
+            user_id: userId,
+            organization_id: profileData.organization_id,
+            role: role
+          })
+        );
+        await Promise.all(insertPromises);
+        localStorage.removeItem("nif_pending_roles");
+
+        // Refetch memberships
+        const { data: refetchedData, error: refetchError } = await supabase
+          .from("organization_memberships")
+          .select("organization_id, role, organizations(name)")
+          .eq("user_id", userId);
+
+        if (!refetchError && refetchedData) {
+          loadedMemberships = refetchedData;
+        }
+      }
+
       if (membershipError) {
         logger.error("Error fetching memberships:", membershipError);
-      } else if (membershipData && membershipData.length > 0) {
-        const mapped: UserMembership[] = membershipData.map((m) => ({
+      } else if (loadedMemberships && loadedMemberships.length > 0) {
+        const mapped: UserMembership[] = loadedMemberships.map((m) => ({
           organization_id: m.organization_id,
           role: m.role,
           organization_name: (m.organizations as unknown as { name: string })?.name ?? "",
