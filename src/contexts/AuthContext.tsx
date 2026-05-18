@@ -105,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           supabase.from("organization_memberships").insert({
             user_id: userId,
             organization_id: profileData.organization_id,
-            role: role
+            role: role as any
           })
         );
         await Promise.all(insertPromises);
