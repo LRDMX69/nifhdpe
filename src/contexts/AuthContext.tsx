@@ -99,24 +99,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         logger.info(`Auto-assigning memberships for user ${userId} to org ${profileData.organization_id} with roles ${rolesToAssign.join(", ")}`);
-        
-        // Insert into organization_memberships
-        const insertErrors = await Promise.all(rolesToAssign.slice(0, 2).map(async (role) => {
-          const { error: insertError } = await supabase.from("organization_memberships").insert({
-            user_id: userId,
-            organization_id: profileData.organization_id,
-            role: role as "administrator" | "engineer" | "technician" | "warehouse" | "finance" | "hr" | "reception_sales" | "knowledge_manager" | "siwes_trainee" | "it_student" | "nysc_member"
-          });
-          return insertError;
-        }));
 
-        const failedInsertMessages = insertErrors.filter((err): err is Error => !!err).map((err) => err.message);
-        if (failedInsertMessages.length > 0) {
-          const message = `Role assignment failed: ${failedInsertMessages.join("; ")}`;
-          logger.error(message);
-          setAuthError(message);
-        } else {
-          localStorage.removeItem("nif_pending_roles");
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const accessToken = session?.access_token;
+          if (!accessToken) {
+            const message = "Missing access token for role assignment";
+            logger.error(message);
+            setAuthError(message);
+          } else {
+            const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assign-pending-roles`;
+            const res = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+              body: JSON.stringify({ user_id: userId, organization_id: profileData.organization_id, roles: rolesToAssign.slice(0, 2) })
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              const message = payload?.error ? (Array.isArray(payload.error) ? payload.error.join("; ") : payload.error) : (payload?.detail ? JSON.stringify(payload.detail) : "Role assignment failed");
+              logger.error("assign-pending-roles failed", payload);
+              setAuthError(message);
+            } else {
+              localStorage.removeItem("nif_pending_roles");
+            }
+          }
+        } catch (e) {
+          logger.error("assign-pending-roles request failed", e);
+          setAuthError(e instanceof Error ? e.message : "Role assignment request failed");
         }
 
         // Refetch memberships
