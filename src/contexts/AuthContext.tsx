@@ -101,15 +101,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logger.info(`Auto-assigning memberships for user ${userId} to org ${profileData.organization_id} with roles ${rolesToAssign.join(", ")}`);
         
         // Insert into organization_memberships
-        const insertPromises = rolesToAssign.slice(0, 2).map(role => 
-          supabase.from("organization_memberships").insert({
+        const insertErrors = await Promise.all(rolesToAssign.slice(0, 2).map(async (role) => {
+          const { error: insertError } = await supabase.from("organization_memberships").insert({
             user_id: userId,
             organization_id: profileData.organization_id,
-            role: role as any
-          })
-        );
-        await Promise.all(insertPromises);
-        localStorage.removeItem("nif_pending_roles");
+            role: role as "administrator" | "engineer" | "technician" | "warehouse" | "finance" | "hr" | "reception_sales" | "knowledge_manager" | "siwes_trainee" | "it_student" | "nysc_member"
+          });
+          return insertError;
+        }));
+
+        const failedInsertMessages = insertErrors.filter((err): err is Error => !!err).map((err) => err.message);
+        if (failedInsertMessages.length > 0) {
+          const message = `Role assignment failed: ${failedInsertMessages.join("; ")}`;
+          logger.error(message);
+          setAuthError(message);
+        } else {
+          localStorage.removeItem("nif_pending_roles");
+        }
 
         // Refetch memberships
         const { data: refetchedData, error: refetchError } = await supabase

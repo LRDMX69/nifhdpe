@@ -1,10 +1,17 @@
+import { useNavigate } from "react-router-dom";
 import { Clock, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import nifLogo from "@/assets/nif-logo.png";
 
 const PendingApproval = () => {
-  const { profile, signOut } = useAuth();
+  const { profile, authError, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -23,10 +30,16 @@ const PendingApproval = () => {
             An administrator will review your account and assign the appropriate access level.
           </p>
         </div>
+        {authError && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+            <p className="font-medium">Role assignment error</p>
+            <p>{authError}</p>
+          </div>
+        )}
         <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
           <p>If you believe this is an error, please contact your supervisor or the system administrator.</p>
         </div>
-        <Button variant="outline" onClick={signOut} className="gap-2">
+        <Button variant="outline" onClick={handleSignOut} className="gap-2">
           <LogOut className="h-4 w-4" /> Sign Out
         </Button>
       </div>
