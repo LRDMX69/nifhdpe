@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { InvoiceDialog } from "@/components/finance/InvoiceDialog";
+import { RecordPaymentDialog } from "@/components/finance/RecordPaymentDialog";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ const Finance = () => {
   const initialTab = searchParams.get("tab") ?? "overview";
   const [activeTab, setActiveTab] = useState(initialTab);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState<InvoiceItem | null>(null);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -71,6 +73,13 @@ const Finance = () => {
       setInvoiceOpen(true);
       const next = new URLSearchParams(searchParams);
       next.delete("new");
+      setSearchParams(next, { replace: true });
+    }
+    if (searchParams.get("record") === "1" && (tab === "invoices" || activeTab === "invoices")) {
+      const unpaid = (invoices as InvoiceItem[]).find(i => Number(i.balance_due ?? 0) > 0);
+      if (unpaid) setPaymentInvoice(unpaid);
+      const next = new URLSearchParams(searchParams);
+      next.delete("record");
       setSearchParams(next, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -430,7 +439,13 @@ const Finance = () => {
                         <TableCell className="text-right">{formatCurrency(inv.total_amount)}</TableCell>
                         <TableCell className="text-right font-bold text-primary">{formatCurrency(inv.balance_due)}</TableCell>
                         <TableCell>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
+                          <div className="flex items-center justify-end gap-1">
+                          {Number(inv.balance_due ?? 0) > 0 && (
+                            <Button variant="ghost" size="sm" className="h-7 px-2 text-emerald-600 hover:text-emerald-700" onClick={() => setPaymentInvoice(inv)}>
+                              <Receipt className="h-3.5 w-3.5 mr-1" />Record
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Download PDF" onClick={async () => {
                             const { generatePdf } = await import("@/lib/generatePdf");
                             const { data: items } = await supabase.from("invoice_items").select("*").eq("invoice_id", inv.id);
                             generatePdf({
@@ -456,6 +471,7 @@ const Finance = () => {
                               showSignature: true
                             });
                           }}><FileDown className="h-3.5 w-3.5" /></Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -570,6 +586,12 @@ const Finance = () => {
       </Tabs>
 
       <InvoiceDialog open={invoiceOpen} onOpenChange={setInvoiceOpen} onCreated={() => refetchInvoices()} />
+      <RecordPaymentDialog
+        open={!!paymentInvoice}
+        onOpenChange={(o) => { if (!o) setPaymentInvoice(null); }}
+        invoice={paymentInvoice}
+        onRecorded={() => { refetchInvoices(); refetchReceipts?.(); }}
+      />
     </div>
   );
 };

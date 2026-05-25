@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 import { generateWaybill } from "@/lib/generateWaybill";
+import { WaybillDialog } from "@/components/logistics/WaybillDialog";
+import { useSearchParams } from "react-router-dom";
 
 type DeliveryRow = Database["public"]["Tables"]["deliveries"]["Row"] & { projects?: { name: string } | null };
 type VehicleRow = Database["public"]["Tables"]["vehicles"]["Row"];
@@ -38,10 +40,23 @@ const Logistics = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [waybillOpen, setWaybillOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [editingDelivery, setEditingDelivery] = useState<Database["public"]["Tables"]["deliveries"]["Row"] | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Database["public"]["Tables"]["deliveries"]["Row"] | null>(null);
   const [saving, setSaving] = useState(false);
   const listRef = useGsapStagger(".gsap-card", 0.06);
+
+  // Deep-link: /logistics?new=waybill opens the Waybill dialog
+  useEffect(() => {
+    if (searchParams.get("new") === "waybill") {
+      setWaybillOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("new");
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const [projectId, setProjectId] = useState("");
   const [destination, setDestination] = useState("");
@@ -268,7 +283,12 @@ const Logistics = () => {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
-      <PageHeader title="Logistics & Fleet" description="Delivery scheduling, vehicle tracking, and fuel logs" />
+      <PageHeader title="Logistics & Fleet" description="Delivery scheduling, vehicle tracking, and fuel logs">
+        <Button size="sm" onClick={() => setWaybillOpen(true)}>
+          <FileText className="h-4 w-4 mr-1" />New Waybill
+        </Button>
+      </PageHeader>
+      <WaybillDialog open={waybillOpen} onOpenChange={setWaybillOpen} />
 
       <Tabs defaultValue="deliveries" className="space-y-4">
         <TabsList className="w-full justify-start overflow-x-auto bg-transparent p-0 gap-1 h-auto scrollbar-hide">
