@@ -1,25 +1,35 @@
 import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 import webpush from "npm:web-push@3.6.7";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 serve(async (req: Request) => {
   try {
     if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
+
+    // Require an authenticated caller — either a signed-in user OR the service role (for cron / server-side use).
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const token = authHeader.replace('Bearer ', '').trim();
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    if (!token) return new Response('Unauthorized', { status: 401 });
+    if (token !== serviceKey) {
+      const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+      const sb = createClient(SUPABASE_URL, serviceKey);
+      const { data: { user }, error } = await sb.auth.getUser(token);
+      if (error || !user) return new Response('Unauthorized', { status: 401 });
+    }
+
     const body = await req.json();
     const { subscription, payload } = body;
-    if (!subscription) return new Response('Missing subscription', { status: 400 });
+    if (!subscription || typeof subscription !== 'object') return new Response('Missing subscription', { status: 400 });
 
-    // Use env vars if set, otherwise fall back to provided VAPID keys (local dev)
-    const FALLBACK_VAPID = {
-      subject: 'mailto:stanleyvic13@gmail.com',
-      publicKey: 'BPJIGtC6wIzWhfeH2sujerAdeuh2t1zQWSfCTcG_bnbyV-t6-5ZBj3FD_IdOcqTj2lKf45oXhm8Vlupr1KJLlHU',
-      privateKey: 'SJyteCffUOUMUcchvHHgvsJZ4500F43QbiyKKrSGQT0',
-    };
-
-    const publicKey = Deno.env.get('VAPID_PUBLIC_KEY') || Deno.env.get('VITE_VAPID_PUBLIC_KEY') || FALLBACK_VAPID.publicKey;
-    const privateKey = Deno.env.get('VAPID_PRIVATE_KEY') || Deno.env.get('VITE_VAPID_PRIVATE_KEY') || FALLBACK_VAPID.privateKey;
-    const subject = Deno.env.get('VAPID_SUBJECT') || FALLBACK_VAPID.subject;
-
-    if (!publicKey || !privateKey) return new Response('Missing VAPID keys', { status: 500 });
+    // VAPID keys must come from secrets — no hardcoded fallback.
+    const publicKey = Deno.env.get('VAPID_PUBLIC_KEY');
+    const privateKey = Deno.env.get('VAPID_PRIVATE_KEY');
+    const subject = Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@example.com';
+    if (!publicKey || !privateKey) {
+      console.error('send-push: VAPID keys not configured');
+      return new Response('Push service not configured', { status: 500 });
+    }
 
     const options = {
       vapidDetails: {
