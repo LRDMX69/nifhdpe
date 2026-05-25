@@ -4,6 +4,7 @@ import { logger } from "../_shared/logger.ts";
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 
 import { corsHeaders } from "../_shared/cors.ts";
+import { validateUser, isUuid } from "../_shared/auth.ts";
 
 
 serve(async (req: Request) => {
@@ -14,10 +15,24 @@ serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    // Minimal validation
-    if (!body || typeof body !== "object" || !body.title) {
+    // Strict validation
+    if (!body || typeof body !== "object") {
       return new Response(JSON.stringify({ error: "invalid_request" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    const organization_id = body.organization_id;
+    if (!title || title.length > 200) {
+      return new Response(JSON.stringify({ error: "invalid_title" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (!isUuid(organization_id)) {
+      return new Response(JSON.stringify({ error: "invalid organization_id" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    // Limit payload size to 100 KB
+    const payloadSize = new TextEncoder().encode(JSON.stringify(body)).length;
+    if (payloadSize > 100_000) {
+      return new Response(JSON.stringify({ error: "payload_too_large" }), { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    await validateUser(req, organization_id);
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -25,7 +40,7 @@ serve(async (req: Request) => {
 
     // Insert a job to be processed by a worker (not implemented here).
     const { data, error } = await supabase.from("pdf_jobs").insert({
-      title: body.title,
+      title,
       payload: body,
       status: "queued",
       created_at: new Date().toISOString(),

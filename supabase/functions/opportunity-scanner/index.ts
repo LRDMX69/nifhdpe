@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { validateServiceOrUser } from "../_shared/auth.ts";
 
 
 async function callAI(systemPrompt: string, userMessage: string) {
@@ -47,6 +48,20 @@ serve(async (req: Request) => {
   }
 
   try {
+    // Cron-only: require service-role bearer or an authenticated admin call.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace("Bearer ", "").trim();
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const isService = !!token && !!serviceKey && token === serviceKey;
+    if (!isService) {
+      // Require an authenticated user that belongs to the targeted org.
+      let bodyOrg = "";
+      try { bodyOrg = (await req.clone().json())?.organization_id ?? ""; } catch { /* noop */ }
+      if (!bodyOrg) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      await validateServiceOrUser(req, bodyOrg);
+    }
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
