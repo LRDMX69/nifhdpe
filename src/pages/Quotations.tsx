@@ -456,6 +456,7 @@ const Quotations = () => {
             onPrint={() => handlePrint(q)}
             onDelete={() => setDeleteTarget(q)}
             onStatusChange={(s) => handleStatusChange(q.id, s)}
+            onConvertToInvoice={canEdit ? () => convertToInvoice(q) : undefined}
           />
         ))}
       </div>
