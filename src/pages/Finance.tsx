@@ -1,4 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { InvoiceDialog } from "@/components/finance/InvoiceDialog";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,10 @@ const Finance = () => {
   const { user, memberships } = useAuth();
   const { toast } = useToast();
   const orgId = memberships[0]?.organization_id;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") ?? "overview";
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -56,6 +62,19 @@ const Finance = () => {
   const [expAmount, setExpAmount] = useState("");
   const [expDesc, setExpDesc] = useState("");
   const [expDate, setExpDate] = useState(new Date().toISOString().split("T")[0]);
+
+  // Deep-link: ?tab=invoices&new=1 opens the New Invoice dialog
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab && tab !== activeTab) setActiveTab(tab);
+    if (searchParams.get("new") === "1" && (tab === "invoices" || activeTab === "invoices")) {
+      setInvoiceOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("new");
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Members for employee selector
   const { data: members = [] } = useQuery({
@@ -350,7 +369,7 @@ const Finance = () => {
         </Card>
       )}
 
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); const next = new URLSearchParams(searchParams); next.set("tab", v); setSearchParams(next, { replace: true }); }} className="space-y-4">
         <TabsList className="w-full justify-start overflow-x-auto bg-transparent p-0 gap-1 h-auto scrollbar-hide">
           <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Overview</TabsTrigger>
           <TabsTrigger value="invoices" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Invoices</TabsTrigger>
@@ -382,10 +401,17 @@ const Finance = () => {
         </TabsContent>
 
         <TabsContent value="invoices">
-          <Card><CardHeader><CardTitle className="text-base flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> Client Invoices</CardTitle></CardHeader>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> Client Invoices</CardTitle>
+              <Button size="sm" onClick={() => setInvoiceOpen(true)}><Plus className="h-4 w-4 mr-1" />New Invoice</Button>
+            </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
               {invoices.length === 0 ? (
-                <p className="p-6 text-center text-muted-foreground">No invoices generated yet.</p>
+                <div className="p-8 text-center space-y-3">
+                  <p className="text-muted-foreground">No invoices yet.</p>
+                  <Button onClick={() => setInvoiceOpen(true)}><Plus className="h-4 w-4 mr-1" />Create your first invoice</Button>
+                </div>
               ) : (
                 <div className="min-w-[700px]">
                   <Table><TableHeader><TableRow>
@@ -539,6 +565,8 @@ const Finance = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <InvoiceDialog open={invoiceOpen} onOpenChange={setInvoiceOpen} onCreated={() => refetchInvoices()} />
     </div>
   );
 };
