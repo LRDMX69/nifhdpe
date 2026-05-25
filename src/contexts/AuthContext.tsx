@@ -18,6 +18,10 @@ interface UserMembership {
   organization_name: string;
 }
 
+interface PendingRoleRequestRow {
+  organization_id: string | null;
+}
+
 interface AccessSnapshot {
   profile: UserProfile | null;
   memberships: UserMembership[];
@@ -101,6 +105,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserData = useCallback(async (userId: string): Promise<AccessSnapshot> => {
     try {
+      const pendingRequestQuery = (supabase as any)
+        .from("role_assignment_requests")
+        .select("organization_id")
+        .eq("user_id", userId)
+        .eq("status", "pending")
+        .limit(1)
+        .maybeSingle();
+
       const [maintenanceResult, profileResult, membershipResult, pendingRequestResult] = await Promise.all([
         supabase
           .from("system_maintenance_accounts")
@@ -116,18 +128,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .from("organization_memberships")
           .select("organization_id, role, organizations(name)")
           .eq("user_id", userId),
-        supabase
-          .from("role_assignment_requests")
-          .select("organization_id")
-          .eq("user_id", userId)
-          .eq("status", "pending")
-          .limit(1)
-          .maybeSingle(),
+        pendingRequestQuery,
       ]);
 
       const { data: profileData, error: profileError } = profileResult;
       const { data: membershipData, error: membershipError } = membershipResult;
-      const { data: pendingRequestData, error: pendingRequestError } = pendingRequestResult;
+      const { data: pendingRequestData, error: pendingRequestError } = pendingRequestResult as {
+        data: PendingRoleRequestRow | null;
+        error: Error | null;
+      };
       const isMaintenanceAdmin = !!maintenanceResult.data;
 
       if (profileError) {
