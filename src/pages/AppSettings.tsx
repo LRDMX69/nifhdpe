@@ -17,6 +17,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 
+type RoleRequestRow = {
+  id: string;
+  user_id: string;
+  organization_id: string;
+  requested_roles: string[];
+  status: string;
+};
+
 const AppSettings = () => {
   const { profile, memberships, user, isMaintenance } = useAuth();
   const { toast } = useToast();
@@ -109,15 +117,39 @@ const AppSettings = () => {
     enabled: !!orgId,
   });
 
+  const { data: pendingRoleRequests = [] } = useQuery({
+    queryKey: ["pending-role-requests", orgId],
+    queryFn: async () => {
+      if (!orgId) return [] as RoleRequestRow[];
+      const { data, error } = await (supabase as any)
+        .from("role_assignment_requests")
+        .select("id, user_id, organization_id, requested_roles, status")
+        .eq("organization_id", orgId)
+        .eq("status", "pending")
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as RoleRequestRow[];
+    },
+    enabled: !!orgId,
+  });
+
   const assignRole = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+    mutationFn: async ({ userId, role, requestId }: { userId: string; role: string; requestId?: string }) => {
       const { error } = await supabase.from("organization_memberships").insert({ user_id: userId, organization_id: orgId, role: role as Database["public"]["Enums"]["app_role"] });
       if (error) throw error;
+      if (requestId) {
+        const { error: requestError } = await (supabase as any)
+          .from("role_assignment_requests")
+          .update({ status: "approved", reviewed_at: new Date().toISOString(), reviewed_by: user?.id ?? null })
+          .eq("id", requestId);
+        if (requestError) throw requestError;
+      }
     },
     onSuccess: () => {
       toast({ title: "Role assigned" });
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
       queryClient.invalidateQueries({ queryKey: ["unassigned-users"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-role-requests"] });
     },
     onError: (err: Error) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
   });
@@ -209,26 +241,36 @@ const AppSettings = () => {
             <Card className="border-warning/30 bg-warning/5">
               <CardHeader className="pb-2"><CardTitle className="text-sm text-warning flex items-center gap-2">⚠ Pending Role Assignment ({unassignedUsers.length})</CardTitle></CardHeader>
               <CardContent className="space-y-2">
-                {unassignedUsers.map((u: { user_id: string; full_name: string | null; avatar_url: string | null }) => (
+                {unassignedUsers.map((u: { user_id: string; full_name: string | null; avatar_url: string | null }) => {
+                  const pendingRequest = pendingRoleRequests.find((request) => request.user_id === u.user_id);
+                  const requestedRoles = pendingRequest?.requested_roles ?? [];
+                  return (
                   <div key={u.user_id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 rounded-lg border border-border/50">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <Avatar className="h-7 w-7">
                         {u.avatar_url && <AvatarImage src={u.avatar_url} />}
                         <AvatarFallback className="text-[10px]">{getInitials(u.full_name)}</AvatarFallback>
                       </Avatar>
-                      <span className="text-sm font-medium truncate">{u.full_name}</span>
+                      <div className="min-w-0">
+                        <span className="text-sm font-medium truncate block">{u.full_name}</span>
+                        {requestedRoles.length > 0 && (
+                          <span className="text-[11px] text-muted-foreground block truncate">
+                            Requested: {requestedRoles.map((role) => ROLE_LABELS[role] ?? role).join(", ")}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Select value={selectedRoleForUser[u.user_id] ?? ""} onValueChange={v => setSelectedRoleForUser(p => ({ ...p, [u.user_id]: v }))}>
                         <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="Select role" /></SelectTrigger>
                         <SelectContent>{ALL_ROLES.map(r => <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>)}</SelectContent>
                       </Select>
-                      <Button size="sm" className="h-8" disabled={!selectedRoleForUser[u.user_id] || assignRole.isPending} onClick={() => assignRole.mutate({ userId: u.user_id, role: selectedRoleForUser[u.user_id] })}>
+                      <Button size="sm" className="h-8" disabled={!selectedRoleForUser[u.user_id] || assignRole.isPending} onClick={() => assignRole.mutate({ userId: u.user_id, role: selectedRoleForUser[u.user_id], requestId: pendingRequest?.id })}>
                         {assignRole.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
                       </Button>
                     </div>
                   </div>
-                ))}
+                )})}
               </CardContent>
             </Card>
           )}

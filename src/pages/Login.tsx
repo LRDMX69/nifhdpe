@@ -9,7 +9,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { APP_FULL_NAME, ROLE_LABELS, ALL_ROLES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { getAppUrl } from "@/lib/appUrl";
 import gsap from "gsap";
 import nifLogo from "@/assets/nif-logo.png";
@@ -23,7 +22,6 @@ const Login = () => {
   const [fullName, setFullName] = useState("");
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [adminCapReached, setAdminCapReached] = useState(false);
   const leftRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -71,15 +69,13 @@ const Login = () => {
         return;
       }
 
-      const { error } = await signUp(email, password, fullName);
+      const { error } = await signUp(email, password, fullName, selectedRoles);
       if (error) {
         toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
       } else {
-        // Store selected roles in localStorage so we can assign after email verification
-        localStorage.setItem("nif_pending_roles", JSON.stringify(selectedRoles));
         toast({
           title: "Account created",
-          description: "Please check your email to verify your account. Your role(s) will be assigned by an administrator.",
+          description: "Please verify your email. Your access request has been submitted for administrator review.",
         });
       }
     } else {
