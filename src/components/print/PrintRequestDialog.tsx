@@ -204,9 +204,9 @@ export const PrintRequestsInbox = () => {
                 <PrintableDocument
                   title={r.document_title}
                   documentId={r.id.substring(0, 8).toUpperCase()}
-                  stampType={r.stamp_type}
+                  stampType={(r.stamp_type ?? "general") as "admin" | "finance" | "general" | "hr"}
                   senderName={senderName}
-                  senderDepartment={senderRole}
+                  senderDepartment={senderRole as never}
                   timestamp={r.created_at}
                 >
                   <div>

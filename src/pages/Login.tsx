@@ -10,6 +10,7 @@ import { APP_FULL_NAME, ROLE_LABELS, ALL_ROLES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+import { getAppUrl } from "@/lib/appUrl";
 import gsap from "gsap";
 import nifLogo from "@/assets/nif-logo.png";
 
@@ -203,7 +204,7 @@ const Login = () => {
                   const { error } = await supabase.auth.signInWithOAuth({
                     provider: "google",
                     options: {
-                      redirectTo: window.location.origin,
+                      redirectTo: getAppUrl(),
                     },
                   });
                   if (error) toast({ title: "Google sign-in failed", description: error.message, variant: "destructive" });
@@ -222,7 +223,7 @@ const Login = () => {
                         toast({ title: "Enter your email", description: "Type your email above, then click Forgot Password.", variant: "destructive" });
                         return;
                       }
-                      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
+                      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${getAppUrl()}/reset-password` });
                       if (error) {
                         toast({ title: "Error", description: error.message, variant: "destructive" });
                       } else {
@@ -243,7 +244,7 @@ const Login = () => {
                       const { error } = await supabase.auth.signInWithOtp({
                         email,
                         options: {
-                          emailRedirectTo: window.location.origin,
+                          emailRedirectTo: getAppUrl(),
                         },
                       });
                       if (error) {
