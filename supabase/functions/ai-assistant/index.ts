@@ -193,11 +193,12 @@ serve(async (req: Request) => {
 
   try {
     const raw = await req.json();
-    
-    // Validate that the user is authorized for this organization
-    if (raw.organization_id) {
-      await validateUser(req, raw.organization_id as string);
+
+    // Authorization is mandatory — the caller must supply organization_id and be a member.
+    if (!raw || typeof raw !== "object" || typeof raw.organization_id !== "string") {
+      return new Response(JSON.stringify({ error: "missing organization_id" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    await validateUser(req, raw.organization_id as string);
     const validation = validateRequestBody(raw);
     if (!validation.ok) {
       logger.warn("ai-assistant: invalid request", (validation as { reason: string }).reason);
