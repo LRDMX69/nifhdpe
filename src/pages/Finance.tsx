@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { InvoiceDialog } from "@/components/finance/InvoiceDialog";
+import { RecordPaymentDialog } from "@/components/finance/RecordPaymentDialog";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ const Finance = () => {
   const initialTab = searchParams.get("tab") ?? "overview";
   const [activeTab, setActiveTab] = useState(initialTab);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState<InvoiceItem | null>(null);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -71,6 +73,13 @@ const Finance = () => {
       setInvoiceOpen(true);
       const next = new URLSearchParams(searchParams);
       next.delete("new");
+      setSearchParams(next, { replace: true });
+    }
+    if (searchParams.get("record") === "1" && (tab === "invoices" || activeTab === "invoices")) {
+      const unpaid = (invoices as InvoiceItem[]).find(i => Number(i.balance_due ?? 0) > 0);
+      if (unpaid) setPaymentInvoice(unpaid);
+      const next = new URLSearchParams(searchParams);
+      next.delete("record");
       setSearchParams(next, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
