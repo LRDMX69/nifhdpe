@@ -174,7 +174,7 @@ const AdminDashboard = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("field_reports").select("*, structured_reports(*), projects(name)").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(8);
-      return (data ?? []) as ReportRow[];
+      return (data ?? []) as unknown as ReportRow[];
     },
     enabled: !!orgId,
   });
@@ -194,7 +194,7 @@ const AdminDashboard = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const { data } = await supabase.from("equipment_requests").select("*, equipment(name)").eq("organization_id", orgId).eq("status", "pending").order("created_at", { ascending: false }).limit(5);
-      return (data ?? []) as EquipReqRow[];
+      return (data ?? []) as unknown as EquipReqRow[];
     },
     enabled: !!orgId,
   });
