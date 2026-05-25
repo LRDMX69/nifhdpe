@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 // @ts-expect-error
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
-import { validateUser } from "../_shared/auth.ts";
+import { validateServiceOrUser } from "../_shared/auth.ts";
 import { captureException, handleErrorResponse } from "../_shared/errorHandler.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -185,20 +185,25 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Apply rate limiting (AI functions are expensive, use strict limits)
-  const rateLimitResponse = rateLimitMiddleware(req, RATE_LIMITS.AI_FUNCTION);
-  if (rateLimitResponse) {
-    return rateLimitResponse;
-  }
-
   try {
-    const raw = await req.json();
+    // Apply rate limiting (AI functions are expensive, use strict limits)
+    const rateLimitResponse = rateLimitMiddleware(req, RATE_LIMITS.AI_FUNCTION);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
+    const raw = await req.json().catch(() => null);
 
     // Authorization is mandatory — the caller must supply organization_id and be a member.
     if (!raw || typeof raw !== "object" || typeof raw.organization_id !== "string") {
       return new Response(JSON.stringify({ error: "missing organization_id" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    await validateUser(req, raw.organization_id as string);
+    try {
+      await validateServiceOrUser(req, raw.organization_id as string);
+    } catch (authErr) {
+      logger.warn("ai-assistant: auth failed", authErr);
+      return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     const validation = validateRequestBody(raw);
     if (!validation.ok) {
       logger.warn("ai-assistant: invalid request", (validation as { reason: string }).reason);
@@ -218,16 +223,17 @@ serve(async (req: Request) => {
 
     const response = await callGemini(systemPrompt, userMessage, true, context);
 
-    // If it's the fallback Response we created, return it directly
-    if (response instanceof Response && (response.headers.get("Content-Type") === "text/event-stream" || !response.ok)) {
-       return response;
-    }
-
+    // Re-stream the response with our CORS headers attached
     return new Response(response.body, {
+      status: response.status,
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
-    await captureException(e, { fn: "ai-assistant" });
-    return handleErrorResponse(e);
+    await captureException(e, { fn: "ai-assistant" }).catch(() => {});
+    const msg = e instanceof Error ? e.message : "internal_error";
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
