@@ -56,6 +56,7 @@ export const navItems: NavItem[] = [
   { label: "Claims",        icon: AlertCircle,     path: "/claims",        roles: ALL_DEPTS },
   { label: "Messages",      icon: MessageSquare,   path: "/messages",      roles: ALL_DEPTS },
   { label: "Knowledge Base",icon: BookOpen,        path: "/knowledge-base",roles: ADMIN },
+  { label: "Documents",     icon: FileText,        path: "/documents",     roles: ALL_DEPTS },
 
   { label: "Settings",      icon: Settings,        path: "/settings",      roles: ADMIN },
 ];
