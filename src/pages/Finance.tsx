@@ -586,6 +586,12 @@ const Finance = () => {
       </Tabs>
 
       <InvoiceDialog open={invoiceOpen} onOpenChange={setInvoiceOpen} onCreated={() => refetchInvoices()} />
+      <RecordPaymentDialog
+        open={!!paymentInvoice}
+        onOpenChange={(o) => { if (!o) setPaymentInvoice(null); }}
+        invoice={paymentInvoice}
+        onRecorded={() => { refetchInvoices(); refetchReceipts?.(); }}
+      />
     </div>
   );
 };
