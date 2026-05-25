@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,15 +48,15 @@ const Logistics = () => {
   const listRef = useGsapStagger(".gsap-card", 0.06);
 
   // Deep-link: /logistics?new=waybill opens the Waybill dialog
-  useState(() => {
+  useEffect(() => {
     if (searchParams.get("new") === "waybill") {
       setWaybillOpen(true);
       const next = new URLSearchParams(searchParams);
       next.delete("new");
       setSearchParams(next, { replace: true });
     }
-    return undefined;
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const [projectId, setProjectId] = useState("");
   const [destination, setDestination] = useState("");
