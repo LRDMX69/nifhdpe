@@ -18,6 +18,16 @@ interface UserMembership {
   organization_name: string;
 }
 
+interface AccessSnapshot {
+  profile: UserProfile | null;
+  memberships: UserMembership[];
+  activeRole: string | null;
+  activeOrganizationId: string | null;
+  isMaintenance: boolean;
+  hasPendingRoleRequest: boolean;
+  authError: string | null;
+}
+
 interface AuthContextType {
   session: Session | null;
   user: User | null;
@@ -26,17 +36,30 @@ interface AuthContextType {
   activeRole: string | null;
   activeOrganizationId: string | null;
   loading: boolean;
+  accessResolved: boolean;
+  hasPendingRoleRequest: boolean;
   isMaintenance: boolean;
   isMfaEnabled: boolean;
   authError: string | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string, requestedRoles: string[]) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  refreshAccess: () => Promise<void>;
   switchRole: (role: string) => void;
   switchOrganization: (organizationId: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const EMPTY_ACCESS: AccessSnapshot = {
+  profile: null,
+  memberships: [],
+  activeRole: null,
+  activeOrganizationId: null,
+  isMaintenance: false,
+  hasPendingRoleRequest: false,
+  authError: null,
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -46,27 +69,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeRole, setActiveRole] = useState<string | null>(null);
   const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accessResolved, setAccessResolved] = useState(false);
+  const [hasPendingRoleRequest, setHasPendingRoleRequest] = useState(false);
   const [isMaintenance, setIsMaintenance] = useState(false);
   const [isMfaEnabled, setIsMfaEnabled] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const activeOrgRef = useRef<string | null>(null);
-  const lastSessionKeyRef = useRef<string | null>(null);
+  const hydratedSessionKeyRef = useRef<string | null>(null);
+  const initialSessionRestoredRef = useRef(false);
+  const queuedInitialSessionRef = useRef<Session | null | undefined>(undefined);
 
-  const clearUserState = useCallback(() => {
-    setProfile(null);
-    setMemberships([]);
-    setActiveRole(null);
-    setActiveOrganizationId(null);
-    activeOrgRef.current = null;
-    setIsMaintenance(false);
-    setIsMfaEnabled(false);
-    setAuthError(null);
+  const applyAccessSnapshot = useCallback((snapshot: AccessSnapshot) => {
+    setProfile(snapshot.profile);
+    setMemberships(snapshot.memberships);
+    setActiveRole(snapshot.activeRole);
+    setActiveOrganizationId(snapshot.activeOrganizationId);
+    activeOrgRef.current = snapshot.activeOrganizationId;
+    setIsMaintenance(snapshot.isMaintenance);
+    setHasPendingRoleRequest(snapshot.hasPendingRoleRequest);
+    setAuthError(snapshot.authError);
+    setAccessResolved(true);
   }, []);
 
-  const fetchUserData = useCallback(async (userId: string) => {
+  const clearUserState = useCallback(() => {
+    applyAccessSnapshot(EMPTY_ACCESS);
+    setSession(null);
+    setUser(null);
+    setIsMfaEnabled(false);
+    activeOrgRef.current = null;
+  }, [applyAccessSnapshot]);
+
+  const fetchUserData = useCallback(async (userId: string): Promise<AccessSnapshot> => {
     try {
-      setAuthError(null);
-      const [maintenanceResult, profileResult, membershipResult] = await Promise.all([
+      const [maintenanceResult, profileResult, membershipResult, pendingRequestResult] = await Promise.all([
         supabase
           .from("system_maintenance_accounts")
           .select("user_id")
@@ -81,136 +116,189 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .from("organization_memberships")
           .select("organization_id, role, organizations(name)")
           .eq("user_id", userId),
+        supabase
+          .from("role_assignment_requests")
+          .select("organization_id")
+          .eq("user_id", userId)
+          .eq("status", "pending")
+          .limit(1)
+          .maybeSingle(),
       ]);
-
-      const isMaintenanceAdmin = !!maintenanceResult.data;
-      setIsMaintenance(isMaintenanceAdmin);
 
       const { data: profileData, error: profileError } = profileResult;
       const { data: membershipData, error: membershipError } = membershipResult;
+      const { data: pendingRequestData, error: pendingRequestError } = pendingRequestResult;
+      const isMaintenanceAdmin = !!maintenanceResult.data;
 
       if (profileError) {
         logger.error("Error fetching profile:", profileError);
-        setAuthError("We couldn't load your account profile. Please refresh or contact an administrator.");
       }
-      setProfile((profileData as UserProfile | null) ?? null);
-
-      const loadedMemberships = membershipData ?? [];
-
       if (membershipError) {
         logger.error("Error fetching memberships:", membershipError);
-        setMemberships([]);
-        setActiveRole(null);
-        if (!profileError) {
-          setAuthError("We couldn't load your access permissions. Please refresh or contact an administrator.");
-        }
-      } else if (loadedMemberships.length > 0) {
-        const mapped: UserMembership[] = loadedMemberships.map((m) => ({
-          organization_id: m.organization_id,
-          role: m.role,
-          organization_name: (m.organizations as unknown as { name: string })?.name ?? "",
-        }));
-        setMemberships(mapped);
-
-        const preferredOrg = activeOrgRef.current && mapped.some((membership) => membership.organization_id === activeOrgRef.current)
-          ? activeOrgRef.current
-          : mapped[0].organization_id;
-
-        activeOrgRef.current = preferredOrg;
-        setActiveOrganizationId(preferredOrg);
-
-        if (isMaintenanceAdmin) {
-          setActiveRole("administrator");
-        } else {
-          const activeMembership = mapped.find((membership) => membership.organization_id === preferredOrg) ?? mapped[0];
-          setActiveRole(activeMembership.role);
-        }
-      } else if (isMaintenanceAdmin) {
-        setActiveRole("administrator");
-        setMemberships([{
-          organization_id: "",
-          role: "administrator",
-          organization_name: "System",
-        }]);
-        setActiveOrganizationId("");
-      } else {
-        setMemberships([]);
-        setActiveRole(null);
-        setActiveOrganizationId(profileData?.organization_id ?? null);
       }
+      if (pendingRequestError) {
+        logger.error("Error fetching role assignment requests:", pendingRequestError);
+      }
+
+      const mappedMemberships: UserMembership[] = (membershipData ?? []).map((membership) => ({
+        organization_id: membership.organization_id,
+        role: membership.role,
+        organization_name: (membership.organizations as unknown as { name: string } | null)?.name ?? "",
+      }));
+
+      if (mappedMemberships.length > 0) {
+        const preferredOrg = activeOrgRef.current && mappedMemberships.some((membership) => membership.organization_id === activeOrgRef.current)
+          ? activeOrgRef.current
+          : mappedMemberships[0].organization_id;
+
+        const activeMembership = mappedMemberships.find((membership) => membership.organization_id === preferredOrg) ?? mappedMemberships[0];
+
+        return {
+          profile: (profileData as UserProfile | null) ?? null,
+          memberships: mappedMemberships,
+          activeRole: isMaintenanceAdmin ? "administrator" : activeMembership.role,
+          activeOrganizationId: preferredOrg,
+          isMaintenance: isMaintenanceAdmin,
+          hasPendingRoleRequest: !!pendingRequestData,
+          authError: profileError
+            ? "We couldn't fully load your account profile."
+            : null,
+        };
+      }
+
+      if (isMaintenanceAdmin) {
+        const orgId = (profileData as UserProfile | null)?.organization_id ?? activeOrgRef.current ?? null;
+
+        return {
+          profile: (profileData as UserProfile | null) ?? null,
+          memberships: orgId
+            ? [{ organization_id: orgId, role: "administrator", organization_name: "System" }]
+            : [],
+          activeRole: "administrator",
+          activeOrganizationId: orgId,
+          isMaintenance: true,
+          hasPendingRoleRequest: false,
+          authError: profileError
+            ? "We couldn't fully load your account profile."
+            : null,
+        };
+      }
+
+      const combinedError = membershipError || profileError || pendingRequestError;
+
+      return {
+        profile: (profileData as UserProfile | null) ?? null,
+        memberships: [],
+        activeRole: null,
+        activeOrganizationId: pendingRequestData?.organization_id ?? (profileData as UserProfile | null)?.organization_id ?? null,
+        isMaintenance: false,
+        hasPendingRoleRequest: !!pendingRequestData,
+        authError: combinedError
+          ? "We couldn't confirm your access permissions yet. Please retry."
+          : null,
+      };
     } catch (error) {
       logger.error("Error fetching user data/memberships:", error);
-      setAuthError(error instanceof Error ? error.message : "Failed to load profile.");
-      setMemberships([]);
-      setActiveRole(null);
+      return {
+        ...EMPTY_ACCESS,
+        authError: error instanceof Error ? error.message : "Failed to load account access.",
+      };
     }
   }, []);
+
+  const hydrateSession = useCallback(async (nextSession: Session | null, force = false) => {
+    const sessionKey = nextSession?.access_token ?? nextSession?.user?.id ?? "signed-out";
+
+    if (!force && hydratedSessionKeyRef.current === sessionKey) {
+      setLoading(false);
+      return;
+    }
+
+    hydratedSessionKeyRef.current = null;
+    setLoading(true);
+    setAccessResolved(false);
+    setSession(nextSession);
+    setUser(nextSession?.user ?? null);
+
+    if (!nextSession?.user) {
+      clearUserState();
+      hydratedSessionKeyRef.current = sessionKey;
+      setLoading(false);
+      return;
+    }
+
+    try {
+      let snapshot = await fetchUserData(nextSession.user.id);
+
+      const looksSuspiciouslyEmpty = !snapshot.isMaintenance && !snapshot.activeRole && !snapshot.hasPendingRoleRequest && !snapshot.authError;
+      if (looksSuspiciouslyEmpty) {
+        await supabase.auth.getUser().catch((error) => {
+          logger.error("getUser retry failed", error);
+        });
+        snapshot = await fetchUserData(nextSession.user.id);
+      }
+
+      applyAccessSnapshot(snapshot);
+
+      try {
+        const { data: factors } = await supabase.auth.mfa.listFactors();
+        setIsMfaEnabled(factors?.all.some((factor) => factor.status === "verified") ?? false);
+      } catch (error) {
+        logger.error("MFA listFactors failed", error);
+      }
+
+      hydratedSessionKeyRef.current = sessionKey;
+    } catch (error) {
+      logger.error("Error hydrating session:", error);
+      applyAccessSnapshot({
+        ...EMPTY_ACCESS,
+        authError: error instanceof Error ? error.message : "Failed to hydrate session.",
+      });
+      hydratedSessionKeyRef.current = sessionKey;
+    } finally {
+      setLoading(false);
+    }
+  }, [applyAccessSnapshot, clearUserState, fetchUserData]);
 
   useEffect(() => {
     let active = true;
 
-    const handleSession = async (nextSession: Session | null) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      logger.info(`Supabase Auth Event: ${event}`);
       if (!active) return;
 
-      const sessionKey = nextSession?.access_token ?? nextSession?.user?.id ?? "signed-out";
-      if (lastSessionKeyRef.current === sessionKey) {
-        setLoading(false);
+      if (!initialSessionRestoredRef.current && event === "INITIAL_SESSION") {
+        queuedInitialSessionRef.current = nextSession;
         return;
       }
-      lastSessionKeyRef.current = sessionKey;
 
-      setLoading(true);
-      setSession(nextSession);
-      setUser(nextSession?.user ?? null);
-
-      if (nextSession?.user) {
-        try {
-          await fetchUserData(nextSession.user.id);
-
-          try {
-            const { data: factors } = await supabase.auth.mfa.listFactors();
-            if (active) {
-              setIsMfaEnabled(factors?.all.some((factor) => factor.status === "verified") ?? false);
-            }
-          } catch (e) {
-            logger.error("MFA listFactors failed", e);
-          }
-        } catch (error) {
-          logger.error("Error inside handleSession:", error);
-        } finally {
-          if (active) setLoading(false);
-        }
-      } else {
-        if (active) {
-          clearUserState();
-          setLoading(false);
-        }
-      }
-    };
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
-        logger.info(`Supabase Auth Event: ${event}`);
-        if (!active) return;
-        void handleSession(nextSession);
-      });
+      void hydrateSession(nextSession, event === "SIGNED_OUT");
+    });
 
     supabase.auth.getSession()
       .then(({ data: { session: initialSession } }) => {
-        void handleSession(initialSession);
+        if (!active) return;
+
+        initialSessionRestoredRef.current = true;
+        const restoredSession = queuedInitialSessionRef.current !== undefined
+          ? queuedInitialSessionRef.current
+          : initialSession;
+
+        void hydrateSession(restoredSession ?? null, true);
       })
-      .catch((e) => {
-        logger.error("getSession failed", e);
-        if (active) {
-          clearUserState();
-          setLoading(false);
-        }
+      .catch((error) => {
+        logger.error("getSession failed", error);
+        if (!active) return;
+        initialSessionRestoredRef.current = true;
+        clearUserState();
+        setLoading(false);
       });
 
     return () => {
       active = false;
       subscription.unsubscribe();
     };
-  }, [clearUserState, fetchUserData]);
+  }, [clearUserState, hydrateSession]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -234,24 +322,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    lastSessionKeyRef.current = null;
+    hydratedSessionKeyRef.current = null;
+    initialSessionRestoredRef.current = false;
+    queuedInitialSessionRef.current = undefined;
     clearUserState();
   };
 
+  const refreshAccess = useCallback(async () => {
+    await hydrateSession(session, true);
+  }, [hydrateSession, session]);
+
   const switchRole = (role: string) => {
     const isLocalDev = window.location.hostname.includes("localhost");
-    if (isMaintenance || isLocalDev || memberships.some((m) => m.role === role)) {
+    if (isMaintenance || isLocalDev || memberships.some((membership) => membership.role === role)) {
       setActiveRole(role);
     }
   };
 
   const switchOrganization = (organizationId: string) => {
-    const membership = memberships.find(m => m.organization_id === organizationId);
-    if (membership) {
-      activeOrgRef.current = organizationId;
-      setActiveOrganizationId(organizationId);
-      setActiveRole(membership.role);
-    }
+    const membership = memberships.find((item) => item.organization_id === organizationId);
+    if (!membership) return;
+
+    activeOrgRef.current = organizationId;
+    setActiveOrganizationId(organizationId);
+    setActiveRole(membership.role);
   };
 
   return (
@@ -264,12 +358,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         activeRole,
         activeOrganizationId,
         loading,
+        accessResolved,
+        hasPendingRoleRequest,
         isMaintenance: isMaintenance || (user ? window.location.hostname.includes("localhost") : false),
         isMfaEnabled,
         authError,
         signIn,
         signUp,
         signOut,
+        refreshAccess,
         switchRole,
         switchOrganization,
       }}
@@ -277,7 +374,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
