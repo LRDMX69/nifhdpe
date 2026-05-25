@@ -4,6 +4,7 @@ import { MobileNav } from "./MobileNav";
 import { BottomNav } from "./BottomNav";
 import { MFAEnforcer } from "../auth/MFAEnforcer";
 import { RoleBasedOnboarding } from "./RoleBasedOnboarding";
+import { CommandPalette } from "../CommandPalette";
 
 export const AppLayout = () => {
   return (
@@ -21,6 +22,7 @@ export const AppLayout = () => {
         {/* Mobile bottom nav */}
         <BottomNav />
         <RoleBasedOnboarding />
+        <CommandPalette />
       </div>
     </MFAEnforcer>
   );

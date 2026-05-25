@@ -13,7 +13,7 @@ const MAX_EXECUTION_MS = 5 * 60 * 1000; // 5 minutes max
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const rateLimitResponse = rateLimitMiddleware(req, RATE_LIMITS.PROCESSING);
+  const rateLimitResponse = await rateLimitMiddleware(req, RATE_LIMITS.PROCESSING);
   if (rateLimitResponse) return rateLimitResponse;
 
   const startTime = Date.now();

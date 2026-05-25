@@ -1,4 +1,4 @@
-import { FileText, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { FileText, MoreVertical, Pencil, Trash2, Receipt } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,6 +32,7 @@ interface QuotationCardProps {
   onDelete: () => void;
   onStatusChange: (status: string) => void;
   allStatuses: string[];
+  onConvertToInvoice?: () => void;
 }
 
 export const QuotationCard = ({
@@ -43,7 +44,8 @@ export const QuotationCard = ({
   onPrint,
   onDelete,
   onStatusChange,
-  allStatuses
+  allStatuses,
+  onConvertToInvoice,
 }: QuotationCardProps) => (
   <Card className="gsap-card border-border/50 hover:border-primary/20 transition-all">
     <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-3">
@@ -79,6 +81,12 @@ export const QuotationCard = ({
                 <FileText className="h-3.5 w-3.5 mr-2" />
                 Download PDF
               </DropdownMenuItem>
+              {onConvertToInvoice && (
+                <DropdownMenuItem onClick={onConvertToInvoice}>
+                  <Receipt className="h-3.5 w-3.5 mr-2" />
+                  Convert to Invoice
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               {allStatuses.filter(s => s !== quotation.status).map(s => (
                 <DropdownMenuItem key={s} onClick={() => onStatusChange(s)} className="capitalize">
