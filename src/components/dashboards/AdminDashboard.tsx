@@ -11,7 +11,8 @@ import { StatCard } from "./StatCard";
 import { 
   TrendingUp, TrendingDown, DollarSign, AlertCircle, AlertTriangle,
   Briefcase, Users, ShieldAlert, ArrowUpRight, 
-  Calendar, CheckCircle2, Clock, Loader2, Zap, Target, Wrench, Mail, RefreshCw, Printer, Bot, FileText, XCircle
+  Calendar, CheckCircle2, Clock, Loader2, Zap, Target, Wrench, Mail, RefreshCw, Printer, Bot, FileText, XCircle,
+  Receipt, ClipboardList, Plus, Command,
 } from "lucide-react";
 import { useGsapStagger, useGsapFadeUp } from "@/hooks/useGsapAnimation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -302,6 +303,30 @@ const AdminDashboard = () => {
       </div>
 
       <CheckInWidget />
+
+      {/* Quick Actions — solves "I can't find how to create X" */}
+      <Card className="border-border/50">
+        <CardContent className="p-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            {[
+              { label: "New Invoice",    icon: Receipt,       path: "/finance?tab=invoices&new=1" },
+              { label: "New Quotation",  icon: FileText,      path: "/quotations?new=1" },
+              { label: "Add Client",     icon: Users,         path: "/clients?new=1" },
+              { label: "Field Report",   icon: ClipboardList, path: "/field-reports?new=1" },
+              { label: "Worker Claim",   icon: AlertCircle,   path: "/claims?new=1" },
+              { label: "New Project",    icon: Briefcase,     path: "/projects?new=1" },
+            ].map((a) => (
+              <Button key={a.label} variant="outline" className="h-auto py-3 flex flex-col gap-1.5" onClick={() => navigate(a.path)}>
+                <a.icon className="h-5 w-5 text-primary" />
+                <span className="text-xs font-medium">{a.label}</span>
+              </Button>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground text-center mt-2 flex items-center justify-center gap-1">
+            <Command className="h-3 w-3" /> Tip: press <kbd className="px-1 py-0.5 rounded bg-muted border border-border text-[10px]">⌘K</kbd> anywhere to jump to any action.
+          </p>
+        </CardContent>
+      </Card>
 
       {autoMode && (
         <Card className="border-primary/30 bg-primary/5">
