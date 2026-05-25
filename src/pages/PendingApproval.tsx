@@ -32,12 +32,12 @@ const PendingApproval = () => {
         </div>
         {authError && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-            <p className="font-medium">Role assignment error</p>
+            <p className="font-medium">Account loading issue</p>
             <p>{authError}</p>
           </div>
         )}
         <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
-          <p>If you believe this is an error, please contact your supervisor or the system administrator.</p>
+          <p>Your access request is now stored in the ERP for administrator review, so it won’t get lost if you change device or sign in again.</p>
         </div>
         <Button variant="outline" onClick={handleSignOut} className="gap-2">
           <LogOut className="h-4 w-4" /> Sign Out
