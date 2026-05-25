@@ -439,7 +439,13 @@ const Finance = () => {
                         <TableCell className="text-right">{formatCurrency(inv.total_amount)}</TableCell>
                         <TableCell className="text-right font-bold text-primary">{formatCurrency(inv.balance_due)}</TableCell>
                         <TableCell>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => {
+                          <div className="flex items-center justify-end gap-1">
+                          {Number(inv.balance_due ?? 0) > 0 && (
+                            <Button variant="ghost" size="sm" className="h-7 px-2 text-emerald-600 hover:text-emerald-700" onClick={() => setPaymentInvoice(inv)}>
+                              <Receipt className="h-3.5 w-3.5 mr-1" />Record
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Download PDF" onClick={async () => {
                             const { generatePdf } = await import("@/lib/generatePdf");
                             const { data: items } = await supabase.from("invoice_items").select("*").eq("invoice_id", inv.id);
                             generatePdf({
@@ -465,6 +471,7 @@ const Finance = () => {
                               showSignature: true
                             });
                           }}><FileDown className="h-3.5 w-3.5" /></Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
