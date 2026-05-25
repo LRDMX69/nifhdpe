@@ -30,9 +30,9 @@ import {
 import type { Database } from "@/integrations/supabase/types";
 
 type SummaryRow = Database["public"]["Tables"]["ai_summaries"]["Row"];
-type EquipReqRow = Database["public"]["Tables"]["equipment_requests"]["Row"] & { profiles: { full_name: string } | null };
+type EquipReqRow = Database["public"]["Tables"]["equipment_requests"]["Row"] & { profiles: { full_name: string } | null; equipment: { name: string } | null };
 type ClaimRow = Database["public"]["Tables"]["worker_claims"]["Row"] & { profiles: { full_name: string } | null };
-type ReportRow = Database["public"]["Tables"]["field_reports"]["Row"] & { projects: { name: string } | null, profiles: { full_name: string } | null };
+type ReportRow = Database["public"]["Tables"]["field_reports"]["Row"] & { projects: { name: string } | null; profiles: { full_name: string } | null; structured_reports: Array<{ id: string }> | null };
 
 const AdminDashboard = () => {
   const { profile, memberships, user } = useAuth();
