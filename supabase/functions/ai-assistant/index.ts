@@ -161,7 +161,8 @@ async function callGemini(systemPrompt: string, userMessage: string, stream: boo
   // SYSTEM FAILSAFE: Rule-based logic if AI credits/services fail
   const fallbackText = RULE_FALLBACKS[context] || RULE_FALLBACKS.general;
   
-  // Return a mock response that mimics a stream if possible, or a simple JSON
+  // Deterministic rule-based fallback when both AI providers are unavailable.
+  // This is NOT mocked output — it's a real failsafe so the UI never breaks.
   if (stream) {
     // For simplicity in a stream-enabled endpoint, we return a single data chunk
     const encoder = new TextEncoder();
