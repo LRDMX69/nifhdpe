@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import PendingApproval from "@/pages/PendingApproval";
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading, memberships, isMaintenance, activeRole } = useAuth();
+  const { user, loading, accessResolved, memberships, isMaintenance, activeRole, hasPendingRoleRequest, authError } = useAuth();
 
   if (loading) {
     return (
@@ -18,12 +18,22 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   // Maintenance admin always passes
   if (isMaintenance) return <>{children}</>;
 
-  // Render as soon as we have an active role, even if memberships array hasn't hydrated yet
   if (activeRole) return <>{children}</>;
 
-  // User has no role assigned → show waiting page
-  if (memberships.length === 0) {
+  if (!accessResolved) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="animate-pulse text-muted-foreground">Restoring your access...</div>
+      </div>
+    );
+  }
+
+  if (memberships.length === 0 && hasPendingRoleRequest && !authError) {
     return <PendingApproval />;
+  }
+
+  if (memberships.length === 0 && authError) {
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;
