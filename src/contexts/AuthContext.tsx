@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { logger } from "@/lib/logger";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { getAppUrl } from "@/lib/appUrl";
 
 interface UserProfile {
   id: string;
@@ -265,7 +266,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: getAppUrl(),
       },
     });
     return { error: error as Error | null };

@@ -8,21 +8,25 @@ import WarehouseDashboard from "./WarehouseDashboard";
 import FinanceDashboard from "./FinanceDashboard";
 import HRDashboard from "./HRDashboard";
 import SalesDashboard from "./SalesDashboard";
-import KnowledgeManagerDashboard from "./KnowledgeManagerDashboard";
-import TraineeDashboard from "./TraineeDashboard";
 
 const dashboardMap: Record<string, React.FC> = {
   administrator: AdminDashboard,
+  // Technical Dept. (legacy enum aliases)
   engineer: EngineerDashboard,
   technician: TechnicianDashboard,
+  // Logistics
   warehouse: WarehouseDashboard,
+  // Accounts
   finance: FinanceDashboard,
+  // HR
   hr: HRDashboard,
+  // Marketing
   reception_sales: SalesDashboard,
-  knowledge_manager: KnowledgeManagerDashboard,
-  siwes_trainee: TraineeDashboard,
-  it_student: TraineeDashboard,
-  nysc_member: TraineeDashboard,
+  // Legacy roles routed to Admin (will be migrated by admin)
+  knowledge_manager: AdminDashboard,
+  siwes_trainee: TechnicianDashboard,
+  it_student: TechnicianDashboard,
+  nysc_member: TechnicianDashboard,
 };
 
 const DashboardRouter = () => {
@@ -35,7 +39,7 @@ const DashboardRouter = () => {
 
   const showSwitcher = memberships.length > 1 || isMaintenance;
   const rolesList = isMaintenance
-    ? ["administrator", "engineer", "technician", "warehouse", "finance", "hr", "reception_sales"]
+    ? ["administrator", "technician", "reception_sales", "warehouse", "finance", "hr"]
     : memberships.map((m) => m.role);
 
   return (

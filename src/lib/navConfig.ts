@@ -10,35 +10,53 @@ export interface NavItem {
   roles: string[];
 }
 
+// Six canonical departments. Legacy enum aliases:
+//   engineer / technician      → Technical Dept.
+//   warehouse                  → Logistics
+//   finance                    → Accounts
+//   reception_sales            → Marketing
+const TECHNICAL = ["engineer", "technician"];
+const LOGISTICS = ["warehouse"];
+const ACCOUNTS  = ["finance"];
+const MARKETING = ["reception_sales"];
+const HR_ROLE   = ["hr"];
+const ADMIN     = ["administrator"];
+const ALL_DEPTS = [...ADMIN, ...TECHNICAL, ...LOGISTICS, ...ACCOUNTS, ...MARKETING, ...HR_ROLE];
+
 export const navItems: NavItem[] = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard", roles: ["administrator", "engineer", "technician", "warehouse", "finance", "hr", "reception_sales"] },
+  { label: "Dashboard",     icon: LayoutDashboard, path: "/dashboard",     roles: ALL_DEPTS },
 
-  // Admin executive pages only
-  { label: "Field Reports", icon: ClipboardList, path: "/field-reports", roles: ["administrator", "engineer", "technician"] },
-  { label: "Finance", icon: DollarSign, path: "/finance", roles: ["administrator", "finance"] },
-  { label: "Opportunities", icon: Target, path: "/opportunities", roles: ["administrator", "reception_sales"] },
-  { label: "Claims", icon: AlertCircle, path: "/claims", roles: ["administrator", "engineer", "technician", "warehouse", "finance", "hr", "reception_sales"] },
-  { label: "Messages", icon: MessageSquare, path: "/messages", roles: ["administrator", "engineer", "technician", "warehouse", "finance", "hr", "reception_sales"] },
-  { label: "Procurement", icon: ShoppingCart, path: "/procurement", roles: ["administrator", "finance", "warehouse"] },
-  { label: "HSE", icon: ShieldCheck, path: "/hse", roles: ["administrator", "engineer", "technician"] },
+  // Technical Dept.
+  { label: "Projects",      icon: FolderKanban,    path: "/projects",      roles: [...ADMIN, ...TECHNICAL] },
+  { label: "Equipment",     icon: Wrench,          path: "/equipment",     roles: [...ADMIN, ...TECHNICAL, ...LOGISTICS] },
+  { label: "Field Reports", icon: ClipboardList,   path: "/field-reports", roles: [...ADMIN, ...TECHNICAL] },
+  { label: "HSE",           icon: ShieldCheck,     path: "/hse",           roles: [...ADMIN, ...TECHNICAL] },
+  { label: "Compliance",    icon: ShieldCheck,     path: "/compliance",    roles: [...ADMIN, ...TECHNICAL] },
+  { label: "Calculator",    icon: Calculator,      path: "/calculator",    roles: [...ADMIN, ...TECHNICAL] },
 
-  // HR visible to ALL roles (for check-in/out) + HR/Admin for full stats
-  { label: "HR", icon: UserCog, path: "/hr", roles: ["administrator", "engineer", "technician", "warehouse", "finance", "hr", "reception_sales"] },
+  // Marketing
+  { label: "Opportunities", icon: Target,          path: "/opportunities", roles: [...ADMIN, ...MARKETING] },
+  { label: "Quotations",    icon: FileText,        path: "/quotations",    roles: [...ADMIN, ...MARKETING] },
+  { label: "Clients",       icon: Users,           path: "/clients",       roles: [...ADMIN, ...MARKETING] },
 
-  // Operational pages — administrators get full visibility (oversight) too
-  { label: "Quotations", icon: FileText, path: "/quotations", roles: ["administrator", "reception_sales"] },
-  { label: "Clients", icon: Users, path: "/clients", roles: ["administrator", "reception_sales"] },
-  { label: "Inventory", icon: Package, path: "/inventory", roles: ["administrator", "warehouse"] },
-  { label: "Projects", icon: FolderKanban, path: "/projects", roles: ["administrator", "engineer", "technician"] },
-  { label: "Logistics", icon: Truck, path: "/logistics", roles: ["administrator", "warehouse"] },
-  { label: "Equipment", icon: Wrench, path: "/equipment", roles: ["administrator", "engineer", "technician", "warehouse"] },
-  { label: "Compliance", icon: ShieldCheck, path: "/compliance", roles: ["administrator", "engineer"] },
-  { label: "Knowledge Base", icon: BookOpen, path: "/knowledge-base", roles: ["administrator", "engineer", "technician", "warehouse", "finance", "hr", "reception_sales"] },
-  { label: "Analytics", icon: BarChart3, path: "/analytics", roles: ["administrator", "finance", "reception_sales"] },
-  { label: "Calculator", icon: Calculator, path: "/calculator", roles: ["administrator", "engineer", "technician"] },
+  // Logistics
+  { label: "Inventory",     icon: Package,         path: "/inventory",     roles: [...ADMIN, ...LOGISTICS] },
+  { label: "Logistics",     icon: Truck,           path: "/logistics",     roles: [...ADMIN, ...LOGISTICS] },
 
-  // Settings (admin only)
-  { label: "Settings", icon: Settings, path: "/settings", roles: ["administrator"] },
+  // Accounts
+  { label: "Finance",       icon: DollarSign,      path: "/finance",       roles: [...ADMIN, ...ACCOUNTS] },
+  { label: "Procurement",   icon: ShoppingCart,    path: "/procurement",   roles: [...ADMIN, ...ACCOUNTS, ...LOGISTICS] },
+  { label: "Analytics",     icon: BarChart3,       path: "/analytics",     roles: [...ADMIN, ...ACCOUNTS, ...MARKETING] },
+
+  // HR
+  { label: "HR",            icon: UserCog,         path: "/hr",            roles: ALL_DEPTS },
+
+  // Cross-department
+  { label: "Claims",        icon: AlertCircle,     path: "/claims",        roles: ALL_DEPTS },
+  { label: "Messages",      icon: MessageSquare,   path: "/messages",      roles: ALL_DEPTS },
+  { label: "Knowledge Base",icon: BookOpen,        path: "/knowledge-base",roles: ADMIN },
+
+  { label: "Settings",      icon: Settings,        path: "/settings",      roles: ADMIN },
 ];
 
 export const getNavItemsForRole = (role: string | undefined, isMaintenance = false): NavItem[] => {

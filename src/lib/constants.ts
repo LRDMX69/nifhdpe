@@ -22,33 +22,36 @@ export const FITTING_TYPES = [
 
 export const ROLE_LABELS: Record<string, string> = {
   administrator: "Administrator",
-  engineer: "Engineer",
-  technician: "Technician",
-  warehouse: "Warehouse",
-  finance: "Finance",
+  engineer: "Technical Dept.",
+  technician: "Technical Dept.",
+  warehouse: "Logistics",
+  finance: "Accounts",
   hr: "HR",
-  reception_sales: "Reception / Sales",
-  knowledge_manager: "Knowledge Manager",
-  siwes_trainee: "SIWES Trainee",
-  it_student: "IT Student",
-  nysc_member: "NYSC Member",
+  reception_sales: "Marketing",
+  knowledge_manager: "Administrator",
+  siwes_trainee: "Technical Dept.",
+  it_student: "Technical Dept.",
+  nysc_member: "Technical Dept.",
 };
 
-export const ALL_ROLES = [
-  "administrator",
-  "engineer",
-  "technician",
-  "warehouse",
-  "finance",
-  "hr",
-  "reception_sales",
-  "knowledge_manager",
-  "siwes_trainee",
-  "it_student",
-  "nysc_member",
-] as const;
+/**
+ * Operational departments offered at signup / admin role assignment.
+ * Legacy DB enum values still exist (engineer/technician/warehouse/finance/
+ * reception_sales) and are mapped 1:1 to the canonical department below
+ * via the value field. UI only ever shows these six.
+ */
+export const DEPARTMENTS: { value: string; label: string }[] = [
+  { value: "administrator", label: "Administrator" },
+  { value: "technician", label: "Technical Dept." },
+  { value: "reception_sales", label: "Marketing" },
+  { value: "warehouse", label: "Logistics" },
+  { value: "finance", label: "Accounts" },
+  { value: "hr", label: "HR" },
+];
 
-export type AppRole = (typeof ALL_ROLES)[number];
+export const ALL_ROLES = DEPARTMENTS.map((d) => d.value) as readonly string[];
+
+export type AppRole = string;
 
 export const formatCurrency = (amount: number): string => {
   return `${CURRENCY_SYMBOL}${amount.toLocaleString("en-NG", {
