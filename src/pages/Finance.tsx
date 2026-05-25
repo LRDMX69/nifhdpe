@@ -288,6 +288,9 @@ const Finance = () => {
       <PageHeader title="Finance" description="Revenue, expenses, payments, and profit tracking">
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={handleExportReport}><FileDown className="h-4 w-4 mr-1" />Export PDF</Button>
+          <Button size="sm" onClick={() => { setActiveTab("invoices"); const next = new URLSearchParams(searchParams); next.set("tab", "invoices"); setSearchParams(next, { replace: true }); setInvoiceOpen(true); }}>
+            <Receipt className="h-4 w-4 mr-1" />New Invoice
+          </Button>
           <Dialog open={paymentOpen} onOpenChange={(o) => { setPaymentOpen(o); if (!o) resetPaymentForm(); }}>
             <DialogTrigger asChild><Button variant="outline" size="sm"><CreditCard className="h-4 w-4 mr-1" />Log Payment</Button></DialogTrigger>
             <DialogContent>
