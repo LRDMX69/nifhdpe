@@ -8,7 +8,7 @@ interface UseAiAssistantOptions {
 }
 
 export const useAiAssistant = ({ context }: UseAiAssistantOptions) => {
-  const { session } = useAuth();
+  const { session, activeOrganizationId } = useAuth();
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +24,12 @@ export const useAiAssistant = ({ context }: UseAiAssistantOptions) => {
       return;
     }
 
+    if (!activeOrganizationId) {
+      setLoading(false);
+      setError("No active organization. Please contact an administrator.");
+      return;
+    }
+
     try {
       const resp = await fetch(AI_URL, {
         method: "POST",
@@ -32,7 +38,7 @@ export const useAiAssistant = ({ context }: UseAiAssistantOptions) => {
           Authorization: `Bearer ${session.access_token}`,
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ context, prompt, data }),
+        body: JSON.stringify({ context, prompt, data, organization_id: activeOrganizationId }),
       });
 
       if (!resp.ok) {
@@ -101,7 +107,7 @@ export const useAiAssistant = ({ context }: UseAiAssistantOptions) => {
     } finally {
       setLoading(false);
     }
-  }, [context, session?.access_token]);
+  }, [context, session?.access_token, activeOrganizationId]);
 
   const reset = useCallback(() => {
     setResponse("");

@@ -1,64 +1,74 @@
-## Goal
-Make sign-in and onboarding deterministic so users never get stuck on **Awaiting Role Assignment** or an endless loading screen, then clean up the code and backend migration path so the issue does not return.
+## Issues identified
 
-## What I found
-- The auth bootstrap in `src/contexts/AuthContext.tsx` is fragile: it mixes `getSession()`, `onAuthStateChange`, async membership fetching, and a timeout-based loading escape hatch.
-- The role flow depends on `localStorage` (`nif_pending_roles`) plus a client-triggered `assign-pending-roles` function. That means role intent is not persisted reliably in the backend and can be lost across devices/sessions.
-- The current self-assignment path is also risky for a professional approval workflow; it conflicts with the app’s “pending approval” model.
-- Migration history looks drifted: the backend has newer applied migration versions than the repository shows, and older migration files contain broad trigger creation / swallowed exceptions that can leave the schema partially updated.
+1. **Build error** – `src/pages/Login.tsx(74,31)`: TS2554 (signature mismatch). The current `signUp` declaration in `AuthContext` and its call in `Login` need to be re-aligned (the build sees a stale 3-arg call) and explicitly typed so it stops drifting.
+
+2. **Stuck on "Awaiting Role Assignment" (incl. maintenance account)** – `ProtectedRoute` only checks `memberships.length === 0`. For the maintenance admin, the membership is synthesized inside `AuthContext`, but if `fetchUserData` is racing with the initial session it can fall through to the empty-memberships branch and show PendingApproval. Also, regular users keep landing there because `handle_new_user` only fires for brand‑new signups — existing users have no `role_assignment_requests` row, and admins have nothing to approve.
+
+3. **Google sign-in not working** – `Login.tsx` is calling `supabase.auth.signInWithOAuth(...)` directly instead of the managed Lovable Cloud helper (`lovable.auth.signInWithOAuth("google", ...)`). The native Supabase OAuth path is not configured, so it silently fails.
+
+4. **"Generate Proposal Email" → Failed to fetch** – Two real bugs in the AI pipeline:
+   - `useAiAssistant` does **not** send `organization_id`, but `ai-assistant/index.ts` now hard-requires it and returns 400.
+   - The edge function logs show `TypeError: Cannot read properties of null (reading 'bodyUsed')` — the function crashes when the fallback `Response` is returned alongside `validateUser` errors, which produces a network-level "Failed to fetch" in the browser.
+
+5. **Finance tab should live inside HR** – Currently Finance is a top-level nav entry; user wants the Finance dashboard/tab accessible from within HR (payroll/salary context).
 
 ## Plan
-### 1. Fix auth initialization and loading guards
-- Refactor `AuthContext` to use an explicit auth-ready state instead of relying on timing and fallback timeouts.
-- Ensure profile and membership queries only run after the session is fully restored.
-- Prevent `ProtectedRoute` from showing the pending-role screen until auth state and membership state are conclusively resolved.
-- Remove race-prone patterns that can temporarily produce empty memberships for logged-in users.
 
-### 2. Replace fragile pending-role logic with a proper backend-backed approval flow
-- Remove the `localStorage`-based pending role mechanism.
-- Add a dedicated backend table for role-assignment requests so requested roles persist correctly across devices and sessions.
-- Update signup to write the requested roles to the backend instead of storing them in the browser.
-- Update admin/team settings so admins can review and approve queued requests cleanly.
-- Keep unassigned users blocked correctly, but only when they are truly unassigned.
+### A. Build & Auth fixes
+- Re-sync `src/pages/Login.tsx` `signUp(...)` call with the 4-arg signature and add an explicit `Promise<{ error: Error | null }>` return type on `AuthContext.signUp` so TS catches drift.
+- In `AuthContext`:
+  - Synthesize the maintenance membership **inside the same state batch** as `setLoading(false)` so `ProtectedRoute` never sees an empty memberships array for maintenance users.
+  - Hoist the localhost auto-maintenance bypass into the actual `isMaintenance` flag used by membership logic (today it only affects the exported value, not the membership branch).
+  - Add a defensive re-fetch when `memberships.length === 0` after auth ready, so brand‑new admins immediately see the user instead of waiting for cache.
+- In `ProtectedRoute`: treat `isMaintenance` and `activeRole != null` as sufficient to render children even if `memberships` hasn't hydrated yet.
 
-### 3. Repair existing stuck users and prevent recurrence
-- Add migration(s) to backfill or normalize incomplete onboarding records where possible.
-- Make the signup/profile creation path deterministic so every new account gets the expected profile + organization linkage.
-- Add safer handling for users with profiles but no memberships, so they land in a clear recoverable state instead of a broken loop.
+### B. Google OAuth via Lovable Cloud
+- Replace the inline `supabase.auth.signInWithOAuth("google", ...)` call in `Login.tsx` with `lovable.auth.signInWithOAuth("google", { redirect_uri: getAppUrl() })` from `@/integrations/lovable`.
+- Call `supabase--configure_social_auth` with `providers: ["google"]` so the managed Google provider is actually enabled.
 
-### 4. Reconcile the failing migration path
-- Inspect the live migration state versus the repository state and stop depending on stale/partial historical assumptions.
-- Create forward-only corrective migration(s) that:
-  - normalize the role-request flow,
-  - repair any missing auth/onboarding database pieces,
-  - safely add any missing triggers/policies without relying on silent failure blocks.
-- Avoid editing auto-generated integration files and avoid touching reserved schemas.
+### C. AI assistant pipeline
+- `useAiAssistant`: include `organization_id` (from `useAuth().activeOrganizationId`) in the POST body and refuse to call if it's missing.
+- `supabase/functions/ai-assistant/index.ts`:
+  - Wrap the whole handler so any thrown error returns a proper `Response` with CORS headers (no more null body crash).
+  - Allow the existing `validateServiceOrUser` helper instead of `validateUser` (consistency with the other fixed functions).
+  - Make sure the fallback `Response` reuses `corsHeaders` on `Content-Type: text/event-stream`.
+- Redeploy `ai-assistant` after the edit.
 
-### 5. Remove unnecessary code that causes confusion
-- Remove the browser-only pending role storage and related dead branches.
-- Remove obsolete fallback logic around self-assignment once the backend queue is in place.
-- Prune only code proven to be unused or replaced by the new flow, so nothing important disappears accidentally.
+### D. Finance inside HR
+- Add a "Finance" tab to `src/pages/HR.tsx` that embeds the existing Finance summary widgets (payroll, salaries) — reusing components from `src/components/hr/tabs/PayrollTab.tsx` and `src/components/dashboards/FinanceDashboard.tsx`.
+- Keep the standalone `/finance` route for Accounts users, but remove duplicate visibility for HR-only users from `navConfig.ts` so the sidebar isn't cluttered.
+
+### E. Database reconciliation (single migration)
+- Backfill `role_assignment_requests` rows for any existing user in `auth.users` who has **zero** memberships and no pending request, so admins can approve them from the Unassigned list.
+- Ensure the `handle_new_user` trigger is actually attached to `auth.users` (recreate `AFTER INSERT` trigger if missing — this is what's making new signups invisible).
+- Verify the `enforce_max_roles` trigger is attached to `organization_memberships`.
+
+### F. Cleanup
+- Remove leftover `nif_pending_roles` localStorage references anywhere they still appear.
+- Delete unused `ai-orchestrator` edge function (superseded by `ai-assistant` + department-specific functions) to reduce confusion.
 
 ## Technical details
-- Frontend files likely affected:
-  - `src/contexts/AuthContext.tsx`
-  - `src/components/ProtectedRoute.tsx`
-  - `src/pages/Login.tsx`
-  - `src/pages/PendingApproval.tsx`
-  - `src/pages/AppSettings.tsx`
-- Backend work likely affected:
-  - new migration for persistent role requests / onboarding fixes
-  - `supabase/functions/assign-pending-roles/index.ts` (either harden or retire depending on the final secure flow)
-- Validation will include:
-  - fresh signup
-  - verified login
-  - unassigned-user flow
-  - admin approval flow
-  - existing assigned-user login
-  - regression check for loading state and route protection
 
-## Expected outcome
-- No more false **Awaiting Role Assignment** screens for properly assigned users.
-- No more infinite loading caused by auth bootstrap races.
-- Role requests persist reliably and can be reviewed professionally.
-- Migration failures are addressed with a clean forward fix instead of piling more brittle patches on top.
+```text
+Login.tsx                    AuthContext.tsx               ProtectedRoute.tsx
+   │                              │                                │
+   │ signUp(e,p,n,roles) ─────────▶ explicit 4-arg signature       │
+   │ lovable.auth.signInWithOAuth ─▶ (no change)                   │
+   │                              │  setMemberships + setLoading   │
+   │                              │  in same tick                  │
+   │                              └────────────────────────────────▶ render if
+   │                                                                  isMaintenance ||
+   │                                                                  activeRole
+
+useAiAssistant ── body: {context, prompt, data, organization_id} ──▶ ai-assistant
+                                                                       │
+                                                                       ├─ validateServiceOrUser
+                                                                       ├─ try/catch wraps everything
+                                                                       └─ all responses include corsHeaders
+```
+
+Migration (forward-only, idempotent):
+- `DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users; CREATE TRIGGER ...`
+- `INSERT INTO role_assignment_requests SELECT ... FROM auth.users u WHERE NOT EXISTS (memberships) AND NOT EXISTS (pending request)`
+
+No destructive changes; safe to re-run.
