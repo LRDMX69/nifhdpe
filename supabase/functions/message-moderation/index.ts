@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { validateServiceOrUser, isUuid } from "../_shared/auth.ts";
 
 
 interface RiskResult {
@@ -59,6 +60,10 @@ serve(async (req: Request) => {
 
   try {
     const { organization_id } = await req.json();
+    if (!isUuid(organization_id)) {
+      return new Response(JSON.stringify({ error: "invalid organization_id" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    await validateServiceOrUser(req, organization_id);
     // @ts-expect-error
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     // @ts-expect-error

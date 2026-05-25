@@ -16,14 +16,22 @@ serve(async (req) => {
   const rateLimitResponse = await rateLimitMiddleware(req, RATE_LIMITS.PROCESSING);
   if (rateLimitResponse) return rateLimitResponse;
 
+  // Cron/internal only: require service-role Bearer to invoke.
+  {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace("Bearer ", "").trim();
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    if (!token || !serviceKey || token !== serviceKey) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+  }
+
   const startTime = Date.now();
   const isTimeExceeded = () => Date.now() - startTime > MAX_EXECUTION_MS;
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
-
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const { data: autoModeOrgs } = await supabase
@@ -45,7 +53,8 @@ serve(async (req) => {
       try {
         const res = await fetch(url, {
           method: "POST",
-          headers: { Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" },
+          // Internal call — present the service role so downstream functions accept the request.
+          headers: { Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify(body),
           signal: controller.signal,
         });

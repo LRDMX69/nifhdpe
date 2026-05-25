@@ -1,5 +1,25 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isUuid(v: unknown): v is string {
+  return typeof v === "string" && UUID_RE.test(v);
+}
+
+/**
+ * Allows internal/cron calls that present the service-role key as Bearer.
+ * Otherwise enforces validateUser against the supplied organization id.
+ */
+export async function validateServiceOrUser(req: Request, organizationId: string) {
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const token = authHeader.replace("Bearer ", "").trim();
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (token && serviceKey && token === serviceKey) return { service: true } as const;
+  if (!isUuid(organizationId)) throw new Error("invalid organization_id");
+  const user = await validateUser(req, organizationId);
+  return { service: false, user } as const;
+}
+
 /**
  * Validates the user's JWT from the request and checks if they belong to the specified organization.
  * Returns the user object if valid, or throws an error if invalid.
