@@ -283,7 +283,12 @@ const Logistics = () => {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
-      <PageHeader title="Logistics & Fleet" description="Delivery scheduling, vehicle tracking, and fuel logs" />
+      <PageHeader title="Logistics & Fleet" description="Delivery scheduling, vehicle tracking, and fuel logs">
+        <Button size="sm" onClick={() => setWaybillOpen(true)}>
+          <FileText className="h-4 w-4 mr-1" />New Waybill
+        </Button>
+      </PageHeader>
+      <WaybillDialog open={waybillOpen} onOpenChange={setWaybillOpen} />
 
       <Tabs defaultValue="deliveries" className="space-y-4">
         <TabsList className="w-full justify-start overflow-x-auto bg-transparent p-0 gap-1 h-auto scrollbar-hide">
