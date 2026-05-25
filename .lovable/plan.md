@@ -1,90 +1,108 @@
 ## Goal
 
-The boss and his team will pilot the ERP for **3 months**. Make every core flow obvious, polished, and self-explanatory. Stretch the pre-funded AI credits to last the full pilot. Zero "where do I click?" moments.
+Boss + team will use this for 3 months unattended. Every document not limited to (Invoice, Quotation, Waybill, ID Card, Receipt, Payslip, Claim, Report, Delivery Note, Purchase Order) must be:
+
+1. **Findable in ≤2 clicks** — no hunting through dropdowns.
+2. **Professionally numbered** — `INV/2026/0042`, `WB/2026/0017`, etc., auto-generated, never blank.
+3. **Generated inside the ERP** — printable, downloadable, emailable. Zero need for Word or Excel.
 
 ---
 
-## 1. Invoice discoverability (the issue today)
+## 1. Surface every hidden document action
 
-Today invoices only appear after a Quotation is marked *Accepted*. The boss searched for "Create Invoice" and gave up.
-
-- Add a prominent **"+ New Invoice"** button on `Finance → Invoices` tab.
-- Open a dedicated `InvoiceDialog` (mirrors QuotationDialog) with: client picker, line items (description/qty/unit), tax %, due date, notes. Auto-generates `INV/YYYY/####` via `next_doc_number`.
-- Also add **"Convert to Invoice"** action on every Quotation row (not only on status change).
-- Add an `Invoices` quick-action card on AdminDashboard + MarketingDashboard ("Create Invoice" CTA).
-- Sidebar: add an **Invoices** link under Accounts pointing to `/finance?tab=invoices`.
-
-## 2. End-to-end flow QA (every flow the boss touched)
-
-Walk each flow live in the preview and fix any friction. For each: visible CTA, empty-state copy, success toast, refresh, mobile layout.
+Audit found these are buried today:
 
 
-| Flow                                          | Acceptance                                         |
-| --------------------------------------------- | -------------------------------------------------- |
-| Login → Dashboard                             | <3s cold, no infinite loader, correct role landing |
-| Create Client → Quotation → Invoice → Payment | All reachable in ≤2 clicks from Dashboard          |
-| Submit Field Report (with photo + GPS)        | Visible in Admin inbox immediately                 |
-| Worker Claim with proof                       | Image renders in admin view + PDF embeds it        |
-| Check-In / Check-Out                          | 5 PM rule, geofence message clear                  |
-| HR: ID Card, Payroll, Leave                   | Generate PDF, no crash, naira formatting           |
-| Inventory: add item, deduct, find by rack     | Quick Find returns location                        |
-| Equipment Request                             | Reaches admin, status updates                      |
-| Messages                                      | Unread badge clears, realtime delivery             |
-| Print Request                                 | Reception inbox shows pending                      |
-| Knowledge Base                                | Admin can add module, others read-only             |
-| PWA install on Android                        | Manifest 200, installs as "NIF Operations"         |
+| Document                                | Where it lives now                                                            | Fix                                                                                                                                                                                                    |
+| --------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Waybill**                             | Inside a 3-dot dropdown on a Logistics delivery row                           | Add "+ New Waybill" button on Logistics page header + standalone `WaybillDialog` (driver, vehicle, destination, items) — works even without a linked delivery. Add to Command Palette + Quick Actions. |
+| **ID Card**                             | HR → Employee details panel only                                              | Add "Generate ID Card" row action in HR ID Cards tab list + Command Palette entry.                                                                                                                     |
+| **Payslip**                             | Buried in Payroll tab                                                         | Add "Download Payslip" per row + bulk "Download All Payslips for Month".                                                                                                                               |
+| **Receipt** (payment)                   | Not generated at all today                                                    | Add receipt PDF after recording a payment on an invoice.                                                                                                                                               |
+| **Delivery Note**                       | Conflated with Waybill                                                        | Add as a Logistics action — confirms goods received at site (signed copy).                                                                                                                             |
+| **Purchase Order**                      | Procurement page exists, no PDF                                               | Add "Generate PO PDF" with proper PO numbering.                                                                                                                                                        |
+| **Quotation → Invoice → Receipt chain** | Quotation has "Convert to Invoice"; Invoice has no "Record Payment → Receipt" | Add Record Payment dialog on each invoice that auto-issues a Receipt PDF.                                                                                                                              |
+| **Claim Voucher**                       | Claim approved but no printable voucher                                       | Generate a Claim Approval Voucher PDF on approval.                                                                                                                                                     |
+| **Field Report PDF**                    | Only viewable in-app                                                          | Add "Download Report PDF" with signed-by block.                                                                                                                                                        |
 
 
-Fix any breakage discovered. Replace generic empty states with action-oriented copy ("No invoices yet — **Create your first invoice**").
+### Discoverability surfaces (no UI clutter)
 
-## 3. AI budget throttling (last 3 months on current top-up)
+- **Command Palette (⌘K)** — already exists. Add every document creator: New Waybill, New Delivery Note, New PO, New Receipt, Generate ID Card, Download Payslip, Print Quotation, Print Invoice.
+- **Quick Actions row** on each dashboard — role-scoped (Logistics sees Waybill/Delivery Note, Finance sees Invoice/Receipt/PO, HR sees ID Card/Payslip).
+- **Page header CTA** on Logistics, Procurement, HR, Finance, Claims — single prominent "+ New [Document]" button.
+- **Empty-state CTAs** — "No waybills yet — Create your first waybill" instead of a blank table.
 
-Today crons fire every 30 min → ~1,440 AI calls/month per cron job. Reduce safely:
+---
 
-- `auto-mode-runner` cron: **every 30 min → every 4 hours** (6 runs/day instead of 48).
-- `opportunity-scanner` cron: **every 10 min → every 6 hours**.
-- `central-ai-monitor`, `department-automation`, `daily-summary`: collapse into a **single daily 8 AM run**.
-- Switch all background jobs from `google/gemini-2.5-pro` → `**google/gemini-2.5-flash-lite**` (~10× cheaper, sufficient for summaries/anomaly flags).
-- User-triggered AI (assistant, report processing, quotation suggestions): keep `gemini-2.5-flash` (good quality, low cost).
-- Add a hard daily cap in each edge function: skip if `ai_summaries` for today already exists for that context.
-- Surface graceful messages on 402/429 instead of silent failure ("AI is taking a short break — results will resume shortly").
+## 2. Professional document numbering (single source of truth)
 
-## 4. Document & PDF polish
+The DB already has `next_doc_number(org, doc_type)` returning `<TYPE>/<YYYY>/<####>` and an `auto_assign_doc_number` trigger.
 
-Every PDF the boss might hand a client must look enterprise-grade.
+Action:
 
-- **Quotations / Invoices / Waybills / ID cards**: consistent header (org logo + name + RC + address + phone), footer (page x/y, signature block, stamp), naira currency, A4 margins.
-- Embed proof images in claim PDFs (pre-fetch → base64 → `addImage`).
-- "Print Preview" before download on all generators.
-- Add a watermark `DRAFT` until status flips to sent/approved.
+- Audit every table that holds a document (`invoices`, `quotations`, `waybills`, `delivery_notes`, `purchase_orders`, `receipts`, `id_cards`, `payslips`, `claim_vouchers`, `field_reports`). Confirm each has a `document_number` column with the trigger attached. Add via migration where missing.
+- Standardize prefixes:
+  ```text
+  Quotation        QT/2026/0001
+  Invoice          INV/2026/0001
+  Receipt          RCT/2026/0001
+  Waybill          WB/2026/0001
+  Delivery Note    DN/2026/0001
+  Purchase Order   PO/2026/0001
+  Claim Voucher    CV/2026/0001
+  Payslip          PSL/2026/MM/EMP-0001
+  ID Card          NIF-EMP-####
+  Field Report     FR/2026/0001
+  ```
+- Display the number prominently on every list view, every PDF header, every email subject. Numbers are immutable once issued.
+- Add a small **"Document Registry"** view in Settings (admin only) — searchable list of every document number ever issued, with link to the source record. Solves "did we already invoice this?".
 
-## 5. Reports & Claims polish
+---
 
-- FieldReports admin inbox: card view with photo thumbnail, project, technician, AI summary excerpt, "Open full report" action.
-- WorkerClaims: required proof attachment, AI timestamp validation surfaces inline error, admin one-click approve/reject with reason.
-- Both: filter chips (Today / This week / Pending / All).
+## 3. Polish every generated PDF (enterprise look)
 
-## 6. Navigation & discoverability
+Unified template via `generatePdf.ts`:
 
-- Add a **global ⌘K command palette** (cmdk already installed) on every page: "Create invoice", "New quotation", "Add client", "Submit report", "Check in", etc. Solves "I can't find X".
-- Dashboard: replace abstract stat cards with a **Quick Actions** row (6 big buttons) for the most-used creates.
-- Bottom nav (mobile): pin Dashboard / Quick Create (+) / Messages / Claims / More.
+- Header: org logo (left), company name + RC + address + phone + email (right).
+- Document title + number + issue date (large, top-center).
+- Body: structured sections (parties, line items, totals, notes).
+- Footer: page x/y, "Issued by [name, role]", signature line, round stamp placeholder, "Generated by NIF Operations Suite — [timestamp]".
+- Naira `₦` formatting throughout, A4 margins, draft watermark until status = sent/approved.
+- "Print Preview" modal before download (uses an iframe of the blob URL).
 
-## 7. Performance & smoothness
+Apply uniformly to: Invoice, Quotation, Waybill, Delivery Note, PO, Receipt, Payslip, Claim Voucher, Field Report, ID Card (ID card stays badge-format, but with consistent branding).
 
-- Verify cold load <2s on Vercel (route-level lazy already in place, confirm splash ≤1.1s).
-- Add `placeholderData: keepPreviousData` to paginated lists (Quotations, Invoices, Reports, Claims).
-- Wrap heavy dashboards in `Suspense` skeletons.
-- Audit and remove any `console.log` noise in production.
+---
 
-## 8. Final verification loop
+## 4. Zero-Excel workflows
 
-- `tsc --noEmit` clean
-- Manual walkthrough of every flow in §2 at 1440px **and** 390px
-- Supabase linter: no new criticals
-- Confirm new cron schedules in `cron.job`
-- Confirm Vercel build: bundle <600 KB initial, manifest 200, sw.js 200
-- Smoke test on real phone via `nifhdpe.vercel.app`
+Replace any "export to Excel and edit" temptation with in-app tools:
+
+- **Bulk actions** on Invoices/Quotations/Claims lists: multi-select → Mark Paid / Send / Download as ZIP of PDFs / Email to client.
+- **Inline edit** on line items in Quotation/Invoice/PO dialogs (no need to recreate to change one line).
+- **CSV/PDF export** buttons on every list view (Analytics, Inventory, Payroll, Attendance) so they never need to copy-paste.
+- **Search + filter chips** on every list (Today / This week / This month / Pending / Paid / Overdue).
+- **In-app print** (browser print stylesheet) for any table view.
+
+---
+
+## 5. Onboarding & in-app guidance (so you don't need to be there)
+
+- First-login **role-based welcome tour** (already partly built in `RoleBasedOnboarding`): expand to 4 steps per role pointing at the Quick Actions, Command Palette (⌘K hint), Messages, and their primary document type.
+- **? help icon** in the top bar opening a slide-out cheat sheet: "How do I create an invoice / waybill / ID card / claim?" with 1-line answers + deep links.
+- **Empty-state copy** everywhere: action-oriented, not "No data".
+- **Toast confirmations** with the issued document number: "Waybill WB/2026/0017 created — Print / Email / Done".
+
+---
+
+## 6. Verification
+
+- `tsc --noEmit` clean.
+- Manual walkthrough at 1440px and 390px of every flow in §1 — each document creatable in ≤2 clicks from Dashboard or via ⌘K.
+- Every PDF visually inspected (header/footer/number present, naira, no clipping).
+- Supabase: every doc table has `document_number` NOT NULL + trigger.
+- Smoke test on real phone via `nifhdpe.vercel.app`.
 
 ---
 
@@ -92,33 +110,33 @@ Every PDF the boss might hand a client must look enterprise-grade.
 
 **Files to create**
 
-- `src/components/finance/InvoiceDialog.tsx` — full create/edit form
-- `src/components/CommandPalette.tsx` — global cmdk launcher, mount in `AppLayout`
-- `supabase/migrations/<ts>_throttle_ai_crons.sql` — `cron.unschedule` + re-schedule at new intervals
+- `src/components/logistics/WaybillDialog.tsx` — standalone waybill creator.
+- `src/components/logistics/DeliveryNoteDialog.tsx`.
+- `src/components/procurement/PurchaseOrderDialog.tsx` + `src/lib/generatePurchaseOrder.ts`.
+- `src/components/finance/RecordPaymentDialog.tsx` + `src/lib/generateReceipt.ts`.
+- `src/lib/generatePayslip.ts`, `src/lib/generateClaimVoucher.ts`, `src/lib/generateFieldReportPdf.ts`, `src/lib/generateDeliveryNote.ts`.
+- `src/components/HelpSheet.tsx` — slide-out cheat sheet, mounted in `AppLayout`.
+- `src/pages/DocumentRegistry.tsx` (admin-only, linked from Settings).
+- `supabase/migrations/<ts>_document_numbering.sql` — ensure `document_number` column + `auto_assign_doc_number` trigger on every doc table; backfill existing rows.
 
 **Files to edit**
 
-- `src/pages/Finance.tsx` — `+ New Invoice` button, tab deep-link via `?tab=`
-- `src/pages/Quotations.tsx` — row action "Convert to Invoice"
-- `src/lib/navConfig.ts` — add `Invoices` entry
-- `src/components/dashboards/AdminDashboard.tsx`, `SalesDashboard.tsx`, `FinanceDashboard.tsx` — Quick Actions row
-- `src/lib/generatePdf.ts`, `generateWaybill.ts`, `generateIdCard.ts` — unified header/footer, draft watermark
-- All `supabase/functions/*` background jobs — switch model to `flash-lite`, add daily-skip guard, return graceful 402 messages
-- `src/pages/FieldReports.tsx`, `WorkerClaims.tsx` — filter chips + improved cards
-- `src/components/layout/AppLayout.tsx` — mount CommandPalette, ⌘K shortcut
+- `src/pages/Logistics.tsx` — "+ New Waybill" / "+ New Delivery Note" header buttons, empty-state CTAs.
+- `src/pages/Procurement.tsx` — "+ New PO" + Generate PDF action.
+- `src/pages/Finance.tsx` — "Record Payment" row action on invoices → Receipt PDF; bulk actions.
+- `src/pages/HR.tsx` — "Generate ID Card" + "Download Payslip" row actions in respective tabs.
+- `src/pages/WorkerClaims.tsx` — "Print Voucher" on approved claims.
+- `src/pages/FieldReports.tsx` — "Download PDF" per report.
+- `src/components/CommandPalette.tsx` — add all new document creators.
+- `src/components/dashboards/*Dashboard.tsx` — role-scoped Quick Actions row.
+- `src/lib/generatePdf.ts` — unified header/footer, draft watermark, print-preview helper.
+- `src/lib/navConfig.ts` — surface Document Registry (admin) and Procurement (where missing).
+- `src/components/layout/RoleBasedOnboarding.tsx` — add 4-step tour per role.
 
-**Cron new schedule**
-
-```text
-auto-mode-runner       0 */4 * * *     (every 4h)
-opportunity-scanner    0 */6 * * *     (every 6h)
-daily-digest           0 8 * * *       (once daily, replaces 3 separate jobs)
-```
-
-**Budget math:** ~30 background AI calls/day × 90 days × flash-lite ≈ well within the topped-up balance, leaving headroom for user-triggered AI.
+**Numbering prefixes** added to a new `src/lib/docPrefixes.ts` constant so client and server agree.
 
 ---
 
 ## Open question
 
-Just one before I start: **the boss said all AI features weren't working today** — was that strictly because credits were exhausted (now topped up), or did you also see specific AI features error out (e.g. report processing, assistant chat)? If the latter, name them and I'll prioritize fixing those first. Otherwise I'll assume credits-only and proceed with the full plan above.i think it was only because of credits but do you ill test everything out again and see if ut all works out fine
+One quick check before I start: do you want the **Document Registry** (searchable list of every doc number ever issued) visible to **Admin only**, or also to **Accounts/Finance**? Default I'll use is Admin + Accounts. Let it be visible to any one that needs it 
