@@ -30,7 +30,7 @@ interface AuthContextType {
   isMfaEnabled: boolean;
   authError: string | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string, requestedRoles: string[]) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   switchRole: (role: string) => void;
   switchOrganization: (organizationId: string) => void;
@@ -50,222 +50,182 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isMfaEnabled, setIsMfaEnabled] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const activeOrgRef = useRef<string | null>(null);
+  const lastSessionKeyRef = useRef<string | null>(null);
+
+  const clearUserState = useCallback(() => {
+    setProfile(null);
+    setMemberships([]);
+    setActiveRole(null);
+    setActiveOrganizationId(null);
+    activeOrgRef.current = null;
+    setIsMaintenance(false);
+    setIsMfaEnabled(false);
+    setAuthError(null);
+  }, []);
 
   const fetchUserData = useCallback(async (userId: string) => {
     try {
       setAuthError(null);
-      // Check if maintenance admin
-      const { data: maintenanceCheck } = await supabase
-        .from("system_maintenance_accounts")
-        .select("user_id")
-        .eq("user_id", userId)
-        .maybeSingle();
+      const [maintenanceResult, profileResult, membershipResult] = await Promise.all([
+        supabase
+          .from("system_maintenance_accounts")
+          .select("user_id")
+          .eq("user_id", userId)
+          .maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("*")
+          .eq("user_id", userId)
+          .maybeSingle(),
+        supabase
+          .from("organization_memberships")
+          .select("organization_id, role, organizations(name)")
+          .eq("user_id", userId),
+      ]);
 
-      const isMaintenanceAdmin = !!maintenanceCheck;
+      const isMaintenanceAdmin = !!maintenanceResult.data;
       setIsMaintenance(isMaintenanceAdmin);
 
-      // Resilient check: use maybeSingle() instead of single() to prevent PostgrestError rejection if trigger lag occurs
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
+      const { data: profileData, error: profileError } = profileResult;
+      const { data: membershipData, error: membershipError } = membershipResult;
 
       if (profileError) {
         logger.error("Error fetching profile:", profileError);
-      } else if (profileData) {
-        setProfile(profileData as UserProfile);
+        setAuthError("We couldn't load your account profile. Please refresh or contact an administrator.");
       }
+      setProfile((profileData as UserProfile | null) ?? null);
 
-      // Fetch ALL memberships (up to 2 roles)
-      const { data: membershipData, error: membershipError } = await supabase
-        .from("organization_memberships")
-        .select("organization_id, role, organizations(name)")
-        .eq("user_id", userId);
-
-      let loadedMemberships = membershipData || [];
-
-      if (!membershipError && loadedMemberships.length === 0 && profileData?.organization_id) {
-        const pendingRolesStr = localStorage.getItem("nif_pending_roles");
-        let rolesToAssign: string[] = ["technician"];
-        if (pendingRolesStr) {
-          try {
-            const parsed = JSON.parse(pendingRolesStr);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              rolesToAssign = parsed;
-            }
-          } catch (e) {
-            logger.error("Error parsing pending roles from localStorage:", e);
-          }
-        }
-
-        logger.info(`Auto-assigning memberships for user ${userId} to org ${profileData.organization_id} with roles ${rolesToAssign.join(", ")}`);
-
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          const accessToken = session?.access_token;
-          if (!accessToken) {
-            const message = "Missing access token for role assignment";
-            logger.error(message);
-            setAuthError(message);
-          } else {
-            const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assign-pending-roles`;
-            const res = await fetch(url, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-              body: JSON.stringify({ user_id: userId, organization_id: profileData.organization_id, roles: rolesToAssign.slice(0, 2) })
-            });
-            const payload = await res.json().catch(() => ({}));
-            if (!res.ok) {
-              const message = payload?.error ? (Array.isArray(payload.error) ? payload.error.join("; ") : payload.error) : (payload?.detail ? JSON.stringify(payload.detail) : "Role assignment failed");
-              logger.error("assign-pending-roles failed", payload);
-              setAuthError(message);
-            } else {
-              localStorage.removeItem("nif_pending_roles");
-            }
-          }
-        } catch (e) {
-          logger.error("assign-pending-roles request failed", e);
-          setAuthError(e instanceof Error ? e.message : "Role assignment request failed");
-        }
-
-        // Refetch memberships
-        const { data: refetchedData, error: refetchError } = await supabase
-          .from("organization_memberships")
-          .select("organization_id, role, organizations(name)")
-          .eq("user_id", userId);
-
-        if (!refetchError && refetchedData) {
-          loadedMemberships = refetchedData;
-        }
-      }
+      const loadedMemberships = membershipData ?? [];
 
       if (membershipError) {
         logger.error("Error fetching memberships:", membershipError);
-      } else if (loadedMemberships && loadedMemberships.length > 0) {
+        setMemberships([]);
+        setActiveRole(null);
+        if (!profileError) {
+          setAuthError("We couldn't load your access permissions. Please refresh or contact an administrator.");
+        }
+      } else if (loadedMemberships.length > 0) {
         const mapped: UserMembership[] = loadedMemberships.map((m) => ({
           organization_id: m.organization_id,
           role: m.role,
           organization_name: (m.organizations as unknown as { name: string })?.name ?? "",
         }));
         setMemberships(mapped);
-        
-        // Set the first organization as active if not already set (use ref to avoid stale-closure re-fetch loop)
-        const currentOrg = activeOrgRef.current;
-        if (!currentOrg) {
-          activeOrgRef.current = mapped[0].organization_id;
-          setActiveOrganizationId(mapped[0].organization_id);
-        }
-        // Maintenance admin always gets administrator view
+
+        const preferredOrg = activeOrgRef.current && mapped.some((membership) => membership.organization_id === activeOrgRef.current)
+          ? activeOrgRef.current
+          : mapped[0].organization_id;
+
+        activeOrgRef.current = preferredOrg;
+        setActiveOrganizationId(preferredOrg);
+
         if (isMaintenanceAdmin) {
           setActiveRole("administrator");
         } else {
-          // Set the role for the active organization
-          const activeMembership = mapped.find(m => m.organization_id === activeOrgRef.current) || mapped[0];
+          const activeMembership = mapped.find((membership) => membership.organization_id === preferredOrg) ?? mapped[0];
           setActiveRole(activeMembership.role);
         }
       } else if (isMaintenanceAdmin) {
-        // Maintenance admin with no memberships still gets admin access
         setActiveRole("administrator");
         setMemberships([{
           organization_id: "",
           role: "administrator",
           organization_name: "System",
         }]);
+        setActiveOrganizationId("");
       } else {
         setMemberships([]);
         setActiveRole(null);
+        setActiveOrganizationId(profileData?.organization_id ?? null);
       }
     } catch (error) {
       logger.error("Error fetching user data/memberships:", error);
       setAuthError(error instanceof Error ? error.message : "Failed to load profile.");
+      setMemberships([]);
+      setActiveRole(null);
     }
   }, []);
 
   useEffect(() => {
     let active = true;
 
-    const handleSession = async (session: Session | null) => {
+    const handleSession = async (nextSession: Session | null) => {
       if (!active) return;
-      
-      setSession(session);
-      setUser(session?.user ?? null);
 
-      if (session?.user) {
+      const sessionKey = nextSession?.access_token ?? nextSession?.user?.id ?? "signed-out";
+      if (lastSessionKeyRef.current === sessionKey) {
+        setLoading(false);
+        return;
+      }
+      lastSessionKeyRef.current = sessionKey;
+
+      setLoading(true);
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+
+      if (nextSession?.user) {
         try {
-          // Await atomic loading of all dependencies so we do not trigger early redirects with empty memberships
-          await fetchUserData(session.user.id);
-          
+          await fetchUserData(nextSession.user.id);
+
           try {
             const { data: factors } = await supabase.auth.mfa.listFactors();
             if (active) {
-              setIsMfaEnabled(factors?.all.some(f => f.status === "verified") ?? false);
+              setIsMfaEnabled(factors?.all.some((factor) => factor.status === "verified") ?? false);
             }
           } catch (e) {
             logger.error("MFA listFactors failed", e);
           }
         } catch (error) {
           logger.error("Error inside handleSession:", error);
+        } finally {
+          if (active) setLoading(false);
         }
       } else {
         if (active) {
-          setProfile(null);
-          setMemberships([]);
-          setActiveRole(null);
-          setActiveOrganizationId(null);
-          activeOrgRef.current = null;
-          setIsMaintenance(false);
-          setIsMfaEnabled(false);
+          clearUserState();
+          setLoading(false);
         }
-      }
-      
-      if (active) {
-        setLoading(false);
       }
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
         logger.info(`Supabase Auth Event: ${event}`);
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-          if (active) setLoading(true);
-        }
-        await handleSession(session);
-      }
-    );
+        if (!active) return;
+        void handleSession(nextSession);
+      });
 
     supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        handleSession(session);
+      .then(({ data: { session: initialSession } }) => {
+        void handleSession(initialSession);
       })
       .catch((e) => {
         logger.error("getSession failed", e);
-        if (active) setLoading(false);
+        if (active) {
+          clearUserState();
+          setLoading(false);
+        }
       });
-
-    // Safety net: never let loading hang past 8s no matter what.
-    const safety = setTimeout(() => {
-      if (active) setLoading(false);
-    }, 8000);
 
     return () => {
       active = false;
       subscription.unsubscribe();
-      clearTimeout(safety);
     };
-  }, [fetchUserData]);
+  }, [clearUserState, fetchUserData]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error as Error | null };
   };
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, fullName: string, requestedRoles: string[]) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: {
+          full_name: fullName,
+          requested_roles: requestedRoles.slice(0, 2),
+        },
         emailRedirectTo: getAppUrl(),
       },
     });
@@ -274,12 +234,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    setProfile(null);
-    setMemberships([]);
-    setActiveRole(null);
-    setActiveOrganizationId(null);
-    activeOrgRef.current = null;
-    setIsMaintenance(false);
+    lastSessionKeyRef.current = null;
+    clearUserState();
   };
 
   const switchRole = (role: string) => {
