@@ -99,9 +99,12 @@ function drawLetterheadBackground(doc: jsPDF, dataUrl: string | null) {
 
 function checkPageBreak(doc: jsPDF, y: number, needed: number, margin: number): number {
   const pageH = doc.internal.pageSize.getHeight();
-  if (y + needed > pageH - 25) {
+  // Reserve bottom 28mm for the letterhead image's footer band.
+  if (y + needed > pageH - 28) {
     doc.addPage();
-    return 18;
+    // New pages start below the letterhead header band — background image
+    // is re-applied later in the final page loop.
+    return 62;
   }
   return y;
 }
