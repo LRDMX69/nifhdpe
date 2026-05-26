@@ -188,7 +188,7 @@ serve(async (req: Request) => {
 
   try {
     // Apply rate limiting (AI functions are expensive, use strict limits)
-    const rateLimitResponse = rateLimitMiddleware(req, RATE_LIMITS.AI_FUNCTION);
+    const rateLimitResponse = await rateLimitMiddleware(req, RATE_LIMITS.AI_FUNCTION);
     if (rateLimitResponse) {
       return rateLimitResponse;
     }
