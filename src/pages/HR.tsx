@@ -454,7 +454,7 @@ const HR = () => {
 
 
 
-  const roleOptions = ["administrator","engineer","technician","warehouse","finance","hr","reception_sales","knowledge_manager","siwes_trainee","it_student","nysc_member"];
+  const roleOptions = ["administrator","engineer","technician","warehouse","finance","hr","reception_sales"];
 
   // Unique employees for ID cards
   const uniqueEmployees = (() => {
