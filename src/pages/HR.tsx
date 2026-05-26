@@ -127,6 +127,8 @@ const HR = () => {
   const [idCardOpen, setIdCardOpen] = useState(false);
   const [idCardUser, setIdCardUser] = useState<{ user_id: string; role?: string } | null>(null);
   const [idCardTemp, setIdCardTemp] = useState(false);
+  const [idCardExpiry, setIdCardExpiry] = useState<string>("");
+  const [idCardPhotoFile, setIdCardPhotoFile] = useState<File | null>(null);
 
   // Delete target
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; table: string; label: string } | null>(null);
@@ -424,9 +426,26 @@ const HR = () => {
     const profile = profileMap.get(idCardUser.user_id);
     const membership = membersList.find(m => m.user_id === idCardUser.user_id);
     const today = new Date();
-    const expiry = new Date(today);
-    expiry.setFullYear(expiry.getFullYear() + (idCardTemp ? 0 : 1));
-    if (idCardTemp) expiry.setMonth(expiry.getMonth() + 3);
+
+    // Read photo override into a data URL if provided
+    let photoOverrideUrl: string | null = null;
+    if (idCardPhotoFile) {
+      photoOverrideUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(idCardPhotoFile);
+      });
+    }
+
+    // Build expiry string ONLY for temporary cards
+    let expiryStr: string | undefined = undefined;
+    if (idCardTemp) {
+      const expiryDate = idCardExpiry
+        ? new Date(idCardExpiry)
+        : (() => { const d = new Date(today); d.setMonth(d.getMonth() + 3); return d; })();
+      expiryStr = expiryDate.toLocaleDateString("en-NG");
+    }
 
     await generateIdCard({
       employeeName: profile?.full_name ?? "Unknown",
@@ -435,12 +454,15 @@ const HR = () => {
       organizationName: orgInfo?.name ?? "NIF Technical Services",
       isTemporary: idCardTemp,
       issueDate: today.toLocaleDateString("en-NG"),
-      expiryDate: expiry.toLocaleDateString("en-NG"),
-      avatarUrl: profile?.avatar_url,
+      expiryDate: expiryStr,
+      avatarUrl: photoOverrideUrl ?? profile?.avatar_url,
+      phone: profile?.phone ?? undefined,
       logoUrl: orgInfo?.logo_url,
     });
     toast({ title: "ID Card generated" });
     setIdCardOpen(false);
+    setIdCardPhotoFile(null);
+    setIdCardExpiry("");
   };
 
   // Payroll summaries
