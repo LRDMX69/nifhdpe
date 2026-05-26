@@ -130,6 +130,20 @@ async function callGemini(systemPrompt: string, userMessage: string, stream: boo
         }),
       });
       if (res.ok) return res;
+      // Surface credit/rate-limit issues directly to the client.
+      if (res.status === 402 || res.status === 429) {
+        const txt = await res.text().catch(() => "");
+        logger.warn(`Lovable AI ${res.status}: ${txt.slice(0, 200)}`);
+        return new Response(
+          JSON.stringify({
+            error:
+              res.status === 402
+                ? "AI credits exhausted. Please add credits in Settings > Workspace > Usage."
+                : "AI rate limit reached. Please try again shortly.",
+          }),
+          { status: res.status, headers: { "Content-Type": "application/json" } },
+        );
+      }
       logger.warn(`Lovable AI gateway returned ${res.status}, trying fallback`);
     } catch (err) {
       logger.error("Lovable AI gateway fetch error:", err);
