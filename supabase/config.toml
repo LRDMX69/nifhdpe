@@ -32,3 +32,6 @@ verify_jwt = true
 
 [functions.message-moderation]
 verify_jwt = true
+
+[functions.admin-terminate-user]
+verify_jwt = false
