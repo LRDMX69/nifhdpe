@@ -16,38 +16,7 @@ interface RiskResult {
   details?: string | null;
 }
 
-async function callAI(systemPrompt: string, userMessage: string) {
-  // @ts-expect-error
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  // @ts-expect-error
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-  if (LOVABLE_API_KEY) {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "google/gemini-2.5-flash-lite", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }] }),
-    });
-    // Only return if truly successful (2xx status)
-    if (res.ok) return res;
-    // If it's a 502 (gateway error), try fallback
-    if (res.status === 502) {
-      logger.warn("Lovable AI gateway returned 502, trying fallback");
-    } else {
-      logger.error(`Lovable AI gateway error: ${res.status} ${res.statusText}`);
-    }
-  }
-  if (GEMINI_API_KEY) {
-    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "gemini-2.0-flash-lite", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }] }),
-    });
-    // Only return if truly successful
-    if (res.ok) return res;
-    logger.error(`Gemini API error: ${res.status} ${res.statusText}`);
-  }
-  throw new Error("No AI API key configured or all AI services failed (LOVABLE_API_KEY or GEMINI_API_KEY)");
-}
+import { callAI, safeExtractJSON } from "../_shared/aiProvider.ts";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -117,24 +86,23 @@ Return ONLY a JSON array with this schema:
 
 Only include entries where risk_score >= 30. Valid JSON only, no markdown.`;
 
-    const response = await callAI(
+    const aiResult = await callAI(
       "You are a security AI that analyzes workplace messages for fraud, coercion, and policy violations. Return only valid JSON arrays.",
-      aiPrompt
+      aiPrompt,
     );
 
-    if (!response.ok) {
-      throw new Error(`AI API error: ${response.status}`);
+    if (!aiResult.ok) {
+      logger.warn(`message-moderation skipped: ${aiResult.error}`);
+      return new Response(
+        JSON.stringify({ success: false, scanned: unscanned.length, flagged: 0, reason: aiResult.error }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
-    const result = await response.json();
-    const aiContent = result.choices?.[0]?.message?.content ?? "[]";
 
-    let analysisResults: RiskResult[] = [];
-    try {
-      const cleaned = aiContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      analysisResults = JSON.parse(cleaned);
-    } catch {
-      logger.error("Failed to parse AI response:", aiContent.substring(0, 200));
-      analysisResults = [];
+    const parsed = safeExtractJSON<RiskResult[]>(aiResult.content);
+    const analysisResults: RiskResult[] = Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) {
+      logger.error("Failed to parse moderation AI JSON; first 200 chars:", aiResult.content.substring(0, 200));
     }
 
     const flagged = analysisResults.filter((r) => r.risk_score >= 30);
