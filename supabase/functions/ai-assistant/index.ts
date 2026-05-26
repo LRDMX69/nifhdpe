@@ -130,6 +130,20 @@ async function callGemini(systemPrompt: string, userMessage: string, stream: boo
         }),
       });
       if (res.ok) return res;
+      // Surface credit/rate-limit issues directly to the client.
+      if (res.status === 402 || res.status === 429) {
+        const txt = await res.text().catch(() => "");
+        logger.warn(`Lovable AI ${res.status}: ${txt.slice(0, 200)}`);
+        return new Response(
+          JSON.stringify({
+            error:
+              res.status === 402
+                ? "AI credits exhausted. Please add credits in Settings > Workspace > Usage."
+                : "AI rate limit reached. Please try again shortly.",
+          }),
+          { status: res.status, headers: { "Content-Type": "application/json" } },
+        );
+      }
       logger.warn(`Lovable AI gateway returned ${res.status}, trying fallback`);
     } catch (err) {
       logger.error("Lovable AI gateway fetch error:", err);
@@ -188,7 +202,7 @@ serve(async (req: Request) => {
 
   try {
     // Apply rate limiting (AI functions are expensive, use strict limits)
-    const rateLimitResponse = rateLimitMiddleware(req, RATE_LIMITS.AI_FUNCTION);
+    const rateLimitResponse = await rateLimitMiddleware(req, RATE_LIMITS.AI_FUNCTION);
     if (rateLimitResponse) {
       return rateLimitResponse;
     }
@@ -224,10 +238,12 @@ serve(async (req: Request) => {
 
     const response = await callGemini(systemPrompt, userMessage, true, context);
 
-    // Re-stream the response with our CORS headers attached
+    // Re-stream the response, preserving upstream Content-Type so that JSON
+    // error responses (402/429/etc.) are not mis-labeled as text/event-stream.
+    const upstreamCt = response.headers.get("Content-Type") || "text/event-stream";
     return new Response(response.body, {
       status: response.status,
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      headers: { ...corsHeaders, "Content-Type": upstreamCt },
     });
   } catch (e) {
     await captureException(e, { fn: "ai-assistant" }).catch(() => {});

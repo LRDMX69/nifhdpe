@@ -6,43 +6,13 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { validateServiceOrUser } from "../_shared/auth.ts";
 
 
-async function callAI(systemPrompt: string, userMessage: string) {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-
-  if (LOVABLE_API_KEY) {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "google/gemini-2.5-flash-lite", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }] }),
-    });
-    // Only return if truly successful (2xx status)
-    if (res.ok) return res;
-    // If it's a 502 (gateway error), try fallback
-    if (res.status === 502) {
-      logger.warn("Lovable AI gateway returned 502, trying fallback");
-    } else {
-      logger.error(`Lovable AI gateway error: ${res.status} ${res.statusText}`);
-    }
-  }
-  if (GEMINI_API_KEY) {
-    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "gemini-2.0-flash", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }] }),
-    });
-    // Only return if truly successful
-    if (res.ok) return res;
-    logger.error(`Gemini API error: ${res.status} ${res.statusText}`);
-  }
-  throw new Error("No AI API key configured or all AI services failed (LOVABLE_API_KEY or GEMINI_API_KEY)");
-}
+import { callAI, safeExtractJSON } from "../_shared/aiProvider.ts";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   // Apply rate limiting (AI functions are expensive, use strict limits)
-  const rateLimitResponse = rateLimitMiddleware(req, RATE_LIMITS.AI_FUNCTION);
+  const rateLimitResponse = await rateLimitMiddleware(req, RATE_LIMITS.AI_FUNCTION);
   if (rateLimitResponse) {
     return rateLimitResponse;
   }
@@ -82,24 +52,21 @@ serve(async (req: Request) => {
 
     const prompt = `You are an AI business intelligence agent for NIF Technical Services Ltd, an HDPE pipe installation company in Nigeria.\n\nTODAY'S DATE: ${today}\n\nEXISTING TRACKED OPPORTUNITIES (avoid duplicates):\n${JSON.stringify(existingOpps?.map(o => o.title) ?? [], null, 2)}\n\nGenerate 5-8 NEW realistic business opportunities in Nigeria for HDPE piping services.\n\nFor EACH provide: title, source, description, estimated_value (₦), deadline (YYYY-MM-DD), relevance_score (1-10), success_probability (0-100), capital_estimate, bid_strategy, competition_intensity (low/medium/high).\n\nAlso provide market_summary.\n\nReturn ONLY valid JSON:\n{"opportunities":[...],"market_summary":"..."}`;
 
-    const response = await callAI(
+    const aiResult = await callAI(
       "You are an AI business development analyst for Nigerian HDPE piping companies. Return valid JSON only, no markdown.",
-      prompt
+      prompt,
     );
 
-    if (!response.ok) {
-      throw new Error(`AI API error: ${response.status}`);
+    if (!aiResult.ok) {
+      return new Response(
+        JSON.stringify({ success: false, inserted: 0, expired_removed: expiredOpps?.length ?? 0, error: aiResult.error }),
+        { status: aiResult.status === 402 ? 402 : 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
-    const result = await response.json();
-    const rawContent = result.choices?.[0]?.message?.content ?? "";
-    
-    let parsed: any;
-    try {
-      const jsonMatch = rawContent.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, rawContent];
-      parsed = JSON.parse(jsonMatch[1].trim());
-    } catch {
-      parsed = { opportunities: [], market_summary: rawContent.substring(0, 500) };
-    }
+
+    const rawContent = aiResult.content;
+    const extracted = safeExtractJSON<{ opportunities?: unknown[]; market_summary?: string }>(rawContent);
+    const parsed = extracted ?? { opportunities: [], market_summary: rawContent.substring(0, 500) };
 
     const newOpps = parsed.opportunities ?? [];
     let insertedCount = 0;
