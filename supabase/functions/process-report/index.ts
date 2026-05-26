@@ -15,6 +15,24 @@ interface ReportRecord {
   };
 }
 
+const BANNED_PHRASES = [
+  "next step", "next steps",
+  "recommend", "recommendation",
+  "should consider", "we should", "you should",
+  "suggest", "suggestion",
+  "it is advisable", "it would be advisable",
+  "going forward",
+  "assumption", "assume",
+  "in conclusion", "to conclude", "in summary",
+  "to address this", "moving forward",
+  "TBD", "to be determined", "placeholder",
+];
+
+function containsBanned(text: string): boolean {
+  const low = text.toLowerCase();
+  return BANNED_PHRASES.some((p) => low.includes(p));
+}
+
 async function callAI(systemPrompt: string, userMessage: string) {
   // @ts-expect-error
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -79,58 +97,93 @@ serve(async (req: Request) => {
     // Validate that the user is authorized for this organization
     await validateUser(req, report.organization_id);
 
+    // Auto-fill author metadata from the actual submitter
+    const authorId = report.created_by;
+    let authorName = "Unknown";
+    let authorRole = "Staff";
+    if (authorId) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", authorId)
+        .maybeSingle();
+      authorName = prof?.full_name ?? authorName;
+      const { data: mem } = await supabase
+        .from("organization_memberships")
+        .select("role")
+        .eq("user_id", authorId)
+        .eq("organization_id", report.organization_id)
+        .limit(1)
+        .maybeSingle();
+      authorRole = mem?.role ?? authorRole;
+    }
+
     const { data: photos } = await supabase.from("field_report_photos").select("*").eq("field_report_id", fieldReportId);
 
     const photoCount = photos?.length ?? 0;
-    const rawNotes = (report.notes ?? report.tasks_completed ?? "No notes").replace(/<\/?script/gi, "");
-    const tasks = (report.tasks_completed ?? "Not specified").replace(/<\/?script/gi, "");
+    const sanitize = (s: string | null | undefined) =>
+      (s ?? "").replace(/<\/?script/gi, "").trim();
+    const rawNotes = sanitize(report.notes ?? report.tasks_completed);
+    const tasks = sanitize(report.tasks_completed);
+    const projectName = report.projects?.name ?? null;
+    const clientName = report.projects?.clients?.name ?? null;
 
-    const prompt = `Structure the following raw data into a professional engineering report for NIF Technical (Nigeria).
+    // Editor-only prompt. AI cleans grammar and organizes; it must NOT add content.
+    const userInput = [
+      tasks ? `Tasks completed:\n${tasks}` : "",
+      rawNotes && rawNotes !== tasks ? `Notes:\n${rawNotes}` : "",
+      sanitize(report.pressure_test_result) ? `Pressure test: ${sanitize(report.pressure_test_result)}` : "",
+      sanitize(report.safety_incidents) ? `Safety incidents: ${sanitize(report.safety_incidents)}` : "",
+      sanitize(report.client_feedback) ? `Client feedback: ${sanitize(report.client_feedback)}` : "",
+    ].filter(Boolean).join("\n\n");
 
-[METADATA]
-PROJECT: ${report.projects?.name ?? "Unknown"}
-CLIENT: ${report.projects?.clients?.name ?? "Unknown"}
-DATE: ${report.report_date}
-CREW: ${report.crew_members ?? "Not specified"}
-PRESSURE TEST: ${report.pressure_test_result ?? "Not recorded"}
-SAFETY INCIDENTS: ${report.safety_incidents ?? "None"}
-CLIENT FEEDBACK: ${report.client_feedback ?? "None"}
-PHOTOS: ${photoCount}
+    const editorSystemPrompt =
+      "You are a professional copy editor for field reports at NIF Technical Services Ltd (Nigeria). " +
+      "Your ONLY job: fix grammar, spelling, punctuation, and clarity while preserving the author's EXACT meaning and facts. " +
+      "You MUST NOT add recommendations, next steps, suggestions, conclusions, business advice, assumptions, interpretations, " +
+      "predictions, executive summaries, or any content the author did not state. " +
+      "You MUST NOT invent client names, project names, dates, names, numbers, or any factual detail. " +
+      "You MUST NOT output placeholders like [TBD], [Client Name], or [Insert]. " +
+      "If the input is one sentence, the output is one sentence. " +
+      "Output ONLY the cleaned text — no preamble, no headings, no sign-off, no markdown.";
 
-[RAW_USER_NOTES]
-${rawNotes}
-
-[USER_TASKS_COMPLETED]
-${tasks}
-
-[INSTRUCTIONS]
-Generate:
-1. Executive Summary
-2. Work Completed
-3. Technical Observations
-4. Safety Status
-5. Issues & Recommendations
-6. Next Steps
-
-Use professional engineering language. Be concise.`;
-
-    const response = await callAI(
-      "You are an AI report structuring assistant for NIF Technical, an HDPE pipe installation company in Nigeria.",
-      prompt
-    );
-
-    if (!response.ok) {
-      throw new Error(`AI API error: ${response.status}`);
+    let cleanedBody = rawNotes; // safe fallback
+    if (userInput.trim().length > 0) {
+      try {
+        const response = await callAI(editorSystemPrompt, userInput);
+        if (response.ok) {
+          const result = await response.json();
+          const aiText = (result.choices?.[0]?.message?.content ?? "").trim();
+          if (aiText && !containsBanned(aiText)) {
+            cleanedBody = aiText;
+          } else if (aiText && containsBanned(aiText)) {
+            logger.warn("AI output contained banned phrases — using original text", { fieldReportId });
+          }
+        }
+      } catch (aiErr) {
+        logger.warn("AI editor unavailable — using original text", { fieldReportId, err: String(aiErr) });
+      }
     }
-    const result = await response.json();
-    const structuredContent = result.choices?.[0]?.message?.content ?? "Failed to structure report";
+
+    // Build the final structured report deterministically from real DB facts only.
+    // No AI-invented metadata. Missing facts simply do not appear.
+    const headerLines: string[] = [];
+    if (projectName) headerLines.push(`Project: ${projectName}`);
+    if (clientName) headerLines.push(`Client: ${clientName}`);
+    headerLines.push(`Report Date: ${report.report_date}`);
+    headerLines.push(`Submitted By: ${authorName}${authorRole ? ` (${authorRole})` : ""}`);
+    if (report.crew_members) headerLines.push(`Crew: ${sanitize(report.crew_members)}`);
+    if (photoCount > 0) headerLines.push(`Photos Attached: ${photoCount}`);
+    headerLines.push(`Processed: ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`);
+
+    const structuredContent = `${headerLines.join("\n")}\n\n${cleanedBody || "(No narrative provided.)"}`;
 
     await supabase.from("structured_reports").insert({ field_report_id: fieldReportId, structured_content: structuredContent });
 
     const rData = report as unknown as ReportRecord;
     await supabase.from("ai_summaries").insert({
       organization_id: rData.organization_id, context: "field_report",
-      summary: `📋 New Field Report Processed\n\nProject: ${rData.projects?.name ?? "General"}\nDate: ${rData.report_date}\n\n${structuredContent.substring(0, 400)}...`,
+      summary: `New Field Report\n\nProject: ${projectName ?? "—"}\nDate: ${rData.report_date}\nBy: ${authorName}\n\n${cleanedBody.substring(0, 300)}${cleanedBody.length > 300 ? "…" : ""}`,
       metadata: { field_report_id: fieldReportId, processed_at: new Date().toISOString() },
     });
 

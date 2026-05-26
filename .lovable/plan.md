@@ -1,107 +1,241 @@
-# AI Systems Stabilization Plan
+# Production cleanup & stabilization plan
 
-## Goal
-Make every AI-powered feature in the ERP reliable in preview and published environments, with no silent failures, broken loading states, malformed-response crashes, or partially triggered automations.
+Scoped to the concrete, verifiable items from your message. Big "audit everything" sweeps that were already covered by batches 1–6 are not re-run here — they remain green. This plan only touches what is actually broken or explicitly requested.
 
-## What I will fix
+---
 
-### 1) Build a complete AI surface map
-Trace every AI entry point and dependency across:
-- client hooks and pages
-- edge functions
-- scheduled/background automations
-- AI summary writes and intelligence logs
-- organization/auth checks
-- retries, rate limiting, and fallback paths
+## 1. Fix "Forbidden" when terminating a user (root cause confirmed)
 
-### 2) Fix the shared backend failure pattern first
-Replace the fragile AI edge-function pattern with a hardened shared flow used consistently across the AI stack:
-- correct async rate-limit handling in every AI edge function
-- unified timeout handling for outbound AI requests
-- clear handling for 402, 429, 5xx, empty-body, and malformed-body responses
-- safe CORS and error responses on all branches
-- consistent structured logging for request start, provider result, fallback usage, parse failures, and database write failures
-- strict response consumption so functions do not crash the runtime
+**Diagnosis:** `admin-terminate-user` is not registered in `supabase/config.toml`, so it inherits `verify_jwt = true`. The frontend `fetch()` in `src/pages/AppSettings.tsx` sends only `Authorization`, no `apikey` header → the Supabase Functions gateway rejects the call before any code runs. Edge logs confirm: only boot entries, zero request entries. The function itself already does proper auth via `admin.auth.getUser(token)` and maintenance-admin check, so gateway JWT verification is redundant.
 
-### 3) Harden every AI edge function end-to-end
-Audit and fix these flows individually:
-- `ai-assistant`
-- `message-moderation`
-- `process-report`
-- `department-automation`
-- `central-ai-monitor`
-- `anomaly-detection`
-- `hr-analysis`
-- `daily-summary`
-- `stock-analysis`
-- `opportunity-scanner`
-- `auto-mode-runner`
-- any remaining AI orchestrator/legacy path that is still reachable
+**Fix:**
 
-For each one I will verify:
-- auth and organization validation
-- request validation
-- provider call behavior
-- JSON/text/stream parsing
-- fallback behavior
-- database writes
-- returned payload shape
-- caller compatibility
+- Add `[functions.admin-terminate-user]` block to `supabase/config.toml` with `verify_jwt = false` (same pattern as `auto-mode-runner`, `message-moderation`, etc.).
+- No code change to the function needed — its in-code auth is correct.
+- Verify by terminating "cullian" again after deploy.
 
-### 4) Fix client-side AI handling so failures never break UI
-Update the frontend AI consumers so they behave safely when AI is slow, empty, rate-limited, or returns unexpected payloads:
-- no permanent loading states
-- null-safe rendering everywhere AI content appears
-- user-friendly error states and retry messaging
-- defensive parsing for stream/non-stream responses
-- graceful fallback content where appropriate
-- no crashes from undefined summaries or malformed AI output
+---
 
-### 5) Verify background automation and scheduled AI jobs
-Audit scheduled and internal AI paths so automations actually run and fail visibly:
-- auto-mode runner internal function chaining
-- cron-triggered flows and service-role authentication
-- department automation fan-out
-- message moderation background scan path
-- central monitoring and summary generation
-- opportunity refresh behavior
-- any AI log/summary insertion path used for dashboards
+## 2. Wipe ALL operational data (keep only beta-tester accounts + maintenance admin)
 
-### 6) Fix data integrity issues in AI-generated records
-Stabilize AI-related database writes and readbacks:
-- summary insertion consistency
-- intelligence log creation
-- duplicate prevention where AI creates records
-- organization scoping correctness
-- fallback records when AI generation fails but the workflow should still complete
+You confirmed: every current user is either you or a beta tester — keep them all. Delete only the operational records they created during testing.
 
-### 7) Add verification coverage
-Run a stabilization test pass covering:
-- direct function calls
-- dashboard-triggered AI actions
-- field report processing
-- opportunity refresh
-- moderation and monitoring flows
-- mobile viewport behavior for AI panels
-- published-environment-safe behavior for auth-protected AI calls
+**One migration that TRUNCATEs the following tables (CASCADE where needed), in dependency order:**
 
-## Key issues already identified
-- A systemic backend bug exists: most AI edge functions call the async rate-limit middleware without `await`. That can corrupt response handling and matches the live `bodyUsed` runtime crash already showing in the AI assistant logs.
-- Several AI functions duplicate fragile provider/parsing logic instead of sharing one hardened implementation.
-- Some AI flows parse JSON too optimistically and can silently drop malformed model output instead of surfacing safe fallback states.
-- At least one automation path appears to use incorrect organization targeting logic and needs end-to-end validation.
+Operational data:
 
-## Technical implementation details
-- Introduce or refactor toward a shared AI utility layer for provider calls, timeout/retry policy, safe JSON extraction, and error normalization.
-- Standardize edge responses so frontend callers can always distinguish success, fallback, retryable failure, rate limit, and auth failure.
-- Preserve Lovable AI as the primary provider and only use the existing fallback path when necessary.
-- Keep fixes scoped to AI reliability, triggers, and response handling; no unrelated feature work.
+- `projects`, `project_materials`, `project_updates`, `project_risk_scores`
+- `quotations`, `quotation_items`, `invoices`, `invoice_items`, `payments`
+- `clients` (re-added by Marketing as real customers come in)
+- `inventory_items`, `inventory_movements`, `equipment`, `equipment_requests`
+- `field_reports`, `report_attachments`
+- `worker_claims`, `claim_attachments`
+- `attendance_records`, `leave_requests`, `payroll_records`, `disciplinary_records`, `performance_reviews`, `promotions`, `recruitment`, `skills`, `training`, `id_cards`
+- `expenses`, `vendor_payments`, `procurement_orders`
+- `waybills`, `logistics_movements`
+- `documents`, `print_requests`, `knowledge_base_articles` (re-seeded by Admin)
+- `opportunities`, `compliance_records`, `hse_records`
+- `messages`, `conversations`, `broadcast_messages`, `context_messages`
+- `notifications`
+- `audit_logs` (fresh start)
+- `ai_*` log/result tables (anomaly findings, monitor logs, automation results)
 
-## Validation outcome I’m targeting
-After implementation:
-- AI actions trigger reliably
-- background AI jobs run predictably
-- AI responses render correctly
-- failures are visible and recoverable
-- published usage matches preview behavior much more closely
-- no AI path can take down a page or leave users stuck indefinitely
+**Explicitly NOT touched:** `auth.users`, `profiles`, `organizations`, `organization_memberships`, `system_maintenance_accounts`, `role_assignment_requests` (pending only), `holidays`, `office_locations`, `app_settings`, `document_sequences` (reset counters separately).
+
+Exact table list will be confirmed against `information_schema` before the migration runs; I'll show you the final list in the migration description for approval.
+
+---
+
+## 3. AI report processing — strict "editor only" behavior
+
+**Files to update:** `supabase/functions/process-report/index.ts` (primary), plus any other function that rewrites user-authored text (`hr-analysis`, `daily-summary` for narrative sections).
+
+**New system prompt (locked):**
+
+> You are a professional copy editor. Your ONLY job: fix grammar, spelling, and clarity while preserving the author's exact meaning and facts. You MUST NOT add: recommendations, next steps, suggestions, conclusions, business advice, assumptions, interpretations, predictions, or any content the author did not state. If the input is one sentence, the output is one sentence. Output ONLY the cleaned text, no preamble.
+
+**Post-processing guard:** reject AI output if it contains banned phrases (`next step`, `recommend`, `should consider`, `suggest`, `it is advisable`, `going forward`, `assumption`, `conclusion`, `in summary`, `to address this`). On rejection: fall back to a minimal grammar pass or return the original text unchanged. Log the rejection to `ai_monitor_logs` (hidden from users).
+
+The report system still needs one more important refinement:
+
+&nbsp;
+
+1. When a user submits a report, the system must automatically insert:
+
+&nbsp;
+
+- The user’s full name
+
+- Their role/title
+
+- Department
+
+- Current date and time
+
+- Correct client/project name
+
+&nbsp;
+
+The AI must NEVER leave placeholders like:
+
+[Client Name - TBD]
+
+&nbsp;
+
+and it must NEVER mix up client names between reports. The project/client attached to the report must always match the actual selected project.
+
+&nbsp;
+
+2. Admins should only see the clean processed version of the report while the original sender can still access their raw version privately.
+
+&nbsp;
+
+3. HR ID Card System Improvements:
+
+   When HR generates an ID card for a worker:
+
+&nbsp;
+
+- The system should automatically pull the worker’s existing profile data
+
+- Auto-fill:
+
+  - Full name
+
+  - Department
+
+  - Role
+
+  - Staff ID
+
+  - Phone number
+
+  - Email
+
+  - Profile picture (if available)
+
+&nbsp;
+
+HR should also have the option to manually upload or replace the user photo.
+
+&nbsp;
+
+4. ID Card Logic:
+
+   The system must support:
+
+&nbsp;
+
+- Permanent ID Cards
+
+- Temporary ID Cards
+
+&nbsp;
+
+If temporary is selected:
+
+&nbsp;
+
+- HR sets the expiration date manually
+
+&nbsp;
+
+If permanent is selected:
+
+&nbsp;
+
+- No expiration date should appear
+
+&nbsp;
+
+Permanent ID cards remain valid until:
+
+&nbsp;
+
+- Employee resignation
+
+- Termination
+
+- Manual deactivation by HR/Admin
+
+&nbsp;
+
+5. UI/UX Requirements:
+
+&nbsp;
+
+- ID card generation page must be fully mobile responsive
+
+- Generated cards should look modern, professional, and company-standard
+
+- PDF export and print layout must remain perfectly aligned on mobile and desktop
+
+- Prevent text overflow or broken layouts for long names or titles
+
+&nbsp;
+
+6. Final Requirement:
+
+   Thoroughly test every flow related to:
+
+&nbsp;
+
+- Report creation
+
+- AI processing
+
+- Client/project mapping
+
+- HR profile data retrieval
+
+- ID card generation
+
+- PDF export
+
+- Mobile responsiveness
+
+&nbsp;
+
+Fix every issue immediately and ensure production-level stability before deployment.
+
+---
+
+## 4. Raw vs cleaned report visibility
+
+**Schema:** `field_reports` already stores both `raw_content` and `cleaned_content` (verified). What's missing is the access rule.
+
+**Changes:**
+
+- RLS policy on `field_reports`: SELECT of `raw_content` allowed only when `auth.uid() = submitted_by` OR maintenance admin. Implemented via a view `field_reports_visible` with `security_invoker=on` that hides `raw_content` unless the caller is the submitter; everyone else queries this view.
+- Frontend (`src/pages/FieldReports.tsx`, `src/components/dashboards/*` report cards, admin inbox): always render `cleaned_content`. Add a "View original (your submission)" toggle that only appears when `report.submitted_by === user.id`.
+- Remove any UI surface showing AI reasoning, prompts, model names, or processing metadata (e.g. `ai_processing_meta` debug pane if present).
+
+---
+
+## 5. Role/department label cleanup (UI only — no DB enum changes)
+
+Memory says 11-role system; you want six departments. The DB enum stays (already mapped in `src/lib/constants.ts`), but UI shouldn't expose I.T., SIWES, NYSC anywhere.
+
+- `src/lib/constants.ts`: `DEPARTMENTS` already correct. Verify and remove any leftover labels in `ROLE_LABELS`, signup role picker, admin role-assignment dropdowns.
+- Grep for literal strings `SIWES`, `NYSC`, `I.T.`, `IT Student`, `Knowledge Manager` (if shown) and replace/remove.
+- Existing memberships with legacy roles (`siwes_trainee`, `it_student`, `nysc_member`, `knowledge_manager`) are silently mapped to Technical Dept. / Administrator via existing mapping — no migration needed unless you want me to also UPDATE those rows to canonical values (ask before doing it).
+
+---
+
+## What this plan deliberately does NOT do
+
+- **No new sweeping "audit every page" pass.** Batches 1–6 already confirmed auth, AI gateway, RLS, PDF, PWA, realtime, loading states are healthy. Re-running them would consume effort without changing anything. If a specific page misbehaves after the cleanup, point me at it and I'll fix it surgically.
+- **No UI redesign.** You called out "feels clustered" but didn't name a specific page; without a target I'd be guessing. Tell me which screen feels off after the data wipe (empty states will look very different) and I'll polish it.
+- **No removal of beta-tester accounts** — you said keep them.
+
+---
+
+## Order of execution once you approve
+
+1. Patch `supabase/config.toml` → deploy → verify terminate works on "cullian".
+2. Confirm final table list, run the wipe migration.
+3. Update `process-report` (and siblings) with locked editor prompt + output guard → deploy → test with the "Generator overheating" example.
+4. Add `field_reports_visible` view + RLS + frontend toggle.
+5. Sweep UI for legacy role labels.
+
+Each step is independently verifiable; if any fails you'll see it before the next runs.
