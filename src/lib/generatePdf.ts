@@ -219,10 +219,9 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
 
   // Branded letterhead background (full-page image; content renders on top).
   const letterheadDataUrl = await getLetterheadDataUrl();
-  drawLetterheadBackground(doc, letterheadDataUrl);
-  // Content starts below the letterhead header band (~58mm) — the image
-  // reserves roughly the top 50mm and the bottom 20mm for branding.
-  let y = 62;
+  drawPageChrome(doc, letterheadDataUrl);
+  // Content starts below the visible letterhead artwork.
+  let y = CONTENT_TOP_START;
 
   // Doc meta
   const docId = documentId || `DOC-${Date.now().toString(36).toUpperCase()}`;
@@ -349,11 +348,14 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       startY: y,
       head: [tableData.columns.map(c => c.header)],
       body: tableData.rows.map(row => tableData.columns.map(c => String(row[c.dataKey] ?? ""))),
-      margin: { left: margin, right: margin },
+      margin: { top: CONTENT_TOP_START, right: margin, bottom: CONTENT_BOTTOM_RESERVE, left: margin },
       styles: { fontSize: 8.5, cellPadding: 3, textColor: [30, 30, 30], lineColor: [220, 220, 220], lineWidth: 0.2 },
       headStyles: { fillColor: BLUE as [number, number, number], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.5 },
       alternateRowStyles: { fillColor: [248, 248, 248] },
       theme: "grid",
+      willDrawPage: ({ doc: tableDoc }) => {
+        drawPageChrome(tableDoc, letterheadDataUrl);
+      },
     });
     // @ts-expect-error - autoTable adds lastAutoTable to jsPDF instance
     y = doc.lastAutoTable?.finalY ?? y + 10;
@@ -381,7 +383,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   // Signature block
   if (showSignature) {
     const sigBlockHeight = 20;
-    if (y + sigBlockHeight + 32 > pageH - 28) { doc.addPage(); y = 62; }
+    if (y + sigBlockHeight + 32 > pageH - CONTENT_BOTTOM_RESERVE) { doc.addPage(); drawPageChrome(doc, letterheadDataUrl); y = CONTENT_TOP_START; }
     y = Math.max(y + 15, pageH - 50);
     doc.setDrawColor(50, 50, 50);
     doc.setLineWidth(0.3);
@@ -408,9 +410,6 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-
-    // Ensure every continuation page also carries the branded letterhead image.
-    if (i > 1) drawLetterheadBackground(doc, letterheadDataUrl);
 
     // Compact page count + generation note — placed inside the bottom safe
     // area, above the image's green/blue corner band.
