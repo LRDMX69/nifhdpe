@@ -103,7 +103,7 @@ const HR = () => {
     queryKey: ["profiles-for-hr", orgId],
     queryFn: async () => {
       if (!orgId) return new Map();
-      const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, avatar_url, basic_salary, bank_name, bank_account_number").eq("organization_id", orgId);
+      const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, avatar_url, phone, basic_salary, bank_name, bank_account_number").eq("organization_id", orgId);
       return new Map((profiles ?? []).map((p) => [p.user_id, p]));
     },
     enabled: !!orgId,
@@ -127,6 +127,8 @@ const HR = () => {
   const [idCardOpen, setIdCardOpen] = useState(false);
   const [idCardUser, setIdCardUser] = useState<{ user_id: string; role?: string } | null>(null);
   const [idCardTemp, setIdCardTemp] = useState(false);
+  const [idCardExpiry, setIdCardExpiry] = useState<string>("");
+  const [idCardPhotoFile, setIdCardPhotoFile] = useState<File | null>(null);
 
   // Delete target
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; table: string; label: string } | null>(null);
@@ -424,9 +426,26 @@ const HR = () => {
     const profile = profileMap.get(idCardUser.user_id);
     const membership = membersList.find(m => m.user_id === idCardUser.user_id);
     const today = new Date();
-    const expiry = new Date(today);
-    expiry.setFullYear(expiry.getFullYear() + (idCardTemp ? 0 : 1));
-    if (idCardTemp) expiry.setMonth(expiry.getMonth() + 3);
+
+    // Read photo override into a data URL if provided
+    let photoOverrideUrl: string | null = null;
+    if (idCardPhotoFile) {
+      photoOverrideUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(idCardPhotoFile);
+      });
+    }
+
+    // Build expiry string ONLY for temporary cards
+    let expiryStr: string | undefined = undefined;
+    if (idCardTemp) {
+      const expiryDate = idCardExpiry
+        ? new Date(idCardExpiry)
+        : (() => { const d = new Date(today); d.setMonth(d.getMonth() + 3); return d; })();
+      expiryStr = expiryDate.toLocaleDateString("en-NG");
+    }
 
     await generateIdCard({
       employeeName: profile?.full_name ?? "Unknown",
@@ -435,12 +454,15 @@ const HR = () => {
       organizationName: orgInfo?.name ?? "NIF Technical Services",
       isTemporary: idCardTemp,
       issueDate: today.toLocaleDateString("en-NG"),
-      expiryDate: expiry.toLocaleDateString("en-NG"),
-      avatarUrl: profile?.avatar_url,
+      expiryDate: expiryStr,
+      avatarUrl: photoOverrideUrl ?? profile?.avatar_url,
+      phone: profile?.phone ?? undefined,
       logoUrl: orgInfo?.logo_url,
     });
     toast({ title: "ID Card generated" });
     setIdCardOpen(false);
+    setIdCardPhotoFile(null);
+    setIdCardExpiry("");
   };
 
   // Payroll summaries
@@ -454,7 +476,7 @@ const HR = () => {
 
 
 
-  const roleOptions = ["administrator","engineer","technician","warehouse","finance","hr","reception_sales","knowledge_manager","siwes_trainee","it_student","nysc_member"];
+  const roleOptions = ["administrator","engineer","technician","warehouse","finance","hr","reception_sales"];
 
   // Unique employees for ID cards
   const uniqueEmployees = (() => {
@@ -522,7 +544,7 @@ const HR = () => {
 
       {/* ID Card Generation Dialog */}
       <Dialog open={idCardOpen} onOpenChange={setIdCardOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Generate ID Card</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="flex items-center gap-3">
@@ -530,9 +552,12 @@ const HR = () => {
                 {idCardUser && profileMap.get(idCardUser.user_id)?.avatar_url && <AvatarImage src={profileMap.get(idCardUser.user_id)?.avatar_url} />}
                 <AvatarFallback className="bg-primary/10 text-primary">{idCardUser ? getMemberName(idCardUser.user_id).split(" ").map((n) => n[0]).join("").slice(0, 2) : "?"}</AvatarFallback>
               </Avatar>
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="font-medium">{idCardUser ? getMemberName(idCardUser.user_id) : ""}</p>
                 <p className="text-xs text-muted-foreground capitalize">{idCardUser?.role?.replace(/_/g, " ")}</p>
+                {idCardUser && profileMap.get(idCardUser.user_id)?.phone && (
+                  <p className="text-xs text-muted-foreground">{profileMap.get(idCardUser.user_id)?.phone}</p>
+                )}
               </div>
             </div>
             <div className="space-y-2">
@@ -540,10 +565,22 @@ const HR = () => {
               <Select value={idCardTemp ? "temporary" : "permanent"} onValueChange={v => setIdCardTemp(v === "temporary")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="permanent">Permanent (1 year validity)</SelectItem>
-                  <SelectItem value="temporary">Temporary (3 months validity)</SelectItem>
+                  <SelectItem value="permanent">Permanent (no expiry)</SelectItem>
+                  <SelectItem value="temporary">Temporary (with expiry)</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            {idCardTemp && (
+              <div className="space-y-2">
+                <Label>Expiry Date</Label>
+                <Input type="date" value={idCardExpiry} min={new Date().toISOString().split("T")[0]} onChange={e => setIdCardExpiry(e.target.value)} />
+                <p className="text-[10px] text-muted-foreground">Leave blank to default to 3 months from today.</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Override Photo (optional)</Label>
+              <Input type="file" accept="image/*" onChange={e => setIdCardPhotoFile(e.target.files?.[0] ?? null)} />
+              <p className="text-[10px] text-muted-foreground">If left empty, the employee's profile picture is used.</p>
             </div>
             <Button className="w-full" onClick={handleGenerateIdCard}>
               <CreditCard className="h-4 w-4 mr-2" />Generate & Download ID Card

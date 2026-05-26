@@ -22,11 +22,6 @@ const dashboardMap: Record<string, React.FC> = {
   hr: HRDashboard,
   // Marketing
   reception_sales: SalesDashboard,
-  // Legacy roles routed to Admin (will be migrated by admin)
-  knowledge_manager: AdminDashboard,
-  siwes_trainee: TechnicianDashboard,
-  it_student: TechnicianDashboard,
-  nysc_member: TechnicianDashboard,
 };
 
 const DashboardRouter = () => {

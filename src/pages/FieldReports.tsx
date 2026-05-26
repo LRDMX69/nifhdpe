@@ -76,6 +76,7 @@ const FieldReports = () => {
   const [processing, setProcessing] = useState(false);
   const [structuredReport, setStructuredReport] = useState<string | null>(null);
   const [viewingReport, setViewingReport] = useState<FieldReportWithRelations | null>(null);
+  const [showRawSubmission, setShowRawSubmission] = useState(false);
   const containerRef = useGsapAnimation("slideUp");
   const queryClient = useQueryClient();
   const printRef = useRef<HTMLDivElement>(null);
@@ -552,7 +553,7 @@ const FieldReports = () => {
 
       {/* View report dialog */}
       {viewingReport && (
-        <Dialog open={!!viewingReport} onOpenChange={() => setViewingReport(null)}>
+        <Dialog open={!!viewingReport} onOpenChange={() => { setViewingReport(null); setShowRawSubmission(false); }}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Report: {viewingReport.projects?.name ?? "General"} — {viewingReport.report_date}</DialogTitle>
@@ -563,21 +564,36 @@ const FieldReports = () => {
                 <p className="text-sm">Project: {viewingReport.projects?.name ?? "General"} | Date: {viewingReport.report_date}</p>
                 <Separator className="my-2" />
               </div>
-              {viewingReport.structured_reports?.[0] ? (
-                <div className="prose prose-sm max-w-none text-foreground text-sm leading-relaxed break-words-safe">
-                  {cleanMarkdown(viewingReport.structured_reports[0].structured_content).split('\n').map((line: string, i: number) => (
-                    <p key={i} className={line.trim() === '' ? 'h-2' : ''}>{line}</p>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-2 text-sm">
-                  <p><strong>Tasks:</strong> {viewingReport.tasks_completed}</p>
-                  {viewingReport.crew_members && <p><strong>Crew:</strong> {viewingReport.crew_members}</p>}
-                  {viewingReport.pressure_test_result && <p><strong>Pressure Test:</strong> {viewingReport.pressure_test_result}</p>}
-                  {viewingReport.safety_incidents && <p><strong>Safety:</strong> {viewingReport.safety_incidents}</p>}
-                  {viewingReport.client_feedback && <p><strong>Client Feedback:</strong> {viewingReport.client_feedback}</p>}
-                </div>
-              )}
+              {(() => {
+                const isSubmitter = viewingReport.created_by === user?.id;
+                const hasStructured = !!viewingReport.structured_reports?.[0];
+                if (isSubmitter && showRawSubmission) {
+                  return (
+                    <div className="space-y-2 text-sm">
+                      <Badge variant="outline" className="mb-2">Original submission</Badge>
+                      <p><strong>Tasks:</strong> {viewingReport.tasks_completed}</p>
+                      {viewingReport.crew_members && <p><strong>Crew:</strong> {viewingReport.crew_members}</p>}
+                      {viewingReport.pressure_test_result && <p><strong>Pressure Test:</strong> {viewingReport.pressure_test_result}</p>}
+                      {viewingReport.safety_incidents && <p><strong>Safety:</strong> {viewingReport.safety_incidents}</p>}
+                      {viewingReport.client_feedback && <p><strong>Client Feedback:</strong> {viewingReport.client_feedback}</p>}
+                    </div>
+                  );
+                }
+                if (hasStructured) {
+                  return (
+                    <div className="prose prose-sm max-w-none text-foreground text-sm leading-relaxed break-words-safe">
+                      {cleanMarkdown(viewingReport.structured_reports![0].structured_content).split('\n').map((line: string, i: number) => (
+                        <p key={i} className={line.trim() === '' ? 'h-2' : ''}>{line}</p>
+                      ))}
+                    </div>
+                  );
+                }
+                return (
+                  <div className="text-sm text-muted-foreground italic py-6 text-center">
+                    Report is being processed. The structured version will appear here shortly.
+                  </div>
+                );
+              })()}
               <ReportPhotos photos={viewingReport.field_report_photos || []} />
               <div className="hidden print:block mt-8">
 
@@ -589,6 +605,11 @@ const FieldReports = () => {
               </div>
             </div>
             <div className="flex gap-2 mt-2 print-hide">
+              {viewingReport.created_by === user?.id && viewingReport.structured_reports?.[0] && (
+                <Button size="sm" variant="ghost" onClick={() => setShowRawSubmission(v => !v)}>
+                  {showRawSubmission ? "View cleaned version" : "View original submission"}
+                </Button>
+              )}
               <Button size="sm" variant="outline" onClick={async () => {
                 const { generatePdf } = await import("@/lib/generatePdf");
                 const content = viewingReport.structured_reports?.[0]?.structured_content

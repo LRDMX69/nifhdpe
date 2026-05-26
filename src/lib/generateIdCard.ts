@@ -7,7 +7,7 @@ interface IdCardOptions {
   organizationName: string;
   isTemporary: boolean;
   issueDate: string;
-  expiryDate: string;
+  expiryDate?: string;
   avatarUrl?: string | null;
   phone?: string;
   emergencyContact?: string;
@@ -29,6 +29,25 @@ function fitText(doc: jsPDF, text: string, maxWidth: number, fontSize: number): 
   return t + "…";
 }
 
+/** Load an image URL and return a PNG data URL (CORS-safe via canvas). */
+async function loadImageDataUrl(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("no ctx"));
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => reject(new Error("img load failed"));
+    img.src = url;
+  });
+}
+
 export async function generateIdCard(options: IdCardOptions): Promise<void> {
   const {
     employeeName,
@@ -38,6 +57,7 @@ export async function generateIdCard(options: IdCardOptions): Promise<void> {
     isTemporary,
     issueDate,
     expiryDate,
+    avatarUrl,
     phone,
     emergencyContact,
     logoUrl,
@@ -68,29 +88,12 @@ export async function generateIdCard(options: IdCardOptions): Promise<void> {
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...GREEN);
-  doc.text(organizationName, 6, 9);
+  doc.text(fitText(doc, organizationName, 45, 9), 6, 9);
 
   // Organization logo (if available)
   if (logoUrl) {
     try {
-      const logoImg = await new Promise<string>((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0);
-            resolve(canvas.toDataURL("image/png"));
-          } else {
-            reject(new Error("Failed to get canvas context"));
-          }
-        };
-        img.onerror = () => reject(new Error("Failed to load logo"));
-        img.src = logoUrl;
-      });
+      const logoImg = await loadImageDataUrl(logoUrl);
       // Add logo to the right side of the header area
       const logoSize = 7;
       doc.addImage(logoImg, "PNG", w - logoSize - 4, 3.5, logoSize, logoSize);
@@ -126,13 +129,26 @@ export async function generateIdCard(options: IdCardOptions): Promise<void> {
   doc.setDrawColor(...GREEN);
   doc.setLineWidth(0.5);
   doc.roundedRect(photoX, photoY, photoW, photoH, 2, 2);
-  // Photo placeholder icon (camera silhouette using shapes)
-  doc.setFillColor(60, 80, 100);
-  doc.circle(photoX + photoW / 2, photoY + photoH / 2 - 1, 5, "F");
-  doc.circle(photoX + photoW / 2, photoY + photoH / 2 - 4, 3.5, "F");
-  doc.setFontSize(4.5);
-  doc.setTextColor(100, 120, 140);
-  doc.text("PHOTO", photoX + photoW / 2, photoY + photoH - 2, { align: "center" });
+
+  // Try to render the actual employee photo
+  let photoRendered = false;
+  if (avatarUrl) {
+    try {
+      const photoImg = await loadImageDataUrl(avatarUrl);
+      doc.addImage(photoImg, "PNG", photoX + 0.5, photoY + 0.5, photoW - 1, photoH - 1, undefined, "FAST");
+      photoRendered = true;
+    } catch {
+      // fall through to placeholder
+    }
+  }
+  if (!photoRendered) {
+    doc.setFillColor(60, 80, 100);
+    doc.circle(photoX + photoW / 2, photoY + photoH / 2 - 1, 5, "F");
+    doc.circle(photoX + photoW / 2, photoY + photoH / 2 - 4, 3.5, "F");
+    doc.setFontSize(4.5);
+    doc.setTextColor(100, 120, 140);
+    doc.text("PHOTO", photoX + photoW / 2, photoY + photoH - 2, { align: "center" });
+  }
 
   // Employee name - auto-scale
   const displayName = fitText(doc, employeeName, 48, 11);
@@ -142,7 +158,7 @@ export async function generateIdCard(options: IdCardOptions): Promise<void> {
   doc.text(displayName, 30, 22);
 
   // Role
-  const displayRole = role.replace(/_/g, " ").toUpperCase();
+  const displayRole = fitText(doc, role.replace(/_/g, " ").toUpperCase(), 48, 7);
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...GREEN);
@@ -172,7 +188,12 @@ export async function generateIdCard(options: IdCardOptions): Promise<void> {
   doc.setFont("helvetica", "normal");
   doc.setTextColor(140, 160, 180);
   doc.text(`ISSUED: ${issueDate}`, 6, 47);
-  doc.text(`EXPIRES: ${expiryDate}`, 6, 50.5);
+  if (isTemporary && expiryDate) {
+    doc.text(`EXPIRES: ${expiryDate}`, 6, 50.5);
+  } else {
+    doc.setTextColor(...GREEN);
+    doc.text("STATUS: ACTIVE", 6, 50.5);
+  }
 
   // Barcode-style reference (deterministic pattern from employee number)
   const refCode = employeeNumber.replace(/[^A-Z0-9]/gi, "");
