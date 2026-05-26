@@ -43,7 +43,8 @@ export async function validateUser(req: Request, organizationId: string) {
   }
 
   // Verify membership in the organization. Maintenance admins bypass org membership checks.
-  const { data: isMaint } = await supabase.rpc("is_maintenance_admin", { _uid: user.id });
+  const { data: isMaint, error: maintErr } = await supabase.rpc("is_maintenance_admin", { _uid: user.id });
+  console.log("auth.ts debug", { userId: user.id, organizationId, isMaint, maintErr });
   if (isMaint === true) return user;
 
   const { data: membership, error: memberError } = await supabase
