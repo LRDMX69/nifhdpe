@@ -35,7 +35,7 @@ const KnowledgeBase = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const orgId = memberships[0]?.organization_id;
-  const canEdit = activeRole === "administrator" || activeRole === "knowledge_manager";
+  const canEdit = activeRole === "administrator";
 
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
