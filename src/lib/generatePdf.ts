@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import letterheadBgUrl from "@/assets/letterhead-bg.png";
 
 export interface ContentSection {
   heading?: string;
@@ -65,121 +66,45 @@ const BLUE: [number, number, number] = [10, 22, 40]; // Using DARK as BLUE
 const DARK: [number, number, number] = [10, 22, 40];
 const STAMP_RED: [number, number, number] = [180, 30, 30];
 
-function drawLetterhead(doc: jsPDF, margin: number, pageW: number): number {
-  // ============================================================
-  // 1. TOP COLORFUL GEOMETRIC BANNERS (Matching Reference Image)
-  // ============================================================
-  
-  // Green banner on top left/center
-  doc.setFillColor(...GREEN);
-  doc.triangle(0, 0, 130, 0, 0, 52, "F");
-
-  // Blue banner parallel diagonal strip below Green
-  doc.setFillColor(...BLUE);
-  doc.triangle(0, 52, 130, 0, 175, 0, "F");
-  doc.triangle(0, 52, 175, 0, 0, 68, "F");
-
-  // ============================================================
-  // 2. COMPANY LOGO / GRID MODERN ICON (Top-Right White Area)
-  // ============================================================
-  const logoX = 145;
-  const logoY = 10;
-  
-  // Custom composite modern tech grid logo (grid structure)
-  doc.setFillColor(...BLUE);
-  doc.rect(logoX, logoY, 4.5, 4.5, "F");
-  doc.rect(logoX + 10.6, logoY, 4.5, 4.5, "F");
-  doc.rect(logoX + 15.9, logoY, 4.5, 4.5, "F");
-  doc.rect(logoX, logoY + 5.3, 4.5, 4.5, "F");
-  doc.rect(logoX + 10.6, logoY + 5.3, 4.5, 4.5, "F");
-  
-  doc.setFillColor(...GREEN);
-  doc.rect(logoX + 5.3, logoY, 4.5, 4.5, "F");
-  doc.rect(logoX + 5.3, logoY + 5.3, 4.5, 4.5, "F");
-  doc.rect(logoX, logoY + 10.6, 4.5, 4.5, "F");
-  doc.rect(logoX + 5.3, logoY + 10.6, 4.5, 4.5, "F");
-  doc.rect(logoX + 10.6, logoY + 10.6, 4.5, 4.5, "F");
-  doc.rect(logoX + 15.9, logoY + 10.6, 4.5, 4.5, "F");
-
-  // Label text under logo block
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(...DARK);
-  doc.text("NIF TECHNICAL SERVICES LTD.", 190, 29, { align: "right" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  doc.setTextColor(120, 120, 120);
-  doc.text("RC: 1872934 | PIPING SPECIALISTS", 190, 32.5, { align: "right" });
-
-  // ============================================================
-  // 3. COMPANY CONTACT DETAILS (Left Side, under polygons)
-  // ============================================================
-  const detailsY = 48;
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(50, 50, 50);
-
-  // Helper function to draw circular check-dot icon next to details
-  const drawIcon = (x: number, y: number) => {
-    doc.setFillColor(...GREEN);
-    doc.circle(x, y, 1.2, "F");
-    doc.setFillColor(255, 255, 255);
-    doc.circle(x, y, 0.4, "F");
-  };
-
-  // Row 1: Address
-  drawIcon(22, detailsY + 2.5);
-  doc.setFont("helvetica", "bold");
-  doc.text("Head Office Address:", 27, detailsY + 1.5);
-  doc.setFont("helvetica", "normal");
-  doc.text("No. 15 Industrial Layout, Trans-Amadi, Port Harcourt, Rivers State, Nigeria.", 27, detailsY + 4.5);
-  
-  // Row 2: Phone
-  drawIcon(22, detailsY + 12);
-  doc.setFont("helvetica", "bold");
-  doc.text("Contact Support Lines:", 27, detailsY + 11);
-  doc.setFont("helvetica", "normal");
-  doc.text("+234 803 123 4567, +234 809 876 5432", 27, detailsY + 14);
-
-  // Row 3: Email & Web
-  drawIcon(22, detailsY + 21.5);
-  doc.setFont("helvetica", "bold");
-  doc.text("Digital Channels:", 27, detailsY + 20.5);
-  doc.setFont("helvetica", "normal");
-  doc.text("info@niftechnical.com   |   www.nifhdpe.com", 27, detailsY + 23.5);
-
-  // Underline detail separators in light gray (Matching Reference Image)
-  doc.setDrawColor(230, 230, 230);
-  doc.setLineWidth(0.3);
-  doc.line(20, detailsY + 6.5, 120, detailsY + 6.5);
-  doc.line(20, detailsY + 16, 120, detailsY + 16);
-  doc.line(20, detailsY + 25.5, 120, detailsY + 25.5);
-
-  // Green bottom underline bounding the letterhead area
-  doc.setDrawColor(...GREEN);
-  doc.setLineWidth(0.6);
-  doc.line(margin, detailsY + 29.5, pageW - margin, detailsY + 29.5);
-
-  return detailsY + 36; // Returns content top boundary (~84mm)
+// Cached promise: fetch the bundled letterhead asset once and reuse the data URL.
+let letterheadDataUrlPromise: Promise<string | null> | null = null;
+function getLetterheadDataUrl(): Promise<string | null> {
+  if (!letterheadDataUrlPromise) {
+    letterheadDataUrlPromise = fetch(letterheadBgUrl)
+      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error("letterhead fetch failed"))))
+      .then(
+        (blob) =>
+          new Promise<string | null>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          }),
+      )
+      .catch(() => null);
+  }
+  return letterheadDataUrlPromise;
 }
 
-function drawContinuationHeader(doc: jsPDF, margin: number, pageW: number, pageNum: number, totalPages: number): number {
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(140, 140, 140);
-  doc.text(COMPANY, margin, 10);
-  doc.text(`Page ${pageNum} of ${totalPages}`, pageW - margin, 10, { align: "right" });
-  doc.setDrawColor(200, 200, 200);
-  doc.setLineWidth(0.3);
-  doc.line(margin, 12, pageW - margin, 12);
-  return 18;
+function drawLetterheadBackground(doc: jsPDF, dataUrl: string | null) {
+  if (!dataUrl) return;
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  try {
+    doc.addImage(dataUrl, "PNG", 0, 0, pageW, pageH, undefined, "FAST");
+  } catch {
+    /* ignore — content still renders without background */
+  }
 }
 
 function checkPageBreak(doc: jsPDF, y: number, needed: number, margin: number): number {
   const pageH = doc.internal.pageSize.getHeight();
-  if (y + needed > pageH - 25) {
+  // Reserve bottom 28mm for the letterhead image's footer band.
+  if (y + needed > pageH - 28) {
     doc.addPage();
-    return 18;
+    // New pages start below the letterhead header band — background image
+    // is re-applied later in the final page loop.
+    return 62;
   }
   return y;
 }
@@ -287,8 +212,12 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   const margin = 20;
   const contentW = pageW - margin * 2;
 
-  // Branded header banner
-  let y = drawLetterhead(doc, margin, pageW);
+  // Branded letterhead background (full-page image; content renders on top).
+  const letterheadDataUrl = await getLetterheadDataUrl();
+  drawLetterheadBackground(doc, letterheadDataUrl);
+  // Content starts below the letterhead header band (~58mm) — the image
+  // reserves roughly the top 50mm and the bottom 20mm for branding.
+  let y = 62;
 
   // Doc meta
   const docId = documentId || `DOC-${Date.now().toString(36).toUpperCase()}`;
@@ -447,8 +376,8 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   // Signature block
   if (showSignature) {
     const sigBlockHeight = 20;
-    if (y + sigBlockHeight + 30 > pageH) { doc.addPage(); y = 30; }
-    y = Math.max(y + 15, pageH - 45);
+    if (y + sigBlockHeight + 32 > pageH - 28) { doc.addPage(); y = 62; }
+    y = Math.max(y + 15, pageH - 50);
     doc.setDrawColor(50, 50, 50);
     doc.setLineWidth(0.3);
     const sigW = contentW / 3 - 10;
@@ -465,7 +394,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   // Stamp
   if (stampType) {
     const stampX = pageW - margin - 20;
-    const stampY = Math.min(y + 5, pageH - 30);
+    const stampY = Math.min(y + 5, pageH - 36);
     drawCircularStamp(doc, stampX, stampY, stampType);
     y = stampY + 22;
   }
@@ -474,37 +403,19 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    
-    // Draw top header separator for pages 2+
-    if (i > 1) drawContinuationHeader(doc, margin, pageW, i, pageCount);
 
-    // ============================================================
-    // 4. WATERMARK & FOOTER STYLING (Matching Reference Image)
-    // ============================================================
-    
-    // Draw background pipe watermark (very light gray, 246, 246, 246)
-    doc.setDrawColor(246, 246, 246);
-    doc.setLineWidth(1.5);
-    doc.circle(165, 235, 25);
-    doc.circle(165, 235, 18);
-    doc.setLineWidth(4);
-    doc.line(140, 245, 190, 225); // diagonal pipe segment
-    doc.line(143, 248, 193, 228);
+    // Ensure every continuation page also carries the branded letterhead image.
+    if (i > 1) drawLetterheadBackground(doc, letterheadDataUrl);
 
-    // Draw bottom green divider line running across margin to the corner block
-    doc.setDrawColor(...GREEN);
-    doc.setLineWidth(0.6);
-    doc.line(margin, pageH - 20, pageW - 40, pageH - 20);
-
-    // Draw bottom right blue diagonal corner block
-    doc.setFillColor(...BLUE);
-    doc.triangle(pageW, pageH, pageW - 35, pageH, pageW, pageH - 18, "F");
-
-    // Footnotes and page count
+    // Compact page count + generation note — placed inside the bottom safe
+    // area, above the image's green/blue corner band.
     doc.setFontSize(6.5);
     doc.setTextColor(150, 150, 150);
-    doc.text(`Generated by NIF Technical Services System — ${new Date().toLocaleDateString("en-NG")}`, margin, pageH - 14);
-    doc.text(`Page ${i} of ${pageCount}`, margin, pageH - 10);
+    doc.text(
+      `Generated ${new Date().toLocaleDateString("en-NG")}  •  Page ${i} of ${pageCount}`,
+      margin,
+      pageH - 24,
+    );
   }
 
   doc.save(`${title.replace(/\s+/g, "-").toLowerCase()}-${docId}.pdf`);
