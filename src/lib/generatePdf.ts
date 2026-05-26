@@ -65,6 +65,8 @@ const GREEN: [number, number, number] = [63, 167, 68];
 const BLUE: [number, number, number] = [10, 22, 40]; // Using DARK as BLUE
 const DARK: [number, number, number] = [10, 22, 40];
 const STAMP_RED: [number, number, number] = [180, 30, 30];
+const CONTENT_TOP_START = 86;
+const CONTENT_BOTTOM_RESERVE = 32;
 
 // Cached promise: fetch the bundled letterhead asset once and reuse the data URL.
 let letterheadDataUrlPromise: Promise<string | null> | null = null;
@@ -99,14 +101,17 @@ function drawLetterheadBackground(doc: jsPDF, dataUrl: string | null) {
 
 function checkPageBreak(doc: jsPDF, y: number, needed: number, margin: number): number {
   const pageH = doc.internal.pageSize.getHeight();
-  // Reserve bottom 28mm for the letterhead image's footer band.
-  if (y + needed > pageH - 28) {
+  // Reserve space for the footer band and page meta text.
+  if (y + needed > pageH - CONTENT_BOTTOM_RESERVE) {
     doc.addPage();
-    // New pages start below the letterhead header band — background image
-    // is re-applied later in the final page loop.
-    return 62;
+    drawPageChrome(doc);
+    return CONTENT_TOP_START;
   }
   return y;
+}
+
+function drawPageChrome(doc: jsPDF, letterheadDataUrl: string | null = null) {
+  drawLetterheadBackground(doc, letterheadDataUrl);
 }
 
 function drawCircularStamp(doc: jsPDF, x: number, y: number, stampType: string) {
