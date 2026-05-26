@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const AI_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`;
 
@@ -8,7 +9,7 @@ interface UseAiAssistantOptions {
 }
 
 export const useAiAssistant = ({ context }: UseAiAssistantOptions) => {
-  const { session, activeOrganizationId } = useAuth();
+  const { session, activeOrganizationId, user } = useAuth();
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,13 +25,31 @@ export const useAiAssistant = ({ context }: UseAiAssistantOptions) => {
       return;
     }
 
-    if (!activeOrganizationId) {
-      setLoading(false);
-      setError("No active organization. Please contact an administrator.");
-      return;
-    }
-
     try {
+      let organizationId = activeOrganizationId;
+
+      if (!organizationId && user?.id) {
+        const [{ data: membership }, { data: profile }] = await Promise.all([
+          supabase
+            .from("organization_memberships")
+            .select("organization_id")
+            .eq("user_id", user.id)
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from("profiles")
+            .select("organization_id")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+        ]);
+
+        organizationId = membership?.organization_id ?? profile?.organization_id ?? null;
+      }
+
+      if (!organizationId) {
+        throw new Error("No active organization. Please contact an administrator.");
+      }
+
       const resp = await fetch(AI_URL, {
         method: "POST",
         headers: {
@@ -38,12 +57,29 @@ export const useAiAssistant = ({ context }: UseAiAssistantOptions) => {
           Authorization: `Bearer ${session.access_token}`,
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ context, prompt, data, organization_id: activeOrganizationId }),
+        body: JSON.stringify({ context, prompt, data, organization_id: organizationId }),
       });
 
+      const respClone = resp.clone();
+
       if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({ error: "AI service error" }));
+        const errData = await resp.json().catch(async () => ({ error: await respClone.text().catch(() => "AI service error") }));
         throw new Error(errData.error || `Error ${resp.status}`);
+      }
+
+      const contentType = resp.headers.get("content-type") || "";
+
+      if (contentType.includes("application/json") && !contentType.includes("text/event-stream")) {
+        const payload = await resp.json().catch(() => null);
+        const fullText = payload?.choices?.[0]?.message?.content
+          || payload?.choices?.[0]?.delta?.content
+          || payload?.response
+          || payload?.content
+          || null;
+
+        if (!fullText) throw new Error("AI service returned an empty response.");
+        setResponse(fullText);
+        return;
       }
 
       if (!resp.body) throw new Error("No response stream");
@@ -101,13 +137,38 @@ export const useAiAssistant = ({ context }: UseAiAssistantOptions) => {
           } catch { /* ignore */ }
         }
       }
+
+      if (!accumulated.trim()) {
+        const fallbackText = await respClone.text().catch(() => "");
+        if (fallbackText) {
+          try {
+            const payload = JSON.parse(fallbackText);
+            const fullText = payload?.choices?.[0]?.message?.content
+              || payload?.choices?.[0]?.delta?.content
+              || payload?.response
+              || payload?.content
+              || null;
+            if (fullText) {
+              setResponse(fullText);
+              return;
+            }
+          } catch {
+            if (!fallbackText.trim().startsWith("data:")) {
+              setResponse(fallbackText.trim());
+              return;
+            }
+          }
+        }
+
+        throw new Error("AI service returned an empty response.");
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
       setError(msg);
     } finally {
       setLoading(false);
     }
-  }, [context, session?.access_token, activeOrganizationId]);
+  }, [context, session?.access_token, activeOrganizationId, user?.id]);
 
   const reset = useCallback(() => {
     setResponse("");
