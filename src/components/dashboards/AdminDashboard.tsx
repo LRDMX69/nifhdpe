@@ -12,7 +12,6 @@ import {
   TrendingUp, TrendingDown, DollarSign, AlertCircle, AlertTriangle,
   Briefcase, Users, ShieldAlert, ArrowUpRight, 
   Calendar, CheckCircle2, Clock, Loader2, Zap, Target, Wrench, Mail, RefreshCw, Printer, Bot, FileText, XCircle,
-  Plus,
 } from "lucide-react";
 import { useGsapStagger, useGsapFadeUp } from "@/hooks/useGsapAnimation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
