@@ -238,10 +238,12 @@ serve(async (req: Request) => {
 
     const response = await callGemini(systemPrompt, userMessage, true, context);
 
-    // Re-stream the response with our CORS headers attached
+    // Re-stream the response, preserving upstream Content-Type so that JSON
+    // error responses (402/429/etc.) are not mis-labeled as text/event-stream.
+    const upstreamCt = response.headers.get("Content-Type") || "text/event-stream";
     return new Response(response.body, {
       status: response.status,
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      headers: { ...corsHeaders, "Content-Type": upstreamCt },
     });
   } catch (e) {
     await captureException(e, { fn: "ai-assistant" }).catch(() => {});
