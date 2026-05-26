@@ -376,8 +376,8 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   // Signature block
   if (showSignature) {
     const sigBlockHeight = 20;
-    if (y + sigBlockHeight + 30 > pageH) { doc.addPage(); y = 30; }
-    y = Math.max(y + 15, pageH - 45);
+    if (y + sigBlockHeight + 32 > pageH - 28) { doc.addPage(); y = 62; }
+    y = Math.max(y + 15, pageH - 50);
     doc.setDrawColor(50, 50, 50);
     doc.setLineWidth(0.3);
     const sigW = contentW / 3 - 10;
@@ -394,7 +394,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   // Stamp
   if (stampType) {
     const stampX = pageW - margin - 20;
-    const stampY = Math.min(y + 5, pageH - 30);
+    const stampY = Math.min(y + 5, pageH - 36);
     drawCircularStamp(doc, stampX, stampY, stampType);
     y = stampY + 22;
   }
