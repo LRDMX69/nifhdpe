@@ -15,6 +15,24 @@ interface ReportRecord {
   };
 }
 
+const BANNED_PHRASES = [
+  "next step", "next steps",
+  "recommend", "recommendation",
+  "should consider", "we should", "you should",
+  "suggest", "suggestion",
+  "it is advisable", "it would be advisable",
+  "going forward",
+  "assumption", "assume",
+  "in conclusion", "to conclude", "in summary",
+  "to address this", "moving forward",
+  "TBD", "to be determined", "placeholder",
+];
+
+function containsBanned(text: string): boolean {
+  const low = text.toLowerCase();
+  return BANNED_PHRASES.some((p) => low.includes(p));
+}
+
 async function callAI(systemPrompt: string, userMessage: string) {
   // @ts-expect-error
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
