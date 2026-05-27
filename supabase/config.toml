@@ -19,7 +19,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.opportunity-scanner]
-verify_jwt = true
+verify_jwt = false
 
 [functions.central-ai-monitor]
 verify_jwt = true
@@ -28,7 +28,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.auto-mode-runner]
-verify_jwt = true
+verify_jwt = false
 
 [functions.message-moderation]
 verify_jwt = true
