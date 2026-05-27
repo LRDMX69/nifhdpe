@@ -14,10 +14,18 @@ async function fetchCronSecret(): Promise<string | null> {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
     const { data, error } = await admin.rpc("get_cron_shared_secret");
-    if (error || !data) return null;
+    if (error) {
+      console.error("cronAuth: rpc error", error);
+      return null;
+    }
+    if (!data) {
+      console.error("cronAuth: rpc returned no data");
+      return null;
+    }
     cachedCronSecret = { value: String(data), expiresAt: now + 5 * 60_000 };
     return cachedCronSecret.value;
-  } catch {
+  } catch (e) {
+    console.error("cronAuth: exception", e);
     return null;
   }
 }
