@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { isCronOrServiceRequest } from "../_shared/cronAuth.ts";
 
 const MAX_EXECUTION_MS = 5 * 60 * 1000; // 5 minutes max
 
@@ -16,14 +17,9 @@ serve(async (req) => {
   const rateLimitResponse = await rateLimitMiddleware(req, RATE_LIMITS.PROCESSING);
   if (rateLimitResponse) return rateLimitResponse;
 
-  // Cron/internal only: require service-role Bearer to invoke.
-  {
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const token = authHeader.replace("Bearer ", "").trim();
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    if (!token || !serviceKey || token !== serviceKey) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+  // Cron/internal only: require service-role Bearer or cron shared secret.
+  if (!(await isCronOrServiceRequest(req))) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   const startTime = Date.now();
