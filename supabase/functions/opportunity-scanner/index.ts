@@ -4,6 +4,7 @@ import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { validateServiceOrUser } from "../_shared/auth.ts";
+import { isCronOrServiceRequest } from "../_shared/cronAuth.ts";
 
 
 import { callAI, safeExtractJSON } from "../_shared/aiProvider.ts";
@@ -18,12 +19,9 @@ serve(async (req: Request) => {
   }
 
   try {
-    // Cron-only: require service-role bearer or an authenticated admin call.
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const token = authHeader.replace("Bearer ", "").trim();
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const isService = !!token && !!serviceKey && token === serviceKey;
-    if (!isService) {
+    // Cron/internal call (service role or cron shared secret) OR authenticated admin user.
+    const isCronOrService = await isCronOrServiceRequest(req);
+    if (!isCronOrService) {
       // Require an authenticated user that belongs to the targeted org.
       let bodyOrg = "";
       try { bodyOrg = (await req.clone().json())?.organization_id ?? ""; } catch { /* noop */ }
