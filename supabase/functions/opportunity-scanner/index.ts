@@ -34,8 +34,15 @@ serve(async (req: Request) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { data: orgs } = await supabase.from("organizations").select("id, name");
-    if (!orgs || orgs.length === 0) throw new Error("No organizations found");
+    const { data: orgs, error: orgsErr } = await supabase.from("organizations").select("id, name");
+    if (orgsErr) {
+      logger.error("orgs query error:", orgsErr);
+      throw new Error(`orgs query: ${orgsErr.message}`);
+    }
+    if (!orgs || orgs.length === 0) {
+      logger.error("No organizations found. orgs=", orgs);
+      throw new Error("No organizations found");
+    }
     const orgId = orgs[0].id;
 
     const { data: existingOpps } = await supabase.from("opportunities").select("title, source, status, deadline").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(50);
