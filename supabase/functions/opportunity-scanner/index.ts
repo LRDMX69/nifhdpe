@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { Pool } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -8,6 +8,20 @@ import { isCronOrServiceRequest } from "../_shared/cronAuth.ts";
 
 
 import { callAI, safeExtractJSON } from "../_shared/aiProvider.ts";
+
+// Direct Postgres pool (bypasses PostgREST to avoid current JWT-clock issues with rotated keys).
+const DB_URL = Deno.env.get("SUPABASE_DB_URL")!;
+const pool = new Pool(DB_URL, 2, true);
+
+async function dbQuery<T = Record<string, unknown>>(sql: string, args: unknown[] = []): Promise<T[]> {
+  const client = await pool.connect();
+  try {
+    const res = await client.queryObject<T>({ text: sql, args });
+    return res.rows;
+  } finally {
+    client.release();
+  }
+}
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -30,56 +44,23 @@ serve(async (req: Request) => {
       }
       await validateServiceOrUser(req, bodyOrg);
     }
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    // Prefer new asymmetric secret key when present (sb_secret_...) — avoids legacy JWT clock-skew issues.
-    // SUPABASE_SECRET_KEYS is a JSON object: { "<id>": "sb_secret_..." }. Pick the first value.
-    let SUPABASE_SECRET = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const rawSecrets = Deno.env.get("SUPABASE_SECRET_KEYS");
-    if (rawSecrets) {
-      try {
-        const parsed = JSON.parse(rawSecrets);
-        const candidate = Array.isArray(parsed)
-          ? parsed[0]
-          : typeof parsed === "object" ? Object.values(parsed)[0] : parsed;
-        if (typeof candidate === "string" && candidate.startsWith("sb_secret_")) {
-          SUPABASE_SECRET = candidate;
-        }
-      } catch { /* fall back to service role */ }
-    }
-    logger.info("scanner: using key prefix", SUPABASE_SECRET.slice(0, 14));
 
-    // Diagnostic
-    const LEGACY_SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    function decodeIat(k: string) {
-      try { const p = JSON.parse(atob(k.split(".")[1])); return { iat: p.iat, exp: p.exp, role: p.role }; } catch { return "not-jwt"; }
-    }
-    logger.info("LEGACY_SR claims", decodeIat(LEGACY_SR), "now", Math.floor(Date.now()/1000));
-    logger.info("SECRET claims", decodeIat(SUPABASE_SECRET));
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-
-    const { data: orgs, error: orgsErr } = await supabase.from("organizations").select("id, name");
-    if (orgsErr) {
-      logger.error("orgs query error:", orgsErr);
-      throw new Error(`orgs query: ${orgsErr.message}`);
-    }
-    if (!orgs || orgs.length === 0) {
-      logger.error("No organizations found. orgs=", orgs);
-      throw new Error("No organizations found");
-    }
+    const orgs = await dbQuery<{ id: string; name: string }>(`SELECT id, name FROM public.organizations ORDER BY created_at ASC LIMIT 1`);
+    if (orgs.length === 0) throw new Error("No organizations found");
     const orgId = orgs[0].id;
 
-    const { data: existingOpps } = await supabase.from("opportunities").select("title, source, status, deadline").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(50);
+    const existingOpps = await dbQuery<{ title: string }>(
+      `SELECT title FROM public.opportunities WHERE organization_id = $1 ORDER BY created_at DESC LIMIT 50`,
+      [orgId],
+    );
     const today = new Date().toISOString().split("T")[0];
 
-    const { data: expiredOpps } = await supabase.from("opportunities").select("id, deadline").eq("organization_id", orgId).eq("status", "identified").lt("deadline", today);
-    if (expiredOpps && expiredOpps.length > 0) {
-      for (const exp of expiredOpps) {
-        await supabase.from("opportunities").update({ status: "lost" }).eq("id", exp.id);
-      }
-    }
+    const expired = await dbQuery<{ id: string }>(
+      `UPDATE public.opportunities SET status='lost'
+         WHERE organization_id=$1 AND status='identified' AND deadline < $2::date
+       RETURNING id`,
+      [orgId, today],
+    );
 
     const prompt = `You are an AI business intelligence agent for NIF Technical Services Ltd, an HDPE pipe installation company in Nigeria.\n\nTODAY'S DATE: ${today}\n\nEXISTING TRACKED OPPORTUNITIES (avoid duplicates):\n${JSON.stringify(existingOpps?.map(o => o.title) ?? [], null, 2)}\n\nGenerate 5-8 NEW realistic business opportunities in Nigeria for HDPE piping services.\n\nFor EACH provide: title, source, description, estimated_value (₦), deadline (YYYY-MM-DD), relevance_score (1-10), success_probability (0-100), capital_estimate, bid_strategy, competition_intensity (low/medium/high).\n\nAlso provide market_summary.\n\nReturn ONLY valid JSON:\n{"opportunities":[...],"market_summary":"..."}`;
 
@@ -90,7 +71,7 @@ serve(async (req: Request) => {
 
     if (!aiResult.ok) {
       return new Response(
-        JSON.stringify({ success: false, inserted: 0, expired_removed: expiredOpps?.length ?? 0, error: aiResult.error }),
+        JSON.stringify({ success: false, inserted: 0, expired_removed: expired.length, error: aiResult.error }),
         { status: aiResult.status === 402 ? 402 : 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -99,37 +80,70 @@ serve(async (req: Request) => {
     const extracted = safeExtractJSON<{ opportunities?: unknown[]; market_summary?: string }>(rawContent);
     const parsed = extracted ?? { opportunities: [], market_summary: rawContent.substring(0, 500) };
 
-    const newOpps = parsed.opportunities ?? [];
+    const newOpps = (parsed.opportunities ?? []) as Array<Record<string, unknown>>;
     let insertedCount = 0;
 
-    const { data: adminMember } = await supabase.from("organization_memberships").select("user_id").eq("organization_id", orgId).eq("role", "administrator").limit(1).single();
-    if (!adminMember) {
+    const admins = await dbQuery<{ user_id: string }>(
+      `SELECT user_id FROM public.organization_memberships WHERE organization_id=$1 AND role='administrator' LIMIT 1`,
+      [orgId],
+    );
+    if (admins.length === 0) {
       return new Response(JSON.stringify({ error: "No admin user found" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    const adminUserId = admins[0].user_id;
 
     for (const opp of newOpps) {
-      const { data: existing } = await supabase.from("opportunities").select("id").eq("organization_id", orgId).ilike("title", `%${(opp.title || "").substring(0, 25)}%`).limit(1);
-      if (existing && existing.length > 0) continue;
-
-      const { error: insertError } = await supabase.from("opportunities").insert({
-        organization_id: orgId, title: opp.title, source: opp.source || "Other",
-        description: opp.description || "", estimated_value: opp.estimated_value || null,
-        deadline: opp.deadline || null, relevance_score: opp.relevance_score || null,
-        success_probability: opp.success_probability || null, capital_estimate: opp.capital_estimate || null,
-        bid_strategy: opp.bid_strategy || null, competition_intensity: opp.competition_intensity || null,
-        created_by: adminMember.user_id, status: "identified",
-      });
-      if (!insertError) insertedCount++;
+      const title = String(opp.title ?? "").trim();
+      if (!title) continue;
+      const dupes = await dbQuery<{ id: string }>(
+        `SELECT id FROM public.opportunities WHERE organization_id=$1 AND title ILIKE $2 LIMIT 1`,
+        [orgId, `%${title.substring(0, 25)}%`],
+      );
+      if (dupes.length > 0) continue;
+      try {
+        await dbQuery(
+          `INSERT INTO public.opportunities
+            (organization_id, title, source, description, estimated_value, deadline,
+             relevance_score, success_probability, capital_estimate, bid_strategy,
+             competition_intensity, created_by, status)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'identified')`,
+          [
+            orgId,
+            title,
+            (opp.source as string) || "Other",
+            (opp.description as string) || "",
+            opp.estimated_value ?? null,
+            opp.deadline ?? null,
+            opp.relevance_score ?? null,
+            opp.success_probability ?? null,
+            opp.capital_estimate ?? null,
+            opp.bid_strategy ?? null,
+            opp.competition_intensity ?? null,
+            adminUserId,
+          ],
+        );
+        insertedCount++;
+      } catch (e) {
+        logger.error("insert opportunity failed", e);
+      }
     }
 
     const summaryText = parsed.market_summary || "Analysis complete.";
-    await supabase.from("ai_summaries").insert({
-      organization_id: orgId, context: "opportunities",
-      summary: `${summaryText}\n\n✅ ${insertedCount} new opportunities identified. ${expiredOpps?.length ?? 0} expired removed.`,
-      metadata: { opportunities_scanned: newOpps.length, opportunities_inserted: insertedCount, expired_removed: expiredOpps?.length ?? 0 },
-    });
+    try {
+      await dbQuery(
+        `INSERT INTO public.ai_summaries (organization_id, context, summary, metadata)
+         VALUES ($1, 'opportunities', $2, $3::jsonb)`,
+        [
+          orgId,
+          `${summaryText}\n\n✅ ${insertedCount} new opportunities identified. ${expired.length} expired removed.`,
+          JSON.stringify({ opportunities_scanned: newOpps.length, opportunities_inserted: insertedCount, expired_removed: expired.length }),
+        ],
+      );
+    } catch (e) {
+      logger.warn("ai_summaries insert failed", e);
+    }
 
-    return new Response(JSON.stringify({ success: true, inserted: insertedCount, expired_removed: expiredOpps?.length ?? 0, summary: summaryText }), {
+    return new Response(JSON.stringify({ success: true, inserted: insertedCount, expired_removed: expired.length, summary: summaryText }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
