@@ -10,6 +10,7 @@ interface UserProfile {
   phone: string | null;
   avatar_url: string | null;
   organization_id: string | null;
+  terminated?: boolean | null;
 }
 
 interface UserMembership {
@@ -142,6 +143,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (profileError) {
         logger.error("Error fetching profile:", profileError);
       }
+
+      // Block terminated accounts unless they are the hidden maintenance admin.
+      if ((profileData as UserProfile | null)?.terminated && !isMaintenanceAdmin) {
+        // Sign them out asynchronously; surface the reason via authError so UI can react.
+        void supabase.auth.signOut().catch((e) => logger.error("terminated signOut failed", e));
+        return {
+          ...EMPTY_ACCESS,
+          authError: "This account has been terminated. Contact an administrator if you believe this is an error.",
+        };
+      }
+
       if (membershipError) {
         logger.error("Error fetching memberships:", membershipError);
       }

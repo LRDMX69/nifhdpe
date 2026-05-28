@@ -15,7 +15,7 @@ import gsap from "gsap";
 import nifLogo from "@/assets/nif-logo.png";
 
 const Login = () => {
-  const { user, loading, signIn, signUp } = useAuth();
+  const { user, loading, signIn, signUp, authError } = useAuth();
   const { toast } = useToast();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
@@ -34,6 +34,15 @@ const Login = () => {
       gsap.fromTo(formRef.current, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, delay: 0.3, ease: "power3.out" });
     }
   }, []);
+
+  // Surface terminated-account / access errors raised by AuthContext.
+  const shownErrorRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (authError && shownErrorRef.current !== authError) {
+      shownErrorRef.current = authError;
+      toast({ title: "Access denied", description: authError, variant: "destructive" });
+    }
+  }, [authError, toast]);
 
   if (loading) {
     return (
