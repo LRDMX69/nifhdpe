@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { Pool } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { logger } from "../_shared/logger.ts";
 
@@ -73,25 +74,33 @@ serve(async (req: Request) => {
     }
 
     if (action === "terminate") {
-      // Remove all role memberships in this org (so they can't access anything)
-      const { error: delMembershipsErr } = await admin
-        .from("organization_memberships")
-        .delete()
-        .eq("user_id", targetId)
-        .eq("organization_id", orgId);
-      if (delMembershipsErr) {
-        logger.error("terminate_revoke_memberships_failed", delMembershipsErr);
-        return new Response(JSON.stringify({ error: "revoke_failed", detail: delMembershipsErr.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      // Use direct Postgres for the destructive writes. PostgREST is currently
+      // rejecting the service-role JWT ("JWT issued at future"), which silently
+      // breaks .from() reads and writes via the JS client.
+      const dbUrl = Deno.env.get("SUPABASE_DB_URL");
+      if (!dbUrl) {
+        return new Response(JSON.stringify({ error: "server_misconfigured", detail: "SUPABASE_DB_URL missing" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      // Mark profile terminated
-      const { error: updProfileErr } = await admin.from("profiles").update({
-        terminated: true,
-        terminated_at: new Date().toISOString(),
-        terminated_by: caller.id,
-      }).eq("user_id", targetId);
-      if (updProfileErr) {
-        logger.error("terminate_mark_profile_failed", updProfileErr);
-        return new Response(JSON.stringify({ error: "profile_update_failed", detail: updProfileErr.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const pool = new Pool(dbUrl, 1, true);
+      const conn = await pool.connect();
+      try {
+        await conn.queryObject("BEGIN");
+        await conn.queryObject({
+          text: "DELETE FROM public.organization_memberships WHERE user_id = $1 AND organization_id = $2",
+          args: [targetId, orgId],
+        });
+        await conn.queryObject({
+          text: "UPDATE public.profiles SET terminated = true, terminated_at = now(), terminated_by = $2 WHERE user_id = $1",
+          args: [targetId, caller.id],
+        });
+        await conn.queryObject("COMMIT");
+      } catch (e) {
+        try { await conn.queryObject("ROLLBACK"); } catch (_) { /* noop */ }
+        logger.error("terminate_db_write_failed", e);
+        return new Response(JSON.stringify({ error: "terminate_failed", detail: e instanceof Error ? e.message : String(e) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } finally {
+        conn.release();
+        await pool.end();
       }
       // Force sign-out everywhere
       try { await admin.auth.admin.signOut(targetId); } catch (e) { logger.warn("terminate_signout_warn", e); }
