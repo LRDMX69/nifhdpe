@@ -47,9 +47,16 @@ serve(async (req: Request) => {
       } catch { /* fall back to service role */ }
     }
     logger.info("scanner: using key prefix", SUPABASE_SECRET.slice(0, 14));
+
+    // Direct test fetch to isolate the JWT issue
+    const testRes = await fetch(`${SUPABASE_URL}/rest/v1/organizations?select=id,name`, {
+      headers: { apikey: SUPABASE_SECRET, Authorization: `Bearer ${SUPABASE_SECRET}` },
+    });
+    const testBody = await testRes.text();
+    logger.info("direct fetch status", testRes.status, "body", testBody.slice(0, 200));
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET, {
       auth: { persistSession: false, autoRefreshToken: false },
-      global: { headers: { apikey: SUPABASE_SECRET, Authorization: `Bearer ${SUPABASE_SECRET}` } },
     });
 
     const { data: orgs, error: orgsErr } = await supabase.from("organizations").select("id, name");
