@@ -32,8 +32,21 @@ serve(async (req: Request) => {
     }
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     // Prefer new asymmetric secret key when present (sb_secret_...) — avoids legacy JWT clock-skew issues.
-    const SUPABASE_SECRET = Deno.env.get("SUPABASE_SECRET_KEYS") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    logger.info("scanner: using key prefix", SUPABASE_SECRET.slice(0, 12));
+    // SUPABASE_SECRET_KEYS is a JSON object: { "<id>": "sb_secret_..." }. Pick the first value.
+    let SUPABASE_SECRET = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const rawSecrets = Deno.env.get("SUPABASE_SECRET_KEYS");
+    if (rawSecrets) {
+      try {
+        const parsed = JSON.parse(rawSecrets);
+        const candidate = Array.isArray(parsed)
+          ? parsed[0]
+          : typeof parsed === "object" ? Object.values(parsed)[0] : parsed;
+        if (typeof candidate === "string" && candidate.startsWith("sb_secret_")) {
+          SUPABASE_SECRET = candidate;
+        }
+      } catch { /* fall back to service role */ }
+    }
+    logger.info("scanner: using key prefix", SUPABASE_SECRET.slice(0, 14));
     const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET);
 
     const { data: orgs, error: orgsErr } = await supabase.from("organizations").select("id, name");
