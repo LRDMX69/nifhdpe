@@ -31,8 +31,10 @@ serve(async (req: Request) => {
       await validateServiceOrUser(req, bodyOrg);
     }
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    // Prefer new asymmetric secret key when present (sb_secret_...) — avoids legacy JWT clock-skew issues.
+    const SUPABASE_SECRET = Deno.env.get("SUPABASE_SECRET_KEYS") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    logger.info("scanner: using key prefix", SUPABASE_SECRET.slice(0, 12));
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET);
 
     const { data: orgs, error: orgsErr } = await supabase.from("organizations").select("id, name");
     if (orgsErr) {
