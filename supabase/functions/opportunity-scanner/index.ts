@@ -47,7 +47,10 @@ serve(async (req: Request) => {
       } catch { /* fall back to service role */ }
     }
     logger.info("scanner: using key prefix", SUPABASE_SECRET.slice(0, 14));
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET);
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { headers: { apikey: SUPABASE_SECRET, Authorization: `Bearer ${SUPABASE_SECRET}` } },
+    });
 
     const { data: orgs, error: orgsErr } = await supabase.from("organizations").select("id, name");
     if (orgsErr) {
