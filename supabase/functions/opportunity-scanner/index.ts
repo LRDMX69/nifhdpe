@@ -48,12 +48,13 @@ serve(async (req: Request) => {
     }
     logger.info("scanner: using key prefix", SUPABASE_SECRET.slice(0, 14));
 
-    // Diagnostic: try legacy anon key to confirm PostgREST reachability
-    const ANON = Deno.env.get("SUPABASE_ANON_KEY") || "";
-    const anonTest = await fetch(`${SUPABASE_URL}/rest/v1/organizations?select=id,name`, {
-      headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
-    });
-    logger.info("anon test status", anonTest.status, "body", (await anonTest.text()).slice(0, 200));
+    // Diagnostic
+    const LEGACY_SR = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    function decodeIat(k: string) {
+      try { const p = JSON.parse(atob(k.split(".")[1])); return { iat: p.iat, exp: p.exp, role: p.role }; } catch { return "not-jwt"; }
+    }
+    logger.info("LEGACY_SR claims", decodeIat(LEGACY_SR), "now", Math.floor(Date.now()/1000));
+    logger.info("SECRET claims", decodeIat(SUPABASE_SECRET));
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET, {
       auth: { persistSession: false, autoRefreshToken: false },
