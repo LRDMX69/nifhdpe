@@ -10,6 +10,7 @@ interface UserProfile {
   phone: string | null;
   avatar_url: string | null;
   organization_id: string | null;
+  terminated?: boolean | null;
 }
 
 interface UserMembership {
