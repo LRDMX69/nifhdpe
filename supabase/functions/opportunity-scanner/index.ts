@@ -48,12 +48,12 @@ serve(async (req: Request) => {
     }
     logger.info("scanner: using key prefix", SUPABASE_SECRET.slice(0, 14));
 
-    // Direct test fetch to isolate the JWT issue
-    const testRes = await fetch(`${SUPABASE_URL}/rest/v1/organizations?select=id,name`, {
-      headers: { apikey: SUPABASE_SECRET, Authorization: `Bearer ${SUPABASE_SECRET}` },
+    // Diagnostic: try legacy anon key to confirm PostgREST reachability
+    const ANON = Deno.env.get("SUPABASE_ANON_KEY") || "";
+    const anonTest = await fetch(`${SUPABASE_URL}/rest/v1/organizations?select=id,name`, {
+      headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
     });
-    const testBody = await testRes.text();
-    logger.info("direct fetch status", testRes.status, "body", testBody.slice(0, 200));
+    logger.info("anon test status", anonTest.status, "body", (await anonTest.text()).slice(0, 200));
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET, {
       auth: { persistSession: false, autoRefreshToken: false },
