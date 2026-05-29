@@ -62,7 +62,63 @@ serve(async (req: Request) => {
       [orgId, today],
     );
 
-    const prompt = `You are an AI business intelligence agent for NIF Technical Services Ltd, an HDPE pipe installation company in Nigeria.\n\nTODAY'S DATE: ${today}\n\nEXISTING TRACKED OPPORTUNITIES (avoid duplicates):\n${JSON.stringify(existingOpps?.map(o => o.title) ?? [], null, 2)}\n\nGenerate 5-8 NEW realistic business opportunities in Nigeria for HDPE piping services.\n\nFor EACH provide: title, source, description, estimated_value (₦), deadline (YYYY-MM-DD), relevance_score (1-10), success_probability (0-100), capital_estimate, bid_strategy, competition_intensity (low/medium/high).\n\nAlso provide market_summary.\n\nReturn ONLY valid JSON:\n{"opportunities":[...],"market_summary":"..."}`;
+    const prompt = `You are an AI business intelligence agent for NIF Technical Services Ltd, an HDPE pipe installation, maintenance and engineering company headquartered in Nigeria.
+
+TODAY'S DATE: ${today}
+
+EXISTING TRACKED OPPORTUNITIES (avoid duplicates by title):
+${JSON.stringify(existingOpps?.map(o => o.title) ?? [], null, 2)}
+
+GENERATE 6-10 NEW realistic, high-relevance business opportunities.
+
+SOURCE MIX (do NOT limit to government tenders — actively include private sector):
+- Private companies, engineering firms, EPC contractors
+- Industrial / manufacturing plants
+- Oil & gas operators and service companies
+- Water utilities, mining, agriculture irrigation
+- Recruitment portals and direct company career pages
+- Government & state agencies (only as part of the mix, not the majority)
+
+GEOGRAPHIC PRIORITY (in this order):
+1. Nigeria 🇳🇬 (primary — ~60% of items)
+2. Other African countries: Ghana, Kenya, South Africa, Egypt, Tanzania, Côte d'Ivoire, Senegal, etc.
+
+INDUSTRY RELEVANCE — strongly prioritize:
+- HDPE pipe supply, installation, jointing, maintenance, repair
+- Industrial pipework & mechanical maintenance
+- Field / mechanical engineering roles
+- Oil & gas pipeline infrastructure
+- Construction & pipeline engineering
+Filter out irrelevant categories.
+
+MANDATORY APPLICATION CONTACT — every opportunity MUST include a direct way to apply.
+Embed the contact and application channel directly inside the "description" field using these EXACT markers (each on its own line at the END of the description):
+
+📞 Contact: <recruiter name, phone, or company contact>
+📝 How to Apply: <official email OR direct application/portal URL OR verified company contact page URL>
+
+- If after deep research no contact is found, you MUST write exactly:
+  📞 Contact: Application contact not available
+  📝 How to Apply: Application contact not available
+- Never omit these two lines. Never instruct the reader to "search for the email".
+- Prefer real-looking corporate emails (e.g. procurement@company.com, careers@company.com) and real portal URLs.
+
+For EACH opportunity provide:
+- title (specific, includes company/agency + scope + country)
+- source (e.g. "Company Career Page", "NipeX", "LinkedIn Jobs", "Ghana Public Procurement", "Direct Tender")
+- description (rich paragraph + the two mandatory marker lines at the end)
+- estimated_value (number, Nigerian Naira ₦; convert other currencies)
+- deadline (YYYY-MM-DD, in the future)
+- relevance_score (1-10, HDPE/pipeline core = 9-10)
+- success_probability (0-100)
+- capital_estimate (₦ capital required to execute)
+- bid_strategy (1-2 sentences)
+- competition_intensity ("low" | "medium" | "high")
+
+Also provide market_summary (2-4 sentences on regional/sector trends).
+
+Return ONLY valid JSON, no markdown fences:
+{"opportunities":[...],"market_summary":"..."}`;
 
     const aiResult = await callAI(
       "You are an AI business development analyst for Nigerian HDPE piping companies. Return valid JSON only, no markdown.",
