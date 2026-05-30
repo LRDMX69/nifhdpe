@@ -106,17 +106,92 @@ const Opportunities = () => {
     }
   };
 
-  // Parse contact and submission info from description
+  // Parse contact + submission info from description, with confidence tag and
+  // sanitizer that rejects generic fallbacks (careers pages, homepages, generic mailboxes).
+  type Confidence = "Verified" | "Estimated" | "Not Available";
+  const NOT_AVAILABLE_TEXT =
+    "Specific submission information was not publicly available at the time of analysis.";
+
+  const isGenericFallback = (v: string): boolean => {
+    if (!v) return true;
+    const s = v.toLowerCase().trim();
+    if (
+      s === "application contact not available" ||
+      s === "not available" ||
+      s === "n/a" ||
+      s === "-" ||
+      s.startsWith("specific submission information was not")
+    ) return true;
+    // Generic phrases
+    if (/(visit our website|see careers page|check (the )?website|search for the email|company website)/i.test(v)) return true;
+    // Generic URLs
+    if (/\/(careers|jobs|about|about-us|contact|contact-us)(\/|$|\?)/i.test(v)) return true;
+    if (/linkedin\.com\/company/i.test(v)) return true;
+    // Bare homepage (no path beyond /)
+    const urlMatch = v.match(/https?:\/\/[^\s)]+/i);
+    if (urlMatch) {
+      try {
+        const u = new URL(urlMatch[0]);
+        const path = u.pathname.replace(/\/$/, "");
+        if (!path && !u.search) return true;
+      } catch { /* ignore */ }
+    }
+    // Generic mailboxes with no procurement/tender/bid keyword nearby
+    const hasProcurementKeyword = /(procure|tender|bid|supply chain|contract|rfq|rfp|eoi)/i.test(v);
+    if (!hasProcurementKeyword && /\b(careers|hr|info|hello|contact|admin|enquir(y|ies)|support)@/i.test(v)) return true;
+    return false;
+  };
+
+  const parseConfidence = (raw: string | undefined): Confidence | null => {
+    if (!raw) return null;
+    const m = raw.match(/^\s*(Verified|Estimated|Not Available)\s*$/i);
+    if (!m) return null;
+    const v = m[1].toLowerCase();
+    if (v === "verified") return "Verified";
+    if (v === "estimated") return "Estimated";
+    return "Not Available";
+  };
+
   const parseContactInfo = (desc: string) => {
-    const contactMatch = desc?.match(/📞 Contact: (.+)/);
-    const submissionMatch = desc?.match(/📝 How to Apply: (.+)/);
-    const cleanDesc = desc?.replace(/\n\n📞 Contact:.+/s, '').trim();
+    const safeDesc = desc ?? "";
+    // Capture marker line + optional following Confidence: line
+    const contactRe = /📞 Contact:\s*(.+?)(?:\n\s*Confidence:\s*([^\n]+))?(?:\n|$)/;
+    const submissionRe = /📝 How to Apply:\s*(.+?)(?:\n\s*Confidence:\s*([^\n]+))?(?:\n|$)/;
+    const cMatch = safeDesc.match(contactRe);
+    const sMatch = safeDesc.match(submissionRe);
+
+    // Strip marker block from description for clean rendering
+    const cleanDesc = safeDesc
+      .replace(/\n*📞 Contact:[\s\S]*$/, "")
+      .trim();
+
+    const normalize = (raw: string | undefined, confRaw: string | undefined) => {
+      const value = (raw ?? "").trim();
+      let confidence: Confidence = parseConfidence(confRaw) ?? (value ? "Estimated" : "Not Available");
+      if (!value || isGenericFallback(value)) {
+        return { value: NOT_AVAILABLE_TEXT, confidence: "Not Available" as Confidence };
+      }
+      return { value, confidence };
+    };
+
+    const contact = normalize(cMatch?.[1], cMatch?.[2]);
+    const submission = normalize(sMatch?.[1], sMatch?.[2]);
+
     return {
       description: cleanDesc,
-      contact: contactMatch?.[1] ?? null,
-      submission: submissionMatch?.[1] ?? null,
+      contact: contact.value,
+      contactConfidence: contact.confidence,
+      submission: submission.value,
+      submissionConfidence: submission.confidence,
     };
   };
+
+  const confidenceBadgeClass = (c: Confidence) =>
+    c === "Verified"
+      ? "bg-green-500/15 text-green-600 border-green-500/30"
+      : c === "Estimated"
+        ? "bg-amber-500/15 text-amber-600 border-amber-500/30"
+        : "bg-muted text-muted-foreground border-border";
 
   return (
     <div ref={containerRef} className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
