@@ -91,17 +91,49 @@ INDUSTRY RELEVANCE — strongly prioritize:
 - Construction & pipeline engineering
 Filter out irrelevant categories.
 
-MANDATORY APPLICATION CONTACT — every opportunity MUST include a direct way to apply.
-Embed the contact and application channel directly inside the "description" field using these EXACT markers (each on its own line at the END of the description):
+MANDATORY PROCUREMENT-SPECIFIC CONTACT — every opportunity MUST include the contact and
+submission channel that belongs to THIS specific tender / bid / project office.
+Embed them inside the "description" field using these EXACT markers, each on its own line
+at the END of the description, with a Confidence tag immediately after each:
 
-📞 Contact: <recruiter name, phone, or company contact>
-📝 How to Apply: <official email OR direct application/portal URL OR verified company contact page URL>
+📞 Contact: <opportunity-specific contact>
+Confidence: Verified | Estimated | Not Available
+📝 How to Apply: <opportunity-specific submission method>
+Confidence: Verified | Estimated | Not Available
 
-- If after deep research no contact is found, you MUST write exactly:
-  📞 Contact: Application contact not available
-  📝 How to Apply: Application contact not available
-- Never omit these two lines. Never instruct the reader to "search for the email".
-- Prefer real-looking corporate emails (e.g. procurement@company.com, careers@company.com) and real portal URLs.
+PRIORITIZE (in this order) for the Contact line:
+  1. Named procurement / tender officer (with title, phone, email tied to this bid)
+  2. Procurement department, tender unit, bid coordination office, or project office contact
+  3. Branch / division procurement desk explicitly handling this opportunity
+
+PRIORITIZE (in this order) for the How to Apply line:
+  1. Direct tender portal URL for THIS bid (NipeX bid ref, e-GP listing, dedicated e-tender link)
+  2. Procurement submission email (e.g. procurement@…, tenders@…, bids@…)
+  3. Physical bid submission address with bid reference number / closing time
+
+FORBIDDEN — never emit any of these as Contact or How to Apply:
+  - Generic careers pages, /careers, /jobs, /about, /contact-us, company homepage URLs
+  - LinkedIn company pages, recruiter aggregators, job-board landing pages
+  - Generic mailboxes (careers@, hr@, info@, hello@, contact@) unless the source
+    page EXPLICITLY routes that mailbox to procurement for THIS tender
+  - Phrases like "visit our website", "see careers page", "search for the email"
+
+CROSS-VALIDATION — Contact and How to Apply MUST refer to the SAME tender, branch,
+department and bid reference. Do not mix details from different tenders or unrelated
+divisions of the same company.
+
+Confidence rules:
+  - Verified: named officer + portal/email/address that is provably tied to this bid
+  - Estimated: correct procurement department located but exact bid contact inferred
+  - Not Available: nothing opportunity-specific found
+
+If Confidence would be "Not Available", emit EXACTLY:
+  📞 Contact: Specific submission information was not publicly available at the time of analysis.
+  Confidence: Not Available
+  📝 How to Apply: Specific submission information was not publicly available at the time of analysis.
+  Confidence: Not Available
+
+Never omit these four lines. Never substitute a careers page or homepage as a fallback.
 
 For EACH opportunity provide:
 - title (specific, includes company/agency + scope + country)
