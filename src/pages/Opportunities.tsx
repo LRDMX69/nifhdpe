@@ -365,19 +365,25 @@ const Opportunities = () => {
                       </div>
                     )}
                     
-                    {info.contact && (
-                      <div className="bg-muted/30 rounded-lg p-3 text-sm">
-                        <p className="font-medium flex items-center gap-1"><Phone className="h-3 w-3" /> Contact Info</p>
-                        <p className="text-muted-foreground break-words-safe">{info.contact}</p>
-                      </div>
-                    )}
-                    
-                    {info.submission && (
-                      <div className="bg-muted/30 rounded-lg p-3 text-sm">
-                        <p className="font-medium flex items-center gap-1"><Mail className="h-3 w-3" /> How to Apply</p>
-                        <p className="text-muted-foreground break-words-safe">{info.submission}</p>
-                      </div>
-                    )}
+                    <div className="bg-muted/30 rounded-lg p-3 text-sm">
+                      <p className="font-medium flex items-center gap-2 flex-wrap">
+                        <Phone className="h-3 w-3" /> Contact Information
+                        <Badge variant="outline" className={`text-[10px] ${confidenceBadgeClass(info.contactConfidence)}`}>
+                          {info.contactConfidence}
+                        </Badge>
+                      </p>
+                      <p className="text-muted-foreground break-words-safe">{info.contact}</p>
+                    </div>
+
+                    <div className="bg-muted/30 rounded-lg p-3 text-sm">
+                      <p className="font-medium flex items-center gap-2 flex-wrap">
+                        <Mail className="h-3 w-3" /> Submission Instructions
+                        <Badge variant="outline" className={`text-[10px] ${confidenceBadgeClass(info.submissionConfidence)}`}>
+                          {info.submissionConfidence}
+                        </Badge>
+                      </p>
+                      <p className="text-muted-foreground break-words-safe">{info.submission}</p>
+                    </div>
                     {viewingOpp.bid_strategy && (
                       <div className="bg-primary/5 rounded-lg p-3 text-sm border border-primary/20">
                         <p className="font-medium text-primary">AI Bid Strategy</p>
@@ -417,8 +423,8 @@ const Opportunities = () => {
                         ]
                       },
                       ...(info.description ? [{ heading: "Description", body: info.description }] : []),
-                      ...(info.contact ? [{ heading: "Contact Information", body: info.contact }] : []),
-                      ...(info.submission ? [{ heading: "Submission Instructions", body: info.submission }] : []),
+                      { heading: `Contact Information (${info.contactConfidence})`, body: info.contact },
+                      { heading: `Submission Instructions (${info.submissionConfidence})`, body: info.submission },
                       ...(viewingOpp.bid_strategy ? [{ heading: "AI Bid Strategy", body: viewingOpp.bid_strategy }] : []),
                     ],
                   });
@@ -511,8 +517,10 @@ const Opportunities = () => {
                   )}
                 </div>
 
-                {info.contact && (
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate"><Phone className="h-3 w-3 shrink-0" />{info.contact}</p>
+                {info.contactConfidence !== "Not Available" && (
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
+                    <Phone className="h-3 w-3 shrink-0" />{info.contact}
+                  </p>
                 )}
 
                 <div className="flex items-center justify-between text-xs flex-wrap gap-1">
