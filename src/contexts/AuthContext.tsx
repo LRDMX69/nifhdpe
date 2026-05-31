@@ -66,6 +66,15 @@ const EMPTY_ACCESS: AccessSnapshot = {
   authError: null,
 };
 
+const AUTH_RETRY_DELAYS_MS = [800, 1600, 2400];
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isJwtTimingError = (error: { code?: string | null; message?: string | null } | null | undefined) => {
+  const message = `${error?.message ?? ""}`.toLowerCase();
+  return error?.code === "PGRST303" || message.includes("jwt issued at future") || message.includes("issued at future");
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -105,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [applyAccessSnapshot]);
 
   const fetchUserData = useCallback(async (userId: string): Promise<AccessSnapshot> => {
-    try {
+    const runAccessQueries = async () => {
       const pendingRequestQuery = (supabase as any)
         .from("role_assignment_requests")
         .select("organization_id")
@@ -114,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .limit(1)
         .maybeSingle();
 
-      const [maintenanceResult, profileResult, membershipResult, pendingRequestResult] = await Promise.all([
+      return Promise.all([
         supabase
           .from("system_maintenance_accounts")
           .select("user_id")
@@ -131,92 +140,115 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq("user_id", userId),
         pendingRequestQuery,
       ]);
+    };
 
-      const { data: profileData, error: profileError } = profileResult;
-      const { data: membershipData, error: membershipError } = membershipResult;
-      const { data: pendingRequestData, error: pendingRequestError } = pendingRequestResult as {
-        data: PendingRoleRequestRow | null;
-        error: Error | null;
-      };
-      const isMaintenanceAdmin = !!maintenanceResult.data;
+    try {
+      for (let attempt = 0; attempt <= AUTH_RETRY_DELAYS_MS.length; attempt += 1) {
+        const [maintenanceResult, profileResult, membershipResult, pendingRequestResult] = await runAccessQueries();
 
-      if (profileError) {
-        logger.error("Error fetching profile:", profileError);
-      }
-
-      // Block terminated accounts unless they are the hidden maintenance admin.
-      if ((profileData as UserProfile | null)?.terminated && !isMaintenanceAdmin) {
-        // Sign them out asynchronously; surface the reason via authError so UI can react.
-        void supabase.auth.signOut().catch((e) => logger.error("terminated signOut failed", e));
-        return {
-          ...EMPTY_ACCESS,
-          authError: "This account has been terminated. Contact an administrator if you believe this is an error.",
+        const { data: maintenanceData, error: maintenanceError } = maintenanceResult;
+        const { data: profileData, error: profileError } = profileResult;
+        const { data: membershipData, error: membershipError } = membershipResult;
+        const { data: pendingRequestData, error: pendingRequestError } = pendingRequestResult as {
+          data: PendingRoleRequestRow | null;
+          error: Error | null;
         };
-      }
+        const isMaintenanceAdmin = !!maintenanceData;
 
-      if (membershipError) {
-        logger.error("Error fetching memberships:", membershipError);
-      }
-      if (pendingRequestError) {
-        logger.error("Error fetching role assignment requests:", pendingRequestError);
-      }
+        const retryableErrors = [maintenanceError, profileError, membershipError, pendingRequestError].filter(isJwtTimingError);
+        if (retryableErrors.length > 0 && attempt < AUTH_RETRY_DELAYS_MS.length) {
+          logger.warn("Transient auth timing issue detected. Retrying access hydration.", {
+            attempt: attempt + 1,
+            userId,
+          });
+          await wait(AUTH_RETRY_DELAYS_MS[attempt]);
+          continue;
+        }
 
-      const mappedMemberships: UserMembership[] = (membershipData ?? []).map((membership) => ({
-        organization_id: membership.organization_id,
-        role: membership.role,
-        organization_name: (membership.organizations as unknown as { name: string } | null)?.name ?? "",
-      }));
+        if (profileError) {
+          logger.error("Error fetching profile:", profileError);
+        }
+        if (membershipError) {
+          logger.error("Error fetching memberships:", membershipError);
+        }
+        if (pendingRequestError) {
+          logger.error("Error fetching role assignment requests:", pendingRequestError);
+        }
 
-      if (mappedMemberships.length > 0) {
-        const preferredOrg = activeOrgRef.current && mappedMemberships.some((membership) => membership.organization_id === activeOrgRef.current)
-          ? activeOrgRef.current
-          : mappedMemberships[0].organization_id;
+        // Block terminated accounts unless they are the hidden maintenance admin.
+        if ((profileData as UserProfile | null)?.terminated && !isMaintenanceAdmin) {
+          void supabase.auth.signOut().catch((e) => logger.error("terminated signOut failed", e));
+          return {
+            ...EMPTY_ACCESS,
+            authError: "This account has been terminated. Contact an administrator if you believe this is an error.",
+          };
+        }
 
-        const activeMembership = mappedMemberships.find((membership) => membership.organization_id === preferredOrg) ?? mappedMemberships[0];
+        const mappedMemberships: UserMembership[] = (membershipData ?? []).map((membership) => ({
+          organization_id: membership.organization_id,
+          role: membership.role,
+          organization_name: (membership.organizations as unknown as { name: string } | null)?.name ?? "",
+        }));
+
+        if (mappedMemberships.length > 0) {
+          const preferredOrg = activeOrgRef.current && mappedMemberships.some((membership) => membership.organization_id === activeOrgRef.current)
+            ? activeOrgRef.current
+            : mappedMemberships[0].organization_id;
+
+          const activeMembership = mappedMemberships.find((membership) => membership.organization_id === preferredOrg) ?? mappedMemberships[0];
+
+          return {
+            profile: (profileData as UserProfile | null) ?? null,
+            memberships: mappedMemberships,
+            activeRole: isMaintenanceAdmin ? "administrator" : activeMembership.role,
+            activeOrganizationId: preferredOrg,
+            isMaintenance: isMaintenanceAdmin,
+            hasPendingRoleRequest: !!pendingRequestData,
+            authError: profileError
+              ? "We couldn't fully load your account profile."
+              : null,
+          };
+        }
+
+        if (isMaintenanceAdmin) {
+          const orgId = (profileData as UserProfile | null)?.organization_id ?? activeOrgRef.current ?? null;
+
+          return {
+            profile: (profileData as UserProfile | null) ?? null,
+            memberships: orgId
+              ? [{ organization_id: orgId, role: "administrator", organization_name: "System" }]
+              : [],
+            activeRole: "administrator",
+            activeOrganizationId: orgId,
+            isMaintenance: true,
+            hasPendingRoleRequest: false,
+            authError: profileError
+              ? "We couldn't fully load your account profile."
+              : null,
+          };
+        }
+
+        const combinedError = maintenanceError || membershipError || profileError || pendingRequestError;
+        const authErrorMessage = retryableErrors.length > 0
+          ? "Your sign-in is still being finalized. Please wait a few seconds and try again."
+          : combinedError
+            ? "We couldn't confirm your access permissions yet. Please retry."
+            : null;
 
         return {
           profile: (profileData as UserProfile | null) ?? null,
-          memberships: mappedMemberships,
-          activeRole: isMaintenanceAdmin ? "administrator" : activeMembership.role,
-          activeOrganizationId: preferredOrg,
-          isMaintenance: isMaintenanceAdmin,
+          memberships: [],
+          activeRole: null,
+          activeOrganizationId: pendingRequestData?.organization_id ?? (profileData as UserProfile | null)?.organization_id ?? null,
+          isMaintenance: false,
           hasPendingRoleRequest: !!pendingRequestData,
-          authError: profileError
-            ? "We couldn't fully load your account profile."
-            : null,
+          authError: authErrorMessage,
         };
       }
-
-      if (isMaintenanceAdmin) {
-        const orgId = (profileData as UserProfile | null)?.organization_id ?? activeOrgRef.current ?? null;
-
-        return {
-          profile: (profileData as UserProfile | null) ?? null,
-          memberships: orgId
-            ? [{ organization_id: orgId, role: "administrator", organization_name: "System" }]
-            : [],
-          activeRole: "administrator",
-          activeOrganizationId: orgId,
-          isMaintenance: true,
-          hasPendingRoleRequest: false,
-          authError: profileError
-            ? "We couldn't fully load your account profile."
-            : null,
-        };
-      }
-
-      const combinedError = membershipError || profileError || pendingRequestError;
 
       return {
-        profile: (profileData as UserProfile | null) ?? null,
-        memberships: [],
-        activeRole: null,
-        activeOrganizationId: pendingRequestData?.organization_id ?? (profileData as UserProfile | null)?.organization_id ?? null,
-        isMaintenance: false,
-        hasPendingRoleRequest: !!pendingRequestData,
-        authError: combinedError
-          ? "We couldn't confirm your access permissions yet. Please retry."
-          : null,
+        ...EMPTY_ACCESS,
+        authError: "We couldn't confirm your access permissions yet. Please retry.",
       };
     } catch (error) {
       logger.error("Error fetching user data/memberships:", error);
