@@ -62,7 +62,95 @@ serve(async (req: Request) => {
       [orgId, today],
     );
 
-    const prompt = `You are an AI business intelligence agent for NIF Technical Services Ltd, an HDPE pipe installation company in Nigeria.\n\nTODAY'S DATE: ${today}\n\nEXISTING TRACKED OPPORTUNITIES (avoid duplicates):\n${JSON.stringify(existingOpps?.map(o => o.title) ?? [], null, 2)}\n\nGenerate 5-8 NEW realistic business opportunities in Nigeria for HDPE piping services.\n\nFor EACH provide: title, source, description, estimated_value (₦), deadline (YYYY-MM-DD), relevance_score (1-10), success_probability (0-100), capital_estimate, bid_strategy, competition_intensity (low/medium/high).\n\nAlso provide market_summary.\n\nReturn ONLY valid JSON:\n{"opportunities":[...],"market_summary":"..."}`;
+    const prompt = `You are an AI business intelligence agent for NIF Technical Services Ltd, an HDPE pipe installation, maintenance and engineering company headquartered in Nigeria.
+
+TODAY'S DATE: ${today}
+
+EXISTING TRACKED OPPORTUNITIES (avoid duplicates by title):
+${JSON.stringify(existingOpps?.map(o => o.title) ?? [], null, 2)}
+
+GENERATE 6-10 NEW realistic, high-relevance business opportunities.
+
+SOURCE MIX (do NOT limit to government tenders — actively include private sector):
+- Private companies, engineering firms, EPC contractors
+- Industrial / manufacturing plants
+- Oil & gas operators and service companies
+- Water utilities, mining, agriculture irrigation
+- Recruitment portals and direct company career pages
+- Government & state agencies (only as part of the mix, not the majority)
+
+GEOGRAPHIC PRIORITY (in this order):
+1. Nigeria 🇳🇬 (primary — ~60% of items)
+2. Other African countries: Ghana, Kenya, South Africa, Egypt, Tanzania, Côte d'Ivoire, Senegal, etc.
+
+INDUSTRY RELEVANCE — strongly prioritize:
+- HDPE pipe supply, installation, jointing, maintenance, repair
+- Industrial pipework & mechanical maintenance
+- Field / mechanical engineering roles
+- Oil & gas pipeline infrastructure
+- Construction & pipeline engineering
+Filter out irrelevant categories.
+
+MANDATORY PROCUREMENT-SPECIFIC CONTACT — every opportunity MUST include the contact and
+submission channel that belongs to THIS specific tender / bid / project office.
+Embed them inside the "description" field using these EXACT markers, each on its own line
+at the END of the description, with a Confidence tag immediately after each:
+
+📞 Contact: <opportunity-specific contact>
+Confidence: Verified | Estimated | Not Available
+📝 How to Apply: <opportunity-specific submission method>
+Confidence: Verified | Estimated | Not Available
+
+PRIORITIZE (in this order) for the Contact line:
+  1. Named procurement / tender officer (with title, phone, email tied to this bid)
+  2. Procurement department, tender unit, bid coordination office, or project office contact
+  3. Branch / division procurement desk explicitly handling this opportunity
+
+PRIORITIZE (in this order) for the How to Apply line:
+  1. Direct tender portal URL for THIS bid (NipeX bid ref, e-GP listing, dedicated e-tender link)
+  2. Procurement submission email (e.g. procurement@…, tenders@…, bids@…)
+  3. Physical bid submission address with bid reference number / closing time
+
+FORBIDDEN — never emit any of these as Contact or How to Apply:
+  - Generic careers pages, /careers, /jobs, /about, /contact-us, company homepage URLs
+  - LinkedIn company pages, recruiter aggregators, job-board landing pages
+  - Generic mailboxes (careers@, hr@, info@, hello@, contact@) unless the source
+    page EXPLICITLY routes that mailbox to procurement for THIS tender
+  - Phrases like "visit our website", "see careers page", "search for the email"
+
+CROSS-VALIDATION — Contact and How to Apply MUST refer to the SAME tender, branch,
+department and bid reference. Do not mix details from different tenders or unrelated
+divisions of the same company.
+
+Confidence rules:
+  - Verified: named officer + portal/email/address that is provably tied to this bid
+  - Estimated: correct procurement department located but exact bid contact inferred
+  - Not Available: nothing opportunity-specific found
+
+If Confidence would be "Not Available", emit EXACTLY:
+  📞 Contact: Specific submission information was not publicly available at the time of analysis.
+  Confidence: Not Available
+  📝 How to Apply: Specific submission information was not publicly available at the time of analysis.
+  Confidence: Not Available
+
+Never omit these four lines. Never substitute a careers page or homepage as a fallback.
+
+For EACH opportunity provide:
+- title (specific, includes company/agency + scope + country)
+- source (e.g. "Company Career Page", "NipeX", "LinkedIn Jobs", "Ghana Public Procurement", "Direct Tender")
+- description (rich paragraph + the two mandatory marker lines at the end)
+- estimated_value (number, Nigerian Naira ₦; convert other currencies)
+- deadline (YYYY-MM-DD, in the future)
+- relevance_score (1-10, HDPE/pipeline core = 9-10)
+- success_probability (0-100)
+- capital_estimate (₦ capital required to execute)
+- bid_strategy (1-2 sentences)
+- competition_intensity ("low" | "medium" | "high")
+
+Also provide market_summary (2-4 sentences on regional/sector trends).
+
+Return ONLY valid JSON, no markdown fences:
+{"opportunities":[...],"market_summary":"..."}`;
 
     const aiResult = await callAI(
       "You are an AI business development analyst for Nigerian HDPE piping companies. Return valid JSON only, no markdown.",

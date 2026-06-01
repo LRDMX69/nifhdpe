@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { APP_FULL_NAME, ROLE_LABELS, ALL_ROLES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
+import { lovableAuth } from "@/lib/lovableAuth";
 import { getAppUrl } from "@/lib/appUrl";
 import gsap from "gsap";
 import nifLogo from "@/assets/nif-logo.png";
@@ -207,7 +207,7 @@ const Login = () => {
                 variant="outline"
                 className="w-full"
                 onClick={async () => {
-                  const result = await lovable.auth.signInWithOAuth("google", {
+                  const result = await lovableAuth.signInWithOAuth("google", {
                     redirect_uri: getAppUrl(),
                   });
                   if (result.error) {

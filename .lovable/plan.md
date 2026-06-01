@@ -1,81 +1,212 @@
-# Plan — Opportunities recovery, raw/clean visibility, ID cards, label sweep
+# Opportunity Source Tracking & Verification
 
-## 1. Opportunities data — important honesty note
+Make every opportunity traceable: store the originating URL, validate it (HEAD/GET), classify its type, surface the evidence in the UI, lower confidence on unverified sources, and audit existing rows.
 
-The opportunities rows were deleted by the `DELETE` migration I ran ~1h ago. PostgreSQL does not have an undo for committed deletes. There are exactly two real paths to recover them:
+## 1. Database migration (new columns + audit table)
 
-**Option A — Restore from a Supabase daily backup (most likely path).**
-Lovable Cloud projects keep automatic daily backups. We can extract just the `opportunities` rows (and `opportunity` foreign-key children if any) from the most recent backup taken **before** the wipe and re-insert them into the current database. This must be done from the Cloud dashboard side — the agent tools cannot trigger a backup restore. I'll write the re-insert SQL once you (or support) pull the rows out of the backup.
+Add to `public.opportunities`:
 
-**Option B — Point-in-Time Recovery (PITR).**
-Restores the entire DB to a moment before the wipe. This is a paid Supabase add-on and would also revert everything else you've done since (including the terminate-fix verification and any new logins). Not recommended.
+- `source_url text`
+- `source_domain text`
+- `source_type text` — one of: `procurement_portal | government_portal | company_website | pdf_notice | rss_feed | news_source | manual_entry`
+- `source_verified boolean default false`
+- `source_status_code int`
+- `source_last_checked_at timestamptz`
+- `source_verification_notes text`
+- `discovered_at timestamptz default now()`
+- `needs_review boolean default false`
 
-**What I can do right now without backups:** rebuild the empty opportunities table cleanly (it already exists, untouched structurally — only rows are gone) and confirm the AI opportunity scanner cron is still active so new opportunities start flowing in again right away for the next 1 hour straight before it starts it normal cycles to populate the page with at least 100+ more opportunities immediately.
+Index on `(organization_id, source_verified)`.
 
-**What I need from you:** tell me whether to (a) request a backup export of `opportunities` so I can re-insert, or (b) just let the scanner repopulate from scratch. B is the better choice since A is a paid option
+No new tables — verification history lives in `source_last_checked_at` + `source_verification_notes`.
 
-I will  proceed on B for Section 1.
+## 2. Scanner edge function (`opportunity-scanner/index.ts`)
 
----
+- Extend AI prompt: every opportunity MUST return `source_url`, `source_type`, and the page it was found on. Forbid invented URLs — if not known, return null and the scanner will mark `manual_entry` / unverified.
+- After parsing AI response, run `verifySourceUrl(url)`:
+  - HEAD request (5s timeout), fall back to GET if HEAD not allowed (405).
+  - Follow up to 3 redirects.
+  - Verified = final status `200–399` AND final URL host matches expected domain AND body (when GET) doesn't contain "404" / "page not found" / "tender closed" heuristics in `<title>`.
+  - Returns `{ verified, statusCode, finalUrl, notes }`.
+- Persist: `source_url = finalUrl`, `source_domain = new URL(finalUrl).hostname`, `source_verified`, `source_status_code`, `source_last_checked_at = now()`, `source_verification_notes`.
+- If `!verified` → reduce `success_probability` by 20 and `relevance_score` by 1 (floor 0) and set `needs_review = true`.
+- If AI omitted URL → save row with `source_type = manual_entry`, `source_verified = false`, `needs_review = true`, confidence reduced.
 
-## 2. Raw vs cleaned report visibility
+## 3. New audit edge function (`opportunity-source-audit`)
 
-**Files:** `src/pages/FieldReports.tsx`, `src/components/dashboards/AdminDashboard.tsx`.
+- Cron-callable + admin-callable.
+- Selects all opportunities for the org where `status IN ('identified','bidding')` and (`source_last_checked_at IS NULL` OR older than 7 days OR `source_verified = false`).
+- Re-runs `verifySourceUrl`, updates the same columns, flips `needs_review` true when dead.
+- Returns `{ checked, verified, dead, flagged }`.
 
-- In the view-report dialog, when the current user is NOT the submitter (`viewingReport.created_by !== user.id`) and not maintenance admin:
-  - Render ONLY `structured_reports[0].structured_content`.
-  - Remove the fallback that displays raw `tasks_completed`, `crew_members`, `pressure_test_result`, `safety_incidents`, `client_feedback`.
-  - If no structured version exists yet, show "Report is being processed" instead of leaking raw text.
-- When the current user IS the submitter:
-  - Default view = cleaned (same as everyone else).
-  - Add a "View original submission" toggle that reveals the raw fields. Toggle is only rendered for the submitter.
-- Admin dashboard report cards: already only show metadata + `hasStructured` badge — verify no raw text is rendered in the list; if any is, remove it.
-- Remove any AI debug/meta UI surfaces if present (none found in scan, will re-grep during implementation).
+Wire a daily cron entry via migration (`cron.schedule` + `pg_net`) using existing `cron_shared_secret`.
 
----
+## 4. Frontend (`src/pages/Opportunities.tsx`)
 
-## 3. ID card system
+In the opportunity detail dialog, add a **Source Information** section:
 
-**Files:** `src/components/hr/tabs/IDCardsTab.tsx`, `src/pages/HR.tsx` (`handleGenerateIdCard`), `src/lib/generateIdCard.ts`. No DB schema changes (ID cards are generated on demand from profile + membership; nothing persisted).
+```
+Source URL:        <a href=… target=_blank>{source_url}</a>
+Source Domain:     {source_domain}
+Source Type:       {humanized source_type}
+Verification:      Verified ✓ (green) | Unverified ✗ (red) | Pending (muted)
+Status Code:       {source_status_code ?? "—"}
+Last Checked:      {formatRelative(source_last_checked_at)}
+Discovered:        {formatDateTime(discovered_at)}
+```
 
-Changes:
+Add an **Evidence** sub-block right under it: "Found via {source_type} at {source_domain} on {discovered_at}. Analyzed page: 
 
-- **Auto-fill from profile & membership** (already partially in place):
-  - Full name → `profiles.full_name`
-  - Role → `organization_memberships.role` (mapped to display label, not raw enum)
-  - Department → derived from role via existing `ROLE_LABELS` map
-  - Staff ID → `NIF-<8-char uid prefix>` (already in place)
-  - Phone → `profiles.phone`
-  - Email → from `auth.users.email` via a server-side lookup OR (simpler) only show phone on the card and skip email since profiles table has no email column. Decision: show phone only — adding email needs an admin-only edge function call, not worth it for the card UI.
-  - Profile picture → `profiles.avatar_url` rendered into the card photo slot via canvas → dataURL → `doc.addImage` (replaces the current grey camera-silhouette placeholder).
-- **Photo override:** in the ID generation dialog in `HR.tsx`, add an optional `<input type="file" accept="image/*">` that, if chosen, overrides `avatarUrl` for this card only (not persisted to profile).
-- **Permanent vs Temporary logic** (currently both always show an expiry):
-  - Dialog already has `idCardTemp` boolean. Keep the radio toggle.
-  - If Temporary: HR picks expiry date via a `<DatePicker>`/native date input. Default = today + 3 months. Card prints `EXPIRES: <date>`.
-  - If Permanent: NO expiry date is computed and the PDF `EXPIRES:` line is omitted entirely. Replace with `STATUS: ACTIVE`.
-- **Mobile responsiveness of the dialog:** wrap form fields in a single-column layout under `sm`, ensure dialog uses `max-w-md` and scrolls vertically (`max-h-[90vh] overflow-y-auto`).
-- **Overflow protection in PDF:** `fitText` already truncates long names. Apply the same to role and organization name. Verify card renders cleanly with a 40-char name.
+&nbsp;
 
----
+".
 
-## 4. Legacy role label sweep
+On the opportunity card, show a small badge: green "Source verified", amber "Unverified", red "Needs review" when `needs_review`.
 
-Files with hits: `src/pages/HR.tsx`, `src/pages/KnowledgeBase.tsx`, `src/components/dashboards/DashboardRouter.tsx`, `src/components/dashboards/KnowledgeManagerDashboard.tsx`, `src/lib/constants.ts`.
+Add a manual "Re-verify source" button (admin-only) that calls `opportunity-source-audit` with `{ opportunity_id }`.
 
-- `src/pages/HR.tsx:457` — remove `knowledge_manager`, `siwes_trainee`, `it_student`, `nysc_member` from `roleOptions`. Final list: `administrator, engineer, technician, warehouse, finance, hr, reception_sales`.
-- `src/components/dashboards/DashboardRouter.tsx` — drop the `knowledge_manager / siwes_trainee / it_student / nysc_member` map entries. Legacy memberships with those roles will fall through to the "no role assigned" branch (acceptable; you have no such users left after the wipe).
-- `src/components/dashboards/KnowledgeManagerDashboard.tsx` — delete the file (no longer reachable). Also drop any import in DashboardRouter (already not imported there, so just file delete).
-- `src/pages/KnowledgeBase.tsx:38` — change `canEdit` check to `activeRole === "administrator"` only.
-- `src/lib/constants.ts` — `ROLE_LABELS` already maps legacy keys to canonical departments; keep the mapping (defensive) but ensure UI dropdowns never expose the legacy keys.
-- `src/integrations/supabase/types.ts` — auto-generated, do not touch. The DB enum still contains the legacy values; that's fine because UI never offers them.
+## 5. Audit existing records
 
----
+After migration approval, invoke `opportunity-source-audit` once across all rows (covered by step 3's bulk pass). Rows with no `source_url` get `needs_review = true` so the team can edit them in-place.
 
-## Order of execution
+URGENT AUTHENTICATION AUDIT
 
-1.  chose option B for opportunities recovery.
-2. Section 2 (raw/clean visibility) — small, low-risk.
-3. Section 4 (label sweep) — small, low-risk.
-4. Section 3 (ID cards) — slightly larger, mobile-test after.
+&nbsp;
 
-Each section is independently committable; if anything fails QA we don't lose the others.
+Issue:
+
+&nbsp;
+
+Users report that "Sign in with Google" results in a 404 page.
+
+&nbsp;
+
+Email/password authentication works, but Google OAuth does not.
+
+&nbsp;
+
+Investigate and fix the entire Google OAuth flow end-to-end.
+
+&nbsp;
+
+Audit:
+
+&nbsp;
+
+1. Supabase Authentication Settings
+
+&nbsp;
+
+- Site URL
+
+- Redirect URLs
+
+- OAuth callback URLs
+
+- Production URLs
+
+- Development URLs
+
+&nbsp;
+
+2. Google OAuth Configuration
+
+&nbsp;
+
+- Authorized JavaScript Origins
+
+- Authorized Redirect URIs
+
+- OAuth Client settings
+
+&nbsp;
+
+3. Frontend OAuth Flow
+
+&nbsp;
+
+- signInWithOAuth()
+
+- redirectTo values
+
+- callback handlers
+
+- session recovery
+
+&nbsp;
+
+Requirements:
+
+&nbsp;
+
+- All Google sign-ins must redirect back to the production Vercel domain.
+
+- No redirects should point to lovable.app.
+
+- No redirects should point to localhost.
+
+- No redirects should point to old environments.
+
+&nbsp;
+
+Add logging for:
+
+&nbsp;
+
+- OAuth start
+
+- Redirect destination
+
+- Callback received
+
+- Session created
+
+- Failure reason
+
+&nbsp;
+
+Test:
+
+&nbsp;
+
+- New user Google signup
+
+- Existing user Google login
+
+- Mobile browser
+
+- Installed PWA
+
+- Desktop browser
+
+&nbsp;
+
+Provide:
+
+&nbsp;
+
+1. Exact root cause found
+
+2. Exact configuration changed
+
+3. Confirmation that Google login works in production
+
+4. Any Supabase dashboard settings that require manual adjustment
+
+&nbsp;
+
+Do not assume the issue is fixed until the full Google OAuth flow has been tested successfully on production.
+
+## Files touched
+
+- New migration (columns + index + cron job)
+- `supabase/functions/opportunity-scanner/index.ts` (prompt + verification + persist new fields)
+- `supabase/functions/opportunity-source-audit/index.ts` (new)
+- `supabase/config.toml` (register new function; `verify_jwt = false` for cron)
+- `src/pages/Opportunities.tsx` (detail dialog Source/Evidence section, card badge, re-verify button)
+
+## Out of scope
+
+- No changes to AI provider, rate limiting, or other edge functions.
+- No new tables or RLS changes — new columns inherit existing `opportunities` policies.
+- Brief PDF export keeps current layout (Source URL appended at end of Contact section only if verified).
