@@ -104,6 +104,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     activeOrgRef.current = null;
   }, [applyAccessSnapshot]);
 
+  const fetchWithTimeout = async (resource: RequestInfo, options: RequestInit = {}, timeout = 10000) => {
+    const controller = new AbortController();
+    const id = window.setTimeout(() => controller.abort(), timeout);
+    try {
+      const response = await fetch(resource, { ...options, signal: controller.signal });
+      return response;
+    } finally {
+      window.clearTimeout(id);
+    }
+  };
+
   const fetchUserData = useCallback(async (userId: string): Promise<AccessSnapshot> => {
     try {
       const pendingRequestQuery = (supabase as any)
@@ -154,6 +165,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
+      let loadedMemberships = membershipData || [];
+
+      if (!membershipError && loadedMemberships.length === 0 && profileData?.organization_id) {
+        const pendingRolesStr = localStorage.getItem("nif_pending_roles");
+        let rolesToAssign: string[] = ["technician"];
+        if (pendingRolesStr) {
+          try {
+            const parsed = JSON.parse(pendingRolesStr);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              rolesToAssign = parsed;
+            }
+          } catch (e) {
+            logger.error("Error parsing pending roles from localStorage:", e);
+          }
+        }
+
+        logger.info(`Auto-assigning memberships for user ${userId} to org ${profileData.organization_id} with roles ${rolesToAssign.join(", ")}`);
+
+        try {
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          const accessToken = currentSession?.access_token;
+          if (!accessToken) {
+            const message = "Missing access token for role assignment";
+            logger.error(message);
+            setAuthError(message);
+          } else {
+            const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assign-pending-roles`;
+            const res = await fetchWithTimeout(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+              body: JSON.stringify({ user_id: userId, organization_id: profileData.organization_id, roles: rolesToAssign.slice(0, 2) })
+            }, 5000);
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              const message = payload?.error ? (Array.isArray(payload.error) ? payload.error.join("; ") : payload.error) : (payload?.detail ? JSON.stringify(payload.detail) : "Role assignment failed");
+              logger.error("assign-pending-roles failed", payload);
+              setAuthError(message);
+            } else {
+              localStorage.removeItem("nif_pending_roles");
+            }
+          }
+        } catch (e) {
+          const message = e instanceof Error ? e.message : "Role assignment request failed";
+          logger.error("assign-pending-roles request failed", e);
+          setAuthError(message);
+        }
+
+        // Refetch memberships
+        const { data: refetchedData, error: refetchError } = await supabase
+          .from("organization_memberships")
+          .select("organization_id, role, organizations(name)")
+          .eq("user_id", userId);
+
+        if (!refetchError && refetchedData) {
+          loadedMemberships = refetchedData;
+        }
+      }
+
       if (membershipError) {
         logger.error("Error fetching memberships:", membershipError);
       }
@@ -161,7 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logger.error("Error fetching role assignment requests:", pendingRequestError);
       }
 
-      const mappedMemberships: UserMembership[] = (membershipData ?? []).map((membership) => ({
+      const mappedMemberships: UserMembership[] = loadedMemberships.map((membership) => ({
         organization_id: membership.organization_id,
         role: membership.role,
         organization_name: (membership.organizations as unknown as { name: string } | null)?.name ?? "",

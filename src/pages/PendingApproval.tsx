@@ -1,16 +1,20 @@
 import { useNavigate } from "react-router-dom";
-import { Clock, LogOut } from "lucide-react";
+import { Clock, LogOut, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import nifLogo from "@/assets/nif-logo.png";
 
 const PendingApproval = () => {
-  const { profile, authError, signOut } = useAuth();
+  const { profile, authError, refreshAccess, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await signOut();
     navigate("/login", { replace: true });
+  };
+
+  const handleRetry = async () => {
+    await refreshAccess();
   };
 
   return (
@@ -39,9 +43,14 @@ const PendingApproval = () => {
         <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
           <p>Your access request is now stored in the ERP for administrator review, so it won’t get lost if you change device or sign in again.</p>
         </div>
-        <Button variant="outline" onClick={handleSignOut} className="gap-2">
-          <LogOut className="h-4 w-4" /> Sign Out
-        </Button>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Button variant="secondary" onClick={handleRetry} className="gap-2">
+            <RefreshCcw className="h-4 w-4" /> Retry
+          </Button>
+          <Button variant="outline" onClick={handleSignOut} className="gap-2">
+            <LogOut className="h-4 w-4" /> Sign Out
+          </Button>
+        </div>
       </div>
     </div>
   );
