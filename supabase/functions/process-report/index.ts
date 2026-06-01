@@ -1,6 +1,6 @@
-// @ts-expect-error
+// @ts-expect-error - Deno http module import type mismatch
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-// @ts-expect-error
+// @ts-expect-error - Deno import type mismatch for supabase-js
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
@@ -34,9 +34,9 @@ function containsBanned(text: string): boolean {
 }
 
 async function callAI(systemPrompt: string, userMessage: string) {
-  // @ts-expect-error
+  // @ts-expect-error - Deno.env type mismatch
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  // @ts-expect-error
+  // @ts-expect-error - Deno.env type mismatch
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
   
   if (LOVABLE_API_KEY) {
@@ -81,9 +81,9 @@ serve(async (req: Request) => {
   try {
       const body = await req.json();
     const fieldReportId = body.field_report_id ?? body.reportId;
-    // @ts-expect-error
+    // @ts-expect-error - Deno.env type mismatch
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    // @ts-expect-error
+    // @ts-expect-error - Deno.env type mismatch
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     if (!fieldReportId) throw new Error("field_report_id or reportId required");

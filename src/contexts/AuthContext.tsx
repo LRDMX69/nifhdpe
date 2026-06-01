@@ -118,12 +118,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUserData = useCallback(async (userId: string): Promise<AccessSnapshot> => {
     try {
       const pendingRequestQuery = (supabase as any)
-        .from("role_assignment_requests")
-        .select("organization_id")
-        .eq("user_id", userId)
-        .eq("status", "pending")
-        .limit(1)
-        .maybeSingle();
+      .from("admin_requests")
+      .select("organization_id")
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .limit(1)
+      .maybeSingle();
 
       const [maintenanceResult, profileResult, membershipResult, pendingRequestResult] = await Promise.all([
         supabase

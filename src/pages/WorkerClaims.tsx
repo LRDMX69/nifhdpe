@@ -129,8 +129,8 @@ const WorkerClaims = () => {
           .upload(filePath, selectedFile);
         if (uploadErr) throw new Error("File upload failed: " + uploadErr.message);
 
-        const { data: urlData } = await supabase.storage.from("claim-attachments").createSignedUrl(filePath, 60 * 60 * 24 * 7); // 7 days
-        const fileUrl = urlData?.signedUrl || filePath;
+        // Store only the file path, not a temporary signed URL
+        const fileUrl = filePath;
 
 
         const { error } = await supabase.from("worker_claims").insert({

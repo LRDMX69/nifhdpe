@@ -1,6 +1,6 @@
-// @ts-expect-error
+// @ts-expect-error - Deno http module import type mismatch
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-// @ts-expect-error
+// @ts-expect-error - Deno import type mismatch for supabase-js
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
@@ -33,9 +33,9 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "invalid organization_id" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     await validateServiceOrUser(req, organization_id);
-    // @ts-expect-error
+    // @ts-expect-error - Deno.env type mismatch
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    // @ts-expect-error
+    // @ts-expect-error - Deno.env type mismatch
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 

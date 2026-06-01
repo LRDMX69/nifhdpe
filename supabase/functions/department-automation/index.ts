@@ -58,7 +58,7 @@ serve(async (req: Request) => {
 
     const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
     let prompt = "";
-    let context = department || "general";
+    const context = department || "general";
     let metadata: Record<string, unknown> = {};
 
     switch (department) {

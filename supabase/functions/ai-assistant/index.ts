@@ -1,6 +1,6 @@
-// @ts-expect-error
+// @ts-expect-error - Deno http module import type mismatch
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-// @ts-expect-error
+// @ts-expect-error - Shared module type mismatch in Deno
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
 import { validateServiceOrUser } from "../_shared/auth.ts";
@@ -109,9 +109,9 @@ function validateRequestBody(body: Record<string, unknown>): { ok: false; reason
   return { ok: true, context: context as keyof typeof SYSTEM_PROMPTS, prompt: sanitizedPrompt, data };
 }
 async function callGemini(systemPrompt: string, userMessage: string, stream: boolean, context: string) {
-  // @ts-expect-error
+  // @ts-expect-error - Deno.env type mismatch
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  // @ts-expect-error
+  // @ts-expect-error - Deno.env type mismatch
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
   // Prefer Lovable AI gateway (free, no rate limits)
