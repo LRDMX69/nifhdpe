@@ -149,6 +149,21 @@ const Login = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground leading-relaxed">
+                {isSignUp ? (
+                  <>
+                    <p className="font-medium text-foreground mb-1">What happens next</p>
+                    Your account is created and signed in immediately — no verification email needed. You'll land on
+                    {" "}<span className="font-medium text-foreground">Pending Approval</span> until an administrator assigns your role.
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium text-foreground mb-1">Trouble signing in?</p>
+                    If you originally signed up with Google, use the Google button below. If you never set a password, click
+                    {" "}<span className="font-medium text-foreground">Forgot Password</span> to receive a reset link.
+                  </>
+                )}
+              </div>
               <form onSubmit={handleSubmit} className="space-y-4">
                 {isSignUp && (
                   <div className="space-y-2">
