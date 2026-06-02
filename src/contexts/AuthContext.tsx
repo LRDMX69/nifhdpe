@@ -408,7 +408,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return false;
       })
       .then(() => supabase.auth.getSession())
-      .then(({ data: { session: initialSession } ) => {
+      .then(({ data: { session: initialSession } }) => {
         if (!active) return;
 
         initialSessionRestoredRef.current = true;

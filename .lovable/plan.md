@@ -1,212 +1,77 @@
-# Opportunity Source Tracking & Verification
+## Findings from auditing your local changes
 
-Make every opportunity traceable: store the originating URL, validate it (HEAD/GET), classify its type, surface the evidence in the UI, lower confidence on unverified sources, and audit existing rows.
+Your latest commit introduced a **syntax error in `src/contexts/AuthContext.tsx` (line 411)** — a missing `}` in this line:
 
-## 1. Database migration (new columns + audit table)
-
-Add to `public.opportunities`:
-
-- `source_url text`
-- `source_domain text`
-- `source_type text` — one of: `procurement_portal | government_portal | company_website | pdf_notice | rss_feed | news_source | manual_entry`
-- `source_verified boolean default false`
-- `source_status_code int`
-- `source_last_checked_at timestamptz`
-- `source_verification_notes text`
-- `discovered_at timestamptz default now()`
-- `needs_review boolean default false`
-
-Index on `(organization_id, source_verified)`.
-
-No new tables — verification history lives in `source_last_checked_at` + `source_verification_notes`.
-
-## 2. Scanner edge function (`opportunity-scanner/index.ts`)
-
-- Extend AI prompt: every opportunity MUST return `source_url`, `source_type`, and the page it was found on. Forbid invented URLs — if not known, return null and the scanner will mark `manual_entry` / unverified.
-- After parsing AI response, run `verifySourceUrl(url)`:
-  - HEAD request (5s timeout), fall back to GET if HEAD not allowed (405).
-  - Follow up to 3 redirects.
-  - Verified = final status `200–399` AND final URL host matches expected domain AND body (when GET) doesn't contain "404" / "page not found" / "tender closed" heuristics in `<title>`.
-  - Returns `{ verified, statusCode, finalUrl, notes }`.
-- Persist: `source_url = finalUrl`, `source_domain = new URL(finalUrl).hostname`, `source_verified`, `source_status_code`, `source_last_checked_at = now()`, `source_verification_notes`.
-- If `!verified` → reduce `success_probability` by 20 and `relevance_score` by 1 (floor 0) and set `needs_review = true`.
-- If AI omitted URL → save row with `source_type = manual_entry`, `source_verified = false`, `needs_review = true`, confidence reduced.
-
-## 3. New audit edge function (`opportunity-source-audit`)
-
-- Cron-callable + admin-callable.
-- Selects all opportunities for the org where `status IN ('identified','bidding')` and (`source_last_checked_at IS NULL` OR older than 7 days OR `source_verified = false`).
-- Re-runs `verifySourceUrl`, updates the same columns, flips `needs_review` true when dead.
-- Returns `{ checked, verified, dead, flagged }`.
-
-Wire a daily cron entry via migration (`cron.schedule` + `pg_net`) using existing `cron_shared_secret`.
-
-## 4. Frontend (`src/pages/Opportunities.tsx`)
-
-In the opportunity detail dialog, add a **Source Information** section:
-
-```
-Source URL:        <a href=… target=_blank>{source_url}</a>
-Source Domain:     {source_domain}
-Source Type:       {humanized source_type}
-Verification:      Verified ✓ (green) | Unverified ✗ (red) | Pending (muted)
-Status Code:       {source_status_code ?? "—"}
-Last Checked:      {formatRelative(source_last_checked_at)}
-Discovered:        {formatDateTime(discovered_at)}
+```ts
+.then(({ data: { session: initialSession } ) => {
+//                                        ^ missing }
 ```
 
-Add an **Evidence** sub-block right under it: "Found via {source_type} at {source_domain} on {discovered_at}. Analyzed page: 
+Vite is currently reporting `Expected ',', got ')'` and refusing to compile. **This means the entire app is broken right now** — every visitor (you, the HR user, anyone testing Google sign-in) sees only the loading splash forever. That alone explains a lot of what you've been seeing today. This is fix #1.
 
-&nbsp;
+## HR user status ([nifkemi22@gmail.com](mailto:nifkemi22@gmail.com))
 
-".
+Checked the database directly:
 
-On the opportunity card, show a small badge: green "Source verified", amber "Unverified", red "Needs review" when `needs_review`.
+- Account exists, `email_confirmed_at` is already set (she's verified)
+- `hr` role membership is attached, `terminated = false`
+- `last_sign_in_at` shows she successfully signed in once on 2026-06-01
 
-Add a manual "Re-verify source" button (admin-only) that calls `opportunity-source-audit` with `{ opportunity_id }`.
+So she's fully provisioned. What's almost certainly happening: she signed up via **Google OAuth** the first time (which auto-confirmed her email and created her session), and now she's trying to sign in with **email + password** — but she never set a password, so it fails. She doesn't need verification; she needs a password.
 
-## 5. Audit existing records
+## The plan
 
-After migration approval, invoke `opportunity-source-audit` once across all rows (covered by step 3's bulk pass). Rows with no `source_url` get `needs_review = true` so the team can edit them in-place.
+### 1. Fix the syntax error in AuthContext.tsx (unblocks everything)
 
-URGENT AUTHENTICATION AUDIT
+Repair the destructure on line 411 so the app compiles again. This is the highest-priority change — nothing else can be tested until this is done.
 
-&nbsp;
+### 2. Unblock the HR user today
 
-Issue:
+Two-pronged:
 
-&nbsp;
+- Trigger a password-reset email to `nifkemi22@gmail.com` so she can set a password and sign in with email+password.
+- Also confirm Google sign-in works for her (after fix #3) since that's how her account was originally created — she can use either.
 
-Users report that "Sign in with Google" results in a 404 page.
+If for some reason the reset email doesn't arrive (see #4), I'll fall back to issuing an admin-generated password via the backend so she's in within minutes.
 
-&nbsp;
+### 3. Remove email-verification friction for new sign-ups
 
-Email/password authentication works, but Google OAuth does not.
+Right now new email/password sign-ups are blocked by mandatory email verification, and the default auth email channel is being unreliable (this is what happened to your friend's test). Since you already gate real access through admin role approval (`role_assignment_requests`), the email-confirmation step is redundant friction.
 
-&nbsp;
+Switch the Cloud auth setting to **auto-confirm email signups**. Effect:
 
-Investigate and fix the entire Google OAuth flow end-to-end.
+- New users can sign in immediately after signup (no verification email needed)
+- They still land on **Pending Approval** until an admin assigns them a role — security is unchanged
+- Removes the "can't log in even though admin approved me" failure mode entirely
 
-&nbsp;
+### 4. Fix Google OAuth on the Vercel deployment
 
-Audit:
+Root cause analysis: the broker redirects back to your Vercel origin with tokens in the URL hash, but the current handler (`consumeOAuthCallback`) only runs after `AuthContext` mounts, and `AuthContext` is currently crashing (issue #1). Once #1 is fixed, the token-consumption path will run. Beyond that, two real production gaps remain:
 
-&nbsp;
+a. **Vercel origin must be in the OAuth redirect allow-list** in Lovable Cloud → Users → Authentication Settings → URL Configuration. Without this, the broker silently strips tokens before redirecting back, which is exactly the "returns to sign-in page, not signed in" symptom you're describing. You'll need to add your Vercel domain there — I'll give you the exact value to paste once #1 is fixed and I confirm the origin.
 
-1. Supabase Authentication Settings
+b. **Replace the custom `lovableAuth` wrapper with the auto-generated `lovable` module** in `src/pages/Login.tsx`. The custom wrapper pins the broker to `nifhdpe.lovable.app`, which works for the popup flow but is fragile across hosts. The official module handles popup-vs-redirect detection per host correctly.
 
-&nbsp;
+### 5. Verify end-to-end before declaring done
 
-- Site URL
+- Email/password signup → immediate sign-in → Pending Approval screen
+- Admin approves role → user lands on dashboard
+- Google sign-in on Vercel: account chooser → returns to app → actually signed in → dashboard
+- HR user can sign in (either Google or new password)
 
-- Redirect URLs
+## Files to change
 
-- OAuth callback URLs
+- `src/contexts/AuthContext.tsx` — fix syntax error on line 411
+- `src/pages/Login.tsx` — switch from `lovableAuth` to the official `lovable` module for Google sign-in
+- Configuration: enable `auto_confirm_email` in Cloud auth settings
+- (Manual step you'll need to do) Add Vercel origin to the OAuth redirect allow-list in Cloud → Users → Authentication Settings
 
-- Production URLs
+## Things I will NOT touch
 
-- Development URLs
+- The Opportunity Scanner source-tracking work (separate scope)
+- Database schema/migrations (none needed for these fixes)
+- The auto-generated `src/integrations/lovable/index.ts` and `src/integrations/supabase/client.ts`
 
-&nbsp;
+## One quick confirmation I need
 
-2. Google OAuth Configuration
-
-&nbsp;
-
-- Authorized JavaScript Origins
-
-- Authorized Redirect URIs
-
-- OAuth Client settings
-
-&nbsp;
-
-3. Frontend OAuth Flow
-
-&nbsp;
-
-- signInWithOAuth()
-
-- redirectTo values
-
-- callback handlers
-
-- session recovery
-
-&nbsp;
-
-Requirements:
-
-&nbsp;
-
-- All Google sign-ins must redirect back to the production Vercel domain.
-
-- No redirects should point to lovable.app.
-
-- No redirects should point to localhost.
-
-- No redirects should point to old environments.
-
-&nbsp;
-
-Add logging for:
-
-&nbsp;
-
-- OAuth start
-
-- Redirect destination
-
-- Callback received
-
-- Session created
-
-- Failure reason
-
-&nbsp;
-
-Test:
-
-&nbsp;
-
-- New user Google signup
-
-- Existing user Google login
-
-- Mobile browser
-
-- Installed PWA
-
-- Desktop browser
-
-&nbsp;
-
-Provide:
-
-&nbsp;
-
-1. Exact root cause found
-
-2. Exact configuration changed
-
-3. Confirmation that Google login works in production
-
-4. Any Supabase dashboard settings that require manual adjustment
-
-&nbsp;
-
-Do not assume the issue is fixed until the full Google OAuth flow has been tested successfully on production.
-
-## Files touched
-
-- New migration (columns + index + cron job)
-- `supabase/functions/opportunity-scanner/index.ts` (prompt + verification + persist new fields)
-- `supabase/functions/opportunity-source-audit/index.ts` (new)
-- `supabase/config.toml` (register new function; `verify_jwt = false` for cron)
-- `src/pages/Opportunities.tsx` (detail dialog Source/Evidence section, card badge, re-verify button)
-
-## Out of scope
-
-- No changes to AI provider, rate limiting, or other edge functions.
-- No new tables or RLS changes — new columns inherit existing `opportunities` policies.
-- Brief PDF export keeps current layout (Source URL appended at end of Contact section only if verified).
+Is your Vercel deployment on a domain you can share (e.g. `nifhdpe.vercel.app` or a custom domain)? I need the exact origin so I can tell you precisely what to add to the Cloud redirect allow-list in step 4a. Youre correct it is [nifhdpe.vercel.app](http://nifhdpe.vercel.app) 
