@@ -3,7 +3,6 @@ import { logger } from "@/lib/logger";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { getAppUrl } from "@/lib/appUrl";
-import { consumeOAuthCallback } from "@/lib/oauthCallback";
 
 interface UserProfile {
   id: string;
@@ -398,16 +397,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       void hydrateSession(nextSession, event === "SIGNED_OUT");
     });
 
-    // Consume any OAuth callback tokens left in the URL by the Lovable
-    // broker (full-page redirect flow) BEFORE asking Supabase for the
-    // session — otherwise getSession() returns null and the user appears
-    // signed-out even though Google authenticated them.
-    consumeOAuthCallback()
-      .catch((error) => {
-        logger.error("consumeOAuthCallback threw", error);
-        return false;
-      })
-      .then(() => supabase.auth.getSession())
+    supabase.auth.getSession()
       .then(({ data: { session: initialSession } }) => {
         if (!active) return;
 
