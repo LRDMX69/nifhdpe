@@ -233,29 +233,6 @@ const Login = () => {
                   >
                     Forgot Password?
                   </button>
-                  <button
-                    type="button"
-                    className="text-xs text-primary hover:underline transition-colors mt-1"
-                    onClick={async () => {
-                      if (!email) {
-                        toast({ title: "Enter your email", description: "Type your email above to receive a Magic Link.", variant: "destructive" });
-                        return;
-                      }
-                      const { error } = await supabase.auth.signInWithOtp({
-                        email,
-                        options: {
-                          emailRedirectTo: getAppUrl(),
-                        },
-                      });
-                      if (error) {
-                        toast({ title: "Error sending magic link", description: error.message, variant: "destructive" });
-                      } else {
-                        toast({ title: "Magic Link sent", description: "Check your inbox for a passwordless sign-in link." });
-                      }
-                    }}
-                  >
-                    Or email me a Magic Link to sign in
-                  </button>
                 </div>
               )}
               <div className="mt-4 text-center">
