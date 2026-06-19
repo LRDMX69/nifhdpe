@@ -1,8 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency } from "@/lib/constants";
-import { Users, FileText, Target, Bell, Printer } from "lucide-react";
-import { PrintRequestsInbox } from "@/components/print/PrintRequestDialog";
+import { Users, FileText, Target } from "lucide-react";
 import { useGsapFadeUp, useGsapStagger } from "@/hooks/useGsapAnimation";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -114,18 +113,6 @@ const SalesDashboard = () => {
           ) : (
             <p className="text-sm text-muted-foreground text-center py-4">No quotations yet.</p>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Print Requests Inbox */}
-      <Card className="gsap-card border-border/50">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Printer className="h-5 w-5 text-primary" /> Print Requests
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <PrintRequestsInbox />
         </CardContent>
       </Card>
     </div>
