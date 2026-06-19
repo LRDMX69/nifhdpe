@@ -20,6 +20,86 @@ import type { Database } from "@/integrations/supabase/types";
 import { FeedbackInbox } from "@/components/feedback/FeedbackInbox";
 import { humanizeError } from "@/lib/humanizeError";
 
+function OfficeCoordinatesCard({ org, orgId, onSaved }: { org: { office_lat?: number | null; office_lng?: number | null } | null | undefined; orgId: string | undefined; onSaved: () => void }) {
+  const { toast } = useToast();
+  const [lat, setLat] = useState<string>(org?.office_lat != null ? String(org.office_lat) : "");
+  const [lng, setLng] = useState<string>(org?.office_lng != null ? String(org.office_lng) : "");
+  const [busy, setBusy] = useState(false);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+
+  const useCurrent = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "GPS not supported", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    setAccuracy(null);
+    let best: GeolocationPosition | null = null;
+    let samples = 0;
+    const id = navigator.geolocation.watchPosition(
+      (pos) => {
+        samples++;
+        if (!best || pos.coords.accuracy < best.coords.accuracy) best = pos;
+        if (best.coords.accuracy <= 25 || samples >= 5) {
+          navigator.geolocation.clearWatch(id);
+          setLat(best.coords.latitude.toFixed(7));
+          setLng(best.coords.longitude.toFixed(7));
+          setAccuracy(best.coords.accuracy);
+          setBusy(false);
+          toast({ title: "Captured current location", description: `Accuracy ±${Math.round(best.coords.accuracy)}m. Review and click Save.` });
+        }
+      },
+      (err) => {
+        navigator.geolocation.clearWatch(id);
+        setBusy(false);
+        toast({ title: "GPS error", description: err.message, variant: "destructive" });
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
+    );
+    setTimeout(() => { navigator.geolocation.clearWatch(id); setBusy(false); }, 21000);
+  };
+
+  const save = async () => {
+    if (!orgId) return;
+    const latN = parseFloat(lat);
+    const lngN = parseFloat(lng);
+    if (Number.isNaN(latN) || Number.isNaN(lngN)) {
+      toast({ title: "Invalid coordinates", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase.from("organizations").update({ office_lat: latN, office_lng: lngN }).eq("id", orgId);
+    setBusy(false);
+    if (error) toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
+    else { toast({ title: "Office coordinates updated" }); onSaved(); }
+  };
+
+  return (
+    <Card className="border-border/50">
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> Office Coordinates</CardTitle>
+        <CardDescription>Used for attendance check-in geofencing (1 km radius). Stand inside the office and tap "Use current location" for best accuracy.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2"><Label>Latitude</Label><Input value={lat} onChange={(e) => setLat(e.target.value)} placeholder="e.g. 6.552843" /></div>
+          <div className="space-y-2"><Label>Longitude</Label><Input value={lng} onChange={(e) => setLng(e.target.value)} placeholder="e.g. 3.387812" /></div>
+        </div>
+        {accuracy != null && (
+          <p className="text-xs text-muted-foreground">Captured with ±{Math.round(accuracy)}m GPS accuracy.</p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={useCurrent} disabled={busy}>
+            {busy ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <MapPin className="h-4 w-4 mr-1" />}
+            Use current location
+          </Button>
+          <Button type="button" onClick={save} disabled={busy}>Save coordinates</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 type RoleRequestRow = {
   id: string;
   user_id: string;
