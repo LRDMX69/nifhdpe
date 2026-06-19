@@ -133,7 +133,7 @@ export function NeedsAttentionPanel() {
   if (!items.length) return null;
 
   return (
-    <Card className="border-warning/30">
+    <Card className="border-warning/30" data-tour="needs-attention">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
           <AlertCircle className="h-4 w-4 text-warning" /> Needs Your Attention
