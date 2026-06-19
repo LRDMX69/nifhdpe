@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import type { Database } from "@/integrations/supabase/types";
 
 type ProjectItem = Database["public"]["Tables"]["projects"]["Row"] & { clients?: { name: string } | null };
@@ -66,7 +67,7 @@ const Projects = () => {
   const [newProjectLng, setNewProjectLng] = useState("");
   const [newRadius, setNewRadius] = useState("500");
 
-  const { data: projects = [], isLoading } = useQuery({
+  const { data: projects = [], isLoading, error, refetch } = useQuery({
     queryKey: ["projects", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -313,8 +314,6 @@ const Projects = () => {
         </Select>
       </div>
 
-      {isLoading && <p className="text-sm text-muted-foreground">Loading projects...</p>}
-
       <Dialog open={!!pnlProject} onOpenChange={() => setPnlProject(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -324,20 +323,24 @@ const Projects = () => {
         </DialogContent>
       </Dialog>
 
+      <AsyncBoundary
+        loading={isLoading}
+        error={error}
+        onRetry={() => refetch()}
+        isEmpty={filtered.length === 0}
+        loadingVariant="cards"
+        loadingRows={4}
+        emptyState={{
+          title: projects.length === 0 ? "No projects created yet" : "No projects match your filters",
+          description: projects.length === 0
+            ? "Projects organise everything — field reports, deliveries, material requisitions, expenses and P&L all attach to a project. Create your first one to get started."
+            : "Try clearing the search or selecting a different status.",
+          ownedBy: "Created by Admin or Engineering; updated by the assigned Project Head.",
+          action: canEdit && projects.length === 0 ? { label: "Create First Project", onClick: openAdd } : undefined,
+          secondaryAction: projects.length > 0 ? { label: "Clear filters", onClick: () => { setSearch(""); setStatusFilter("all"); } } : undefined,
+        }}
+      >
       <div ref={listRef} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {filtered.length === 0 && !isLoading && (
-          <div className="col-span-full">
-            <EmptyState
-              title={projects.length === 0 ? "No projects created yet" : "No projects match your filters"}
-              description={projects.length === 0
-                ? "Projects organise everything — field reports, deliveries, material requisitions, expenses and P&L all attach to a project. Create your first one to get started."
-                : "Try clearing the search or selecting a different status."}
-              ownedBy="Created by Admin or Engineering; updated by the assigned Project Head."
-              action={canEdit && projects.length === 0 ? { label: "Create First Project", onClick: openAdd } : undefined}
-              secondaryAction={projects.length > 0 ? { label: "Clear filters", onClick: () => { setSearch(""); setStatusFilter("all"); } } : undefined}
-            />
-          </div>
-        )}
         {filtered.map((project: ProjectItem) => {
           const teamIds: string[] = Array.isArray(project.team_member_ids) ? project.team_member_ids as string[] : [];
           return (
@@ -389,6 +392,7 @@ const Projects = () => {
           );
         })}
       </div>
+      </AsyncBoundary>
     </div>
   );
 };
