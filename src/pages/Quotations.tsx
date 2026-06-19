@@ -439,6 +439,26 @@ const Quotations = () => {
           </AlertDialogFooter></AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={!!invoicePrompt} onOpenChange={(open) => !open && setInvoicePrompt(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Generate invoice now?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Quotation {invoicePrompt?.quotation_number} is accepted. Generating an invoice will copy all line items and create an open balance for this client.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Not now</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                const q = invoicePrompt; setInvoicePrompt(null);
+                if (q) await convertToInvoice(q);
+              }}
+            >Generate invoice</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Search quotations..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
