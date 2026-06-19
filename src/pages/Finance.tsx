@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { stripMarkdown } from "@/lib/stripMarkdown";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import type { Database } from "@/integrations/supabase/types";
 
 type ExpenseItem = Database["public"]["Tables"]["expenses"]["Row"];
@@ -102,7 +103,7 @@ const Finance = () => {
     enabled: !!orgId,
   });
 
-  const { data: payments = [], refetch: refetchPayments } = useQuery({
+  const { data: payments = [], refetch: refetchPayments, isLoading: paymentsLoading, error: paymentsError } = useQuery({
     queryKey: ["worker-payments", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -112,7 +113,7 @@ const Finance = () => {
     enabled: !!orgId,
   });
 
-  const { data: expenses = [], refetch: refetchExpenses } = useQuery({
+  const { data: expenses = [], refetch: refetchExpenses, isLoading: expensesLoading, error: expensesError } = useQuery({
     queryKey: ["expenses", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -122,7 +123,7 @@ const Finance = () => {
     enabled: !!orgId,
   });
 
-  const { data: invoices = [], refetch: refetchInvoices } = useQuery({
+  const { data: invoices = [], refetch: refetchInvoices, isLoading: invoicesLoading, error: invoicesError } = useQuery({
     queryKey: ["invoices", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -132,7 +133,7 @@ const Finance = () => {
     enabled: !!orgId,
   });
 
-  const { data: receipts = [], refetch: refetchReceipts } = useQuery({
+  const { data: receipts = [], refetch: refetchReceipts, isLoading: receiptsLoading, error: receiptsError } = useQuery({
     queryKey: ["receipts", orgId],
     queryFn: async () => {
       if (!orgId) return [];
