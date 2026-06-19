@@ -67,7 +67,7 @@ const Projects = () => {
   const [newProjectLng, setNewProjectLng] = useState("");
   const [newRadius, setNewRadius] = useState("500");
 
-  const { data: projects = [], isLoading, error, refetch } = useQuery({
+  const { data: projects = [], isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["projects", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -210,7 +210,13 @@ const Projects = () => {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
-      <PageHeader title="Projects" description="Track installation projects and site work">
+      <PageHeader
+        title="Projects"
+        description="Track installation projects and site work"
+        executiveSummary={`${projects.filter((p: any) => p.status === "in_progress").length} active · ${projects.filter((p: any) => p.status === "completed").length} completed of ${projects.length} total`}
+        lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
+        onRefresh={() => refetch()}
+      >
         {canEdit && <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" /> New Project</Button>}
       </PageHeader>
 
