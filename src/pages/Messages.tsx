@@ -37,7 +37,7 @@ const Messages = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch all messages for current user
-  const { data: messages = [], refetch: refetchMessages } = useQuery({
+  const { data: messages = [], refetch: refetchMessages, dataUpdatedAt } = useQuery({
     queryKey: ["messages", orgId, user?.id],
     queryFn: async () => {
       if (!orgId || !user) return [];
@@ -267,7 +267,13 @@ const Messages = () => {
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-2xl mx-auto">
-      <PageHeader title="Messages" description={totalUnread > 0 ? `${totalUnread} unread` : "Internal communication"}>
+      <PageHeader
+        title="Messages"
+        description={totalUnread > 0 ? `${totalUnread} unread` : "Internal communication"}
+        executiveSummary={`${messages.length} messages in scope · ${totalUnread} unread across threads`}
+        lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
+        onRefresh={() => refetchMessages()}
+      >
         <div className="flex gap-2 flex-wrap">
           {totalUnread > 0 && (
             <Badge variant="destructive" className="gap-1"><Bell className="h-3 w-3" />{totalUnread}</Badge>
