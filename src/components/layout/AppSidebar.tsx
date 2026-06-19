@@ -9,7 +9,7 @@ import { NotificationBell } from "./NotificationBell";
 import { useState, useEffect, useRef } from "react";
 import gsap from "gsap";
 import nifLogo from "@/assets/nif-logo.png";
-import { getNavItemsForRole } from "@/lib/navConfig";
+import { getNavItemsForRole, GROUP_ORDER, type NavGroup, type NavItem } from "@/lib/navConfig";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 const tooltipData: Record<string, string> = {
@@ -44,6 +44,10 @@ export const AppSidebar = () => {
 
   const visibleItems = getNavItemsForRole(activeRole ?? undefined, isMaintenance);
 
+  const grouped = GROUP_ORDER
+    .map((g) => ({ group: g, items: visibleItems.filter((i: NavItem) => (i.group ?? "Workspace") === g) }))
+    .filter((g) => g.items.length > 0);
+
   useEffect(() => {
     if (!navRef.current) return;
     const links = navRef.current.querySelectorAll("a");
@@ -68,35 +72,45 @@ export const AppSidebar = () => {
       </div>
 
       <TooltipProvider delayDuration={100}>
-        <nav ref={navRef} className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
-          {visibleItems.map((item) => {
-            const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + "/");
-            return (
-              <Tooltip key={item.path}>
-                <TooltipTrigger asChild>
-                  <Link
-                    to={item.path}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
-                      isActive
-                        ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-                        : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                    )}
-                  >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    {!collapsed && <span className="truncate">{item.label}</span>}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="max-w-[240px] p-3 space-y-1.5 bg-popover border border-border shadow-xl rounded-lg text-popover-foreground">
-                  <p className="font-semibold text-xs text-primary">{item.label}</p>
-                  <p className="text-[10px] text-muted-foreground leading-normal">{tooltipData[item.label] ?? "Access operational features."}</p>
-                  <div className="border-t border-border/50 pt-1 mt-1 text-[9px] text-primary/70 font-medium">
-                    Role Access: {activeRole ? ROLE_LABELS[activeRole] : "Super Admin"}
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
+        <nav ref={navRef} className="flex-1 overflow-y-auto py-2 px-2 space-y-3">
+          {grouped.map(({ group, items }) => (
+            <div key={group} className="space-y-0.5">
+              {!collapsed && (
+                <p className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+                  {group}
+                </p>
+              )}
+              {collapsed && <div className="mx-2 my-1 border-t border-sidebar-border/40" />}
+              {items.map((item: NavItem) => {
+                const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + "/");
+                return (
+                  <Tooltip key={item.path}>
+                    <TooltipTrigger asChild>
+                      <Link
+                        to={item.path}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                          isActive
+                            ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                            : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                        )}
+                      >
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        {!collapsed && <span className="truncate">{item.label}</span>}
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-[240px] p-3 space-y-1.5 bg-popover border border-border shadow-xl rounded-lg text-popover-foreground">
+                      <p className="font-semibold text-xs text-primary">{item.label}</p>
+                      <p className="text-[10px] text-muted-foreground leading-normal">{tooltipData[item.label] ?? "Access operational features."}</p>
+                      <div className="border-t border-border/50 pt-1 mt-1 text-[9px] text-primary/70 font-medium">
+                        Role Access: {activeRole ? ROLE_LABELS[activeRole] : "Super Admin"}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          ))}
         </nav>
       </TooltipProvider>
 
