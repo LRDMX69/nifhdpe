@@ -15,7 +15,6 @@ import { Plus, FileText, Search, Trash2, Loader2, MoreVertical, Pencil } from "l
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
-import { FileText } from "lucide-react";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";
 import { AiInsightPanel } from "@/components/AiInsightPanel";
