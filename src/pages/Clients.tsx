@@ -10,6 +10,7 @@ import { Plus, Search, Phone, Mail, MapPin, User, MoreVertical, Loader2, Pencil,
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Users } from "lucide-react";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { AiInsightPanel } from "@/components/AiInsightPanel";
@@ -40,7 +41,7 @@ const Clients = () => {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
 
-  const { data: clients = [], isLoading, refetch } = useQuery({
+  const { data: clients = [], isLoading, error: clientsError, refetch } = useQuery({
     queryKey: ["clients", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -117,10 +118,6 @@ const Clients = () => {
     (c) => c.name.toLowerCase().includes(search.toLowerCase()) || (c.contact_person ?? "").toLowerCase().includes(search.toLowerCase())
   );
 
-  if (isLoading) {
-    return <div className="p-6 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  }
-
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <PageHeader title="Clients" description="Manage your client database">
@@ -178,22 +175,27 @@ const Clients = () => {
         <Input placeholder="Search clients..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
+      <AsyncBoundary
+        loading={isLoading}
+        error={clientsError}
+        onRetry={() => refetch()}
+        isEmpty={filtered.length === 0}
+        loadingVariant="cards"
+        loadingRows={6}
+        emptyState={clients.length === 0 ? {
+          icon: Users,
+          title: "No clients yet",
+          description: "Clients must be created here before Quotations, Invoices and Opportunities can reference them. Add the first one to unlock the sales workflow.",
+          ownedBy: "Marketing & Administrators",
+          action: canEdit ? { label: "Add first client", onClick: openAdd } : undefined,
+        } : {
+          icon: Search,
+          title: "No clients match your search",
+          description: "Try a different keyword or clear the search to see every client.",
+          compact: true,
+        }}
+      >
       <div ref={listRef} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.length === 0 && (
-          <div className="sm:col-span-2 xl:col-span-3">
-            {clients.length === 0 ? (
-              <EmptyState
-                icon={Users}
-                title="No clients yet"
-                description="Clients must be created here before Quotations, Invoices and Opportunities can reference them. Add the first one to unlock the sales workflow."
-                ownedBy="Marketing & Administrators"
-                action={canEdit ? { label: "Add first client", onClick: openAdd } : undefined}
-              />
-            ) : (
-              <EmptyState icon={Search} title="No clients match your search" description="Try a different keyword or clear the search to see every client." compact />
-            )}
-          </div>
-        )}
         {filtered.map((client: ClientItem) => (
           <Card key={client.id} className="gsap-card border-border/50 hover:border-primary/30 transition-all hover:shadow-md group">
             <CardContent className="pt-5 pb-4 space-y-3">
@@ -230,6 +232,7 @@ const Clients = () => {
           </Card>
         ))}
       </div>
+      </AsyncBoundary>
     </div>
   );
 };
