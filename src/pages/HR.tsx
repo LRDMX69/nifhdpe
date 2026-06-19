@@ -523,6 +523,7 @@ const HR = () => {
             </div>
           </DialogContent>
         </Dialog>
+      </PageHeader>
       </div>
 
       <WorkflowBanner
