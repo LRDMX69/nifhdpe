@@ -433,17 +433,23 @@ const Finance = () => {
               <Button size="sm" onClick={() => setInvoiceOpen(true)}><Plus className="h-4 w-4 mr-1" />New Invoice</Button>
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
-              {invoices.length === 0 ? (
-                <div className="p-6">
-                  <EmptyState
-                    icon={FileText}
-                    title="No invoices issued yet"
-                    description="Issue an invoice once a client accepts a quotation. The invoice tracks the total billed and the balance still due — each receipt you record reduces the balance automatically."
-                    ownedBy="Finance issues invoices; receipts come from Reception or Finance."
-                    action={{ label: "Create your first invoice", onClick: () => setInvoiceOpen(true) }}
-                  />
-                </div>
-              ) : (
+              <AsyncBoundary
+                loading={invoicesLoading}
+                error={invoicesError}
+                onRetry={() => refetchInvoices()}
+                isEmpty={invoices.length === 0}
+                loadingVariant="table"
+                loadingRows={5}
+                loadingColumns={6}
+                className="p-6"
+                emptyState={{
+                  icon: FileText,
+                  title: "No invoices issued yet",
+                  description: "Issue an invoice once a client accepts a quotation. The invoice tracks the total billed and the balance still due — each receipt you record reduces the balance automatically.",
+                  ownedBy: "Finance issues invoices; receipts come from Reception or Finance.",
+                  action: { label: "Create your first invoice", onClick: () => setInvoiceOpen(true) },
+                }}
+              >
                 <div className="min-w-[700px]">
                   <Table><TableHeader><TableRow>
                     <TableHead>Invoice #</TableHead><TableHead>Client</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="text-right">Balance</TableHead><TableHead className="w-[40px]"></TableHead>
@@ -496,7 +502,7 @@ const Finance = () => {
                     ))}
                   </TableBody></Table>
                 </div>
-              )}
+              </AsyncBoundary>
             </CardContent>
           </Card>
         </TabsContent>
@@ -506,17 +512,23 @@ const Finance = () => {
             <CardTitle className="text-base flex items-center gap-2"><Receipt className="h-5 w-5 text-emerald-500" /> Payment Receipts</CardTitle>
           </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
-              {receipts.length === 0 ? (
-                <div className="p-6">
-                  <EmptyState
-                    compact
-                    icon={Receipt}
-                    title="No payments recorded yet"
-                    description="Receipts are created automatically when you record a payment against an invoice. Open the Invoices tab and tap 'Record' on any unpaid invoice."
-                    ownedBy="Generated when Finance records an invoice payment."
-                  />
-                </div>
-              ) : (
+              <AsyncBoundary
+                loading={receiptsLoading}
+                error={receiptsError}
+                onRetry={() => refetchReceipts()}
+                isEmpty={receipts.length === 0}
+                loadingVariant="table"
+                loadingRows={5}
+                loadingColumns={5}
+                className="p-6"
+                emptyState={{
+                  compact: true,
+                  icon: Receipt,
+                  title: "No payments recorded yet",
+                  description: "Receipts are created automatically when you record a payment against an invoice. Open the Invoices tab and tap 'Record' on any unpaid invoice.",
+                  ownedBy: "Generated when Finance records an invoice payment.",
+                }}
+              >
                 <div className="min-w-[600px]">
                   <Table><TableHeader><TableRow>
                     <TableHead>Receipt #</TableHead><TableHead>Client</TableHead><TableHead>Date</TableHead><TableHead>Method</TableHead><TableHead className="text-right">Amount Received</TableHead>
@@ -533,7 +545,7 @@ const Finance = () => {
                     ))}
                   </TableBody></Table>
                 </div>
-              )}
+              </AsyncBoundary>
             </CardContent>
           </Card>
         </TabsContent>
@@ -541,18 +553,24 @@ const Finance = () => {
         <TabsContent value="expenses">
           <Card><CardHeader><CardTitle className="text-base">Logged Expenses</CardTitle></CardHeader>
             <CardContent className="p-0 overflow-x-auto">
-              {expenses.length === 0 ? (
-                <div className="p-6">
-                  <EmptyState
-                    compact
-                    icon={TrendingDown}
-                    title="No expenses logged"
-                    description="Log operational spend (fuel, materials, transport, equipment) so the system can report true net profit per project. Use 'Log Expense' in the page header."
-                    ownedBy="Logged by Finance; flagged by AI if amounts look unusual."
-                    action={{ label: "Log Expense", onClick: () => setExpenseOpen(true) }}
-                  />
-                </div>
-              ) : (
+              <AsyncBoundary
+                loading={expensesLoading}
+                error={expensesError}
+                onRetry={() => refetchExpenses()}
+                isEmpty={expenses.length === 0}
+                loadingVariant="table"
+                loadingRows={5}
+                loadingColumns={5}
+                className="p-6"
+                emptyState={{
+                  compact: true,
+                  icon: TrendingDown,
+                  title: "No expenses logged",
+                  description: "Log operational spend (fuel, materials, transport, equipment) so the system can report true net profit per project. Use 'Log Expense' in the page header.",
+                  ownedBy: "Logged by Finance; flagged by AI if amounts look unusual.",
+                  action: { label: "Log Expense", onClick: () => setExpenseOpen(true) },
+                }}
+              >
                 <div className="min-w-[600px]">
                   <Table><TableHeader><TableRow>
                     <TableHead>Date</TableHead><TableHead>Category</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-[40px]"></TableHead>
@@ -578,7 +596,7 @@ const Finance = () => {
                     ))}
                   </TableBody></Table>
                 </div>
-              )}
+              </AsyncBoundary>
             </CardContent>
           </Card>
         </TabsContent>
@@ -586,18 +604,24 @@ const Finance = () => {
         <TabsContent value="payments">
           <Card><CardHeader><CardTitle className="text-base">Worker Payments</CardTitle></CardHeader>
             <CardContent className="p-0 overflow-x-auto">
-              {payments.length === 0 ? (
-                <div className="p-6">
-                  <EmptyState
-                    compact
-                    icon={CreditCard}
-                    title="No worker payments logged"
-                    description="Use 'Log Payment' in the page header for fuel, overtime, bonus, vendor and ad-hoc payments. Monthly salaries (with PAYE/pension/NHF) live in HR → Payroll."
-                    ownedBy="Logged by Finance; salaries flow from HR Payroll."
-                    action={{ label: "Log Payment", onClick: () => setPaymentOpen(true) }}
-                  />
-                </div>
-              ) : (
+              <AsyncBoundary
+                loading={paymentsLoading}
+                error={paymentsError}
+                onRetry={() => refetchPayments()}
+                isEmpty={payments.length === 0}
+                loadingVariant="table"
+                loadingRows={5}
+                loadingColumns={6}
+                className="p-6"
+                emptyState={{
+                  compact: true,
+                  icon: CreditCard,
+                  title: "No worker payments logged",
+                  description: "Use 'Log Payment' in the page header for fuel, overtime, bonus, vendor and ad-hoc payments. Monthly salaries (with PAYE/pension/NHF) live in HR → Payroll.",
+                  ownedBy: "Logged by Finance; salaries flow from HR Payroll.",
+                  action: { label: "Log Payment", onClick: () => setPaymentOpen(true) },
+                }}
+              >
                 <div className="min-w-[700px]">
                   <Table><TableHeader><TableRow>
                     <TableHead>Date</TableHead><TableHead>Employee</TableHead><TableHead>Type</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-[40px]"></TableHead>
@@ -624,7 +648,7 @@ const Finance = () => {
                     ))}
                   </TableBody></Table>
                 </div>
-              )}
+              </AsyncBoundary>
             </CardContent>
           </Card>
         </TabsContent>
