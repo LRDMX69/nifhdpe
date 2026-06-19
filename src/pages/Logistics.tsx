@@ -14,6 +14,7 @@ import { Plus, Search, Truck, MapPin, Clock, Loader2, MoreVertical, Pencil, Tras
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";
 import { supabase } from "@/integrations/supabase/client";
@@ -72,7 +73,7 @@ const Logistics = () => {
   const [destLat, setDestLat] = useState("");
   const [destLng, setDestLng] = useState("");
 
-  const { data: deliveries = [], isLoading, refetch } = useQuery({
+  const { data: deliveries = [], isLoading, error, refetch } = useQuery({
     queryKey: ["deliveries", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -279,10 +280,6 @@ const Logistics = () => {
     return matchSearch && matchStatus;
   });
 
-  if (isLoading) {
-    return <div className="p-6 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  }
-
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
       <PageHeader title="Logistics & Fleet" description="Delivery scheduling, vehicle tracking, and fuel logs">
@@ -336,20 +333,27 @@ const Logistics = () => {
             {canEdit && <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" /> New Delivery</Button>}
           </div>
 
+          <AsyncBoundary
+            loading={isLoading}
+            error={error}
+            onRetry={() => refetch()}
+            isEmpty={filtered.length === 0}
+            loadingVariant="list"
+            loadingRows={4}
+            emptyState={deliveries.length === 0 ? {
+              icon: Truck,
+              title: "No deliveries scheduled",
+              description: "Schedule your first delivery to dispatch goods from the warehouse to a project site. GPS will confirm arrival on-site.",
+              ownedBy: "Warehouse & Administrators",
+              action: canEdit ? { label: "Schedule delivery", onClick: openAdd } : undefined,
+            } : {
+              icon: Search,
+              title: "No deliveries match your filter",
+              description: "Try a different search keyword or clear the status filter.",
+              compact: true,
+            }}
+          >
           <div ref={listRef} className="space-y-3">
-            {filtered.length === 0 && (
-              deliveries.length === 0 ? (
-                <EmptyState
-                  icon={Truck}
-                  title="No deliveries scheduled"
-                  description="Schedule your first delivery to dispatch goods from the warehouse to a project site. GPS will confirm arrival on-site."
-                  ownedBy="Warehouse & Administrators"
-                  action={canEdit ? { label: "Schedule delivery", onClick: openAdd } : undefined}
-                />
-              ) : (
-                <EmptyState icon={Search} title="No deliveries match your filter" description="Try a different search keyword or clear the status filter." compact />
-              )
-            )}
             {filtered.map((d) => (
               <Card key={d.id} className="gsap-card border-border/50 hover:border-primary/20 transition-all">
                 <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-3">
@@ -406,6 +410,7 @@ const Logistics = () => {
               </Card>
             ))}
           </div>
+          </AsyncBoundary>
         </TabsContent>
 
         <TabsContent value="vehicles">
