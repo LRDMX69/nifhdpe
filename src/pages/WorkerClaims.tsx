@@ -87,7 +87,7 @@ const WorkerClaims = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const { data: claims = [], isLoading, error, refetch } = useQuery({
+  const { data: claims = [], isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["worker-claims", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -352,7 +352,13 @@ const WorkerClaims = () => {
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-7xl mx-auto">
-      <PageHeader title="Claims & Issues" description={isAdmin ? "Review and manage worker claims" : "Submit expenses, overtime, and operational issues"}>
+      <PageHeader
+        title="Claims & Issues"
+        description={isAdmin ? "Review and manage worker claims" : "Submit expenses, overtime, and operational issues"}
+        executiveSummary={`${claims.filter((c: any) => c.status === "pending").length} pending · ${claims.filter((c: any) => c.status === "approved").length} approved · ${claims.filter((c: any) => c.status === "flagged").length} flagged`}
+        lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
+        onRefresh={() => refetch()}
+      >
         {!isAdmin && !isFinance && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
