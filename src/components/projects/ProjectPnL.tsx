@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/constants";
-import { TrendingUp, TrendingDown, DollarSign, Users, Package, CreditCard, Loader2 } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Users, Package, CreditCard } from "lucide-react";
+import { LoadingState } from "@/components/ui/loading-state";
 import type { Database } from "@/integrations/supabase/types";
 
 type ExpenseRow = Database["public"]["Tables"]["expenses"]["Row"];
@@ -78,7 +79,7 @@ export const ProjectPnL = ({ projectId, projectBudget }: ProjectPnLProps) => {
     }
   });
 
-  if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (isLoading) return <LoadingState variant="cards" rows={4} />;
 
   return (
     <div className="space-y-6">
