@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { corsHeaders } from "../_shared/cors.ts";
+import { validateServiceOrUser } from "../_shared/auth.ts";
+import { isCronOrServiceRequest } from "../_shared/cronAuth.ts";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -12,6 +14,19 @@ serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
     const { action, organization_id, payload } = await req.json();
+
+    // SECURITY: require either cron/service identity, or an authenticated member of the org.
+    const isCronOrService = await isCronOrServiceRequest(req);
+    if (!isCronOrService) {
+      if (!organization_id) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      try {
+        await validateServiceOrUser(req, organization_id);
+      } catch (_e) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
 
     // 1. Spend Cap Check (Simplified)
     const { data: usage } = await supabase

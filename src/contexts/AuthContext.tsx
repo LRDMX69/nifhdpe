@@ -455,8 +455,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [hydrateSession, session]);
 
   const switchRole = (role: string) => {
-    const isLocalDev = window.location.hostname.includes("localhost");
-    if (isMaintenance || isLocalDev || memberships.some((membership) => membership.role === role)) {
+    if (isMaintenance || memberships.some((membership) => membership.role === role)) {
       setActiveRole(role);
     }
   };
@@ -482,7 +481,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         accessResolved,
         hasPendingRoleRequest,
-        isMaintenance: isMaintenance || (user ? window.location.hostname.includes("localhost") : false),
+        isMaintenance,
         isMfaEnabled,
         authError,
         signIn,

@@ -45,9 +45,20 @@ serve(async (req: Request) => {
       await validateServiceOrUser(req, bodyOrg);
     }
 
-    const orgs = await dbQuery<{ id: string; name: string }>(`SELECT id, name FROM public.organizations ORDER BY created_at ASC LIMIT 1`);
-    if (orgs.length === 0) throw new Error("No organizations found");
-    const orgId = orgs[0].id;
+    // Use the organization_id from the request body when provided so multi-tenant
+    // installs don't have opportunities cross-polluted into a single org.
+    let bodyOrgId = "";
+    try { bodyOrgId = (await req.clone().json())?.organization_id ?? ""; } catch { /* noop */ }
+    let orgId: string;
+    if (bodyOrgId) {
+      const found = await dbQuery<{ id: string }>(`SELECT id FROM public.organizations WHERE id = $1 LIMIT 1`, [bodyOrgId]);
+      if (found.length === 0) throw new Error("organization not found");
+      orgId = found[0].id;
+    } else {
+      const orgs = await dbQuery<{ id: string }>(`SELECT id FROM public.organizations ORDER BY created_at ASC LIMIT 1`);
+      if (orgs.length === 0) throw new Error("No organizations found");
+      orgId = orgs[0].id;
+    }
 
     const existingOpps = await dbQuery<{ title: string }>(
       `SELECT title FROM public.opportunities WHERE organization_id = $1 ORDER BY created_at DESC LIMIT 50`,

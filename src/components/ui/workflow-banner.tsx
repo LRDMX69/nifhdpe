@@ -33,9 +33,11 @@ export function WorkflowBanner({
 }: WorkflowBannerProps) {
   const initial = (() => {
     if (typeof window === "undefined" || !storageKey) return defaultOpen;
-    const stored = window.localStorage.getItem(`wf_banner_${storageKey}`);
-    if (stored === "open") return true;
-    if (stored === "closed") return false;
+    try {
+      const stored = window.localStorage.getItem(`wf_banner_${storageKey}`);
+      if (stored === "open") return true;
+      if (stored === "closed") return false;
+    } catch { /* storage unavailable */ }
     return defaultOpen;
   })();
   const [open, setOpen] = useState(initial);
@@ -44,7 +46,7 @@ export function WorkflowBanner({
     const next = !open;
     setOpen(next);
     if (storageKey && typeof window !== "undefined") {
-      window.localStorage.setItem(`wf_banner_${storageKey}`, next ? "open" : "closed");
+      try { window.localStorage.setItem(`wf_banner_${storageKey}`, next ? "open" : "closed"); } catch { /* storage unavailable */ }
     }
   };
 
