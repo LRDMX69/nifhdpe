@@ -226,6 +226,14 @@ const FieldReports = () => {
       toast({ title: "Enter your notes", description: "Please describe the work done today.", variant: "destructive" });
       return;
     }
+    if (photos.length === 0) {
+      toast({
+        title: "Site photo required",
+        description: "Attach at least one photo of the work site so reviewers can verify the report.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (!user) return;
 
     setSubmitting(true);
