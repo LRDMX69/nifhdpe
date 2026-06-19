@@ -61,6 +61,8 @@ const Finance = () => {
   const [payDesc, setPayDesc] = useState("");
   const [payDate, setPayDate] = useState(new Date().toISOString().split("T")[0]);
   const [payUserId, setPayUserId] = useState("");
+  const [payVendorName, setPayVendorName] = useState("");
+  const [payOverrideMatch, setPayOverrideMatch] = useState(false);
 
   // Expense form
   const [expCategory, setExpCategory] = useState("");
@@ -179,12 +181,13 @@ const Finance = () => {
 
   const getMemberName = (userId: string) => members.find(m => m.value === userId)?.label ?? "Unknown";
 
-  const resetPaymentForm = () => { setPayType(""); setPayAmount(""); setPayDesc(""); setPayUserId(""); setPayDate(new Date().toISOString().split("T")[0]); setEditingPayment(null); };
+  const resetPaymentForm = () => { setPayType(""); setPayAmount(""); setPayDesc(""); setPayUserId(""); setPayDate(new Date().toISOString().split("T")[0]); setEditingPayment(null); setPayVendorName(""); setPayOverrideMatch(false); };
   const resetExpenseForm = () => { setExpCategory(""); setExpAmount(""); setExpDesc(""); setExpDate(new Date().toISOString().split("T")[0]); setEditingExpense(null); };
 
   const openEditPayment = (p: PaymentItem) => {
     setEditingPayment(p); setPayType(p.type); setPayAmount(p.amount.toString());
     setPayDesc(p.description ?? ""); setPayDate(p.date); setPayUserId(p.user_id ?? "");
+    setPayVendorName(p.vendor_name ?? "");
     setPaymentOpen(true);
   };
 
@@ -196,12 +199,61 @@ const Finance = () => {
 
   const handleLogPayment = async () => {
     if (!payType || !payAmount || !user || !orgId) return;
+    // Three-way-match gate for vendor payments: require PO + GRN unless the user explicitly overrides.
+    if (payType === "vendor" && !editingPayment) {
+      const nameTrim = payVendorName.trim();
+      if (!nameTrim) {
+        toast({
+          title: "Vendor name required",
+          description: "Enter the vendor exactly as it appears on the Purchase Order so we can match the payment.",
+          variant: "destructive",
+        });
+        return;
+      }
+      // Lookup vendor → POs → GRNs
+      const { data: vendorRows } = await supabase
+        .from("vendors")
+        .select("id")
+        .eq("organization_id", orgId)
+        .ilike("name", nameTrim)
+        .limit(1);
+      const vendorId = vendorRows?.[0]?.id;
+      let hasPo = false;
+      let hasGrn = false;
+      if (vendorId) {
+        const { data: poRows } = await supabase
+          .from("purchase_orders")
+          .select("id")
+          .eq("organization_id", orgId)
+          .eq("vendor_id", vendorId);
+        hasPo = !!poRows?.length;
+        if (hasPo) {
+          const poIds = (poRows ?? []).map((p) => p.id);
+          const { data: grnRows } = await supabase
+            .from("goods_received_notes")
+            .select("id")
+            .in("purchase_order_id", poIds);
+          hasGrn = !!grnRows?.length;
+        }
+      }
+      if ((!hasPo || !hasGrn) && !payOverrideMatch) {
+        toast({
+          title: hasPo ? "No goods received yet" : "No matching Purchase Order",
+          description: hasPo
+            ? `A PO exists for "${nameTrim}" but no Goods Received Note has been logged. Record the GRN first, or tick "Pay without three-way match" to proceed.`
+            : `No Purchase Order found for "${nameTrim}". Issue a PO in Procurement first, or tick "Pay without three-way match" to override.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     setSaving(true);
     try {
       const payload: Database["public"]["Tables"]["worker_payments"]["Insert"] = {
         organization_id: orgId, created_by: user.id,
         type: payType as Database["public"]["Enums"]["payment_type"], amount: parseFloat(payAmount),
         description: payDesc || null, date: payDate, user_id: payUserId || null,
+        vendor_name: payType === "vendor" ? (payVendorName.trim() || null) : null,
       };
       if (editingPayment) {
         const { error } = await supabase.from("worker_payments").update(payload as Database["public"]["Tables"]["worker_payments"]["Update"]).eq("id", editingPayment.id);
@@ -323,6 +375,30 @@ const Finance = () => {
                 </div>
                 <div className="space-y-2"><Label>Description</Label><Input value={payDesc} onChange={(e) => setPayDesc(e.target.value)} placeholder="Payment description" /></div>
                 <div className="space-y-2"><Label>Date</Label><Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} /></div>
+                {payType === "vendor" && (
+                  <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/5 p-3">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-warning">Vendor payment · three-way match</Label>
+                    <Input
+                      value={payVendorName}
+                      onChange={(e) => setPayVendorName(e.target.value)}
+                      placeholder="Vendor name (must match Purchase Order)"
+                    />
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Before saving we check that a Purchase Order exists for this vendor and that a Goods Received Note has been logged. This blocks paying for items the company never received.
+                    </p>
+                    <label className="flex items-start gap-2 text-[11px] text-muted-foreground cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 accent-warning"
+                        checked={payOverrideMatch}
+                        onChange={(e) => setPayOverrideMatch(e.target.checked)}
+                      />
+                      <span>
+                        Pay without three-way match <span className="italic">(use only for petty cash, advances, or one-off vendors — this will be flagged in the audit log)</span>
+                      </span>
+                    </label>
+                  </div>
+                )}
                 <Button className="w-full" onClick={handleLogPayment} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}{editingPayment ? "Update" : "Save"} Payment</Button>
               </div>
             </DialogContent>
