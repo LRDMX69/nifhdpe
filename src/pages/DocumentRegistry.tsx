@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { WorkflowBanner } from "@/components/ui/workflow-banner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -87,7 +89,14 @@ const DocumentRegistry = () => {
     <Card>
       <CardContent className="p-0 overflow-x-auto">
         {rows.length === 0 ? (
-          <p className="p-8 text-center text-muted-foreground text-sm">No documents found.</p>
+          <div className="p-6">
+            <EmptyState
+              icon={FileText}
+              title="No documents in this view"
+              description="Every numbered document issued in the ERP — invoices, receipts, quotations, waybills and Purchase Orders — appears here automatically when it's created in its own module."
+              compact
+            />
+          </div>
         ) : (
           <Table>
             <TableHeader><TableRow>
@@ -123,6 +132,16 @@ const DocumentRegistry = () => {
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
       <PageHeader title="Document Registry" description="Every numbered document ever issued in the system — invoices, receipts, quotations, waybills, POs and more." />
+
+      <WorkflowBanner
+        storageKey="document-registry"
+        summary="A read-only audit trail of every numbered document in the system. Documents are created in their source module (Finance, Quotations, Procurement, Logistics) and appear here for search and reference."
+        steps={[
+          { actor: "Source module", action: "creates the document (invoice, receipt, quotation, PO, waybill) and assigns it a permanent reference number." },
+          { actor: "System", action: "indexes the document here so it can be found by reference, party or amount." },
+          { actor: "Administrators / Auditors", action: "browse the registry to verify continuity and trace any document back to its origin." },
+        ]}
+      />
 
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -323,6 +324,17 @@ const Messages = () => {
           )}
         </div>
       </PageHeader>
+
+      <WorkflowBanner
+        storageKey="messages"
+        tone="info"
+        summary="Direct chats are private 1-to-1 conversations. Broadcasts (admin only) are read-only company-wide announcements. Project and report context chats live inside their own modules."
+        steps={[
+          { actor: "You", action: "start a New Chat with a specific colleague — only you and the recipient see the thread." },
+          { actor: "Administrators", action: "send Broadcasts that appear in everyone's inbox at once for company-wide notices." },
+          { actor: "System", action: "automatically creates project group chats when you're added as a Project Head or team member." },
+        ]}
+      />
 
       <ConversationList
         conversations={filteredConversations}

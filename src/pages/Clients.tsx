@@ -8,6 +8,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Search, Phone, Mail, MapPin, User, MoreVertical, Loader2, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { WorkflowBanner } from "@/components/ui/workflow-banner";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Users } from "lucide-react";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { AiInsightPanel } from "@/components/AiInsightPanel";
 import { supabase } from "@/integrations/supabase/client";
@@ -126,6 +129,16 @@ const Clients = () => {
         )}
       </PageHeader>
 
+      <WorkflowBanner
+        storageKey="clients"
+        summary="The client master powers every quotation, invoice, opportunity and project. Keep the company name and contact details accurate — they print on every document."
+        steps={[
+          { actor: "Marketing / Admin", action: "register the client with company name, contact person and address." },
+          { actor: "Sales", action: "raises Quotations and Opportunities against the client record." },
+          { actor: "Finance", action: "issues Invoices and Receipts that automatically pull the client's details." },
+        ]}
+      />
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editingClient ? "Edit Client" : "Add New Client"}</DialogTitle></DialogHeader>
@@ -167,9 +180,19 @@ const Clients = () => {
 
       <div ref={listRef} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.length === 0 && (
-          <Card className="sm:col-span-2 xl:col-span-3 border-border/50"><CardContent className="py-8 text-center text-muted-foreground">
-            {clients.length === 0 ? "No clients yet. Add your first client above." : "No clients match your search."}
-          </CardContent></Card>
+          <div className="sm:col-span-2 xl:col-span-3">
+            {clients.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title="No clients yet"
+                description="Clients must be created here before Quotations, Invoices and Opportunities can reference them. Add the first one to unlock the sales workflow."
+                ownedBy="Marketing & Administrators"
+                action={canEdit ? { label: "Add first client", onClick: openAdd } : undefined}
+              />
+            ) : (
+              <EmptyState icon={Search} title="No clients match your search" description="Try a different keyword or clear the search to see every client." compact />
+            )}
+          </div>
         )}
         {filtered.map((client: ClientItem) => (
           <Card key={client.id} className="gsap-card border-border/50 hover:border-primary/30 transition-all hover:shadow-md group">

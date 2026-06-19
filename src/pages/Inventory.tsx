@@ -9,6 +9,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Package, AlertTriangle, Loader2, Pencil, Trash2, MapPin } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { WorkflowBanner } from "@/components/ui/workflow-banner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";
 import { AiInsightPanel } from "@/components/AiInsightPanel";
@@ -285,6 +287,16 @@ const Inventory = () => {
         </div>
       </PageHeader>
 
+      <WorkflowBanner
+        storageKey="inventory"
+        summary="Track every pipe, fitting and accessory across racks and zones. Stock auto-deducts when goods leave the warehouse on a delivery."
+        steps={[
+          { actor: "Warehouse / Admin", action: "register the item with type, diameter, supplier and minimum stock level." },
+          { actor: "System", action: "deducts stock automatically when deliveries are dispatched and flags items that fall below the minimum." },
+          { actor: "Procurement / Finance", action: "raise a Purchase Order in the Procurement module when low-stock alerts appear." },
+        ]}
+      />
+
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Card className="border-border/50"><CardContent className="pt-4 pb-3">
           <p className="text-xs text-muted-foreground">Total Items</p>
@@ -322,9 +334,22 @@ const Inventory = () => {
 
       <div ref={listRef} className="space-y-2">
         {filtered.length === 0 && (
-          <Card className="border-border/50"><CardContent className="py-8 text-center text-muted-foreground">
-            {inventory.length === 0 ? "No inventory items yet. Add your first item above." : "No items match your search."}
-          </CardContent></Card>
+          inventory.length === 0 ? (
+            <EmptyState
+              icon={Package}
+              title="No inventory registered yet"
+              description="Inventory lives at the heart of every delivery. Register your pipes, fittings and accessories so stock levels, low-stock alerts and deliveries stay accurate."
+              ownedBy="Warehouse & Administrators"
+              action={canEdit ? { label: "Add first item", onClick: () => setDialogOpen(true) } : undefined}
+            />
+          ) : (
+            <EmptyState
+              icon={Search}
+              title="No matches for that search"
+              description="Try a different keyword, supplier name, or clear the type filter to see all items."
+              compact
+            />
+          )
         )}
         {filtered.map((item: InventoryItem) => {
           const isLow = (item.quantity_meters ?? 0) < (item.min_stock_level ?? 0);

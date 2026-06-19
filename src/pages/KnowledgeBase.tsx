@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { WorkflowBanner } from "@/components/ui/workflow-banner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -170,6 +172,16 @@ const KnowledgeBase = () => {
         )}
       </PageHeader>
 
+      <WorkflowBanner
+        storageKey="knowledge-base"
+        summary="A single library for SOPs, technical procedures and field references. Search by keyword or browse by category before raising a question with the technical lead."
+        steps={[
+          { actor: "Administrators", action: "publish and update articles — only admins can create, edit or delete." },
+          { actor: "Field & office teams", action: "search articles by keyword, pipe size or category before starting work." },
+          { actor: "AI Assistant", action: "answers technical questions using the published articles as its source of truth." },
+        ]}
+      />
+
       <AiInsightPanel context="knowledge" title="Technical AI Assistant" suggestions={["Butt fusion parameters for 160mm SDR11", "Pressure test procedure steps", "Troubleshoot failed electrofusion joint", "Safety checklist for site work"]} />
 
       <div className="relative max-w-md">
@@ -220,7 +232,13 @@ const KnowledgeBase = () => {
               </Card>
             ))}
             {filtered.filter(a => tab === "all" || a.category === tab).length === 0 && (
-              <Card><CardContent className="py-8 text-center text-muted-foreground">No articles found.</CardContent></Card>
+              <EmptyState
+                icon={BookOpen}
+                title="No articles in this category yet"
+                description="The Knowledge Base grows as the technical team documents new procedures. Ask an administrator to publish the SOPs you need most."
+                ownedBy="Administrators"
+                compact
+              />
             )}
           </TabsContent>
         ))}
