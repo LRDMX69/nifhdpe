@@ -6,6 +6,7 @@ import { MFAEnforcer } from "../auth/MFAEnforcer";
 import { RoleBasedOnboarding } from "./RoleBasedOnboarding";
 import { CommandPalette } from "../CommandPalette";
 import { HelpSheetProvider } from "../HelpSheetProvider";
+import { GuidedTour } from "../GuidedTour";
 
 export const AppLayout = () => {
   return (
@@ -25,6 +26,7 @@ export const AppLayout = () => {
           <BottomNav />
           <RoleBasedOnboarding />
           <CommandPalette />
+          <GuidedTour />
         </div>
       </HelpSheetProvider>
     </MFAEnforcer>
