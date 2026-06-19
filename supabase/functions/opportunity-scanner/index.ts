@@ -166,6 +166,7 @@ Return ONLY valid JSON, no markdown fences:
     const aiResult = await callAI(
       "You are an AI business development analyst for Nigerian HDPE piping companies. Return valid JSON only, no markdown.",
       prompt,
+      { organizationId: bodyOrgId || undefined, functionName: "opportunity-scanner" },
     );
 
     if (!aiResult.ok) {

@@ -183,6 +183,15 @@ serve(async (req: Request) => {
     const result = await response.json();
     const summary = result.choices?.[0]?.message?.content ?? "Analysis complete. No AI summary generated.";
 
+    try {
+      await supabase.from("ai_usage_logs").insert({
+        organization_id,
+        function_name: `department-automation:${department ?? "unknown"}`,
+        success: true,
+        tokens_estimate: Math.ceil((String(prompt ?? "").length + summary.length) / 4),
+      });
+    } catch { /* non-fatal */ }
+
     await supabase.from("ai_summaries").insert({ organization_id, context, summary, metadata });
 
     return new Response(JSON.stringify({ success: true, summary, department: context }), {
