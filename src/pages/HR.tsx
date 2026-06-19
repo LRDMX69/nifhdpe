@@ -106,8 +106,9 @@ const HR = () => {
     queryKey: ["profiles-for-hr", orgId],
     queryFn: async () => {
       if (!orgId) return new Map();
-      const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, avatar_url, phone, basic_salary, bank_name, bank_account_number").eq("organization_id", orgId);
-      return new Map((profiles ?? []).map((p) => [p.user_id, p]));
+      // Payroll fields are gated by a SECURITY DEFINER RPC (HR/Admin/Finance only).
+      const { data: payroll } = await (supabase as any).rpc("get_org_payroll_profiles", { _org_id: orgId });
+      return new Map(((payroll as any[]) ?? []).map((p: any) => [p.user_id, p]));
     },
     enabled: !!orgId,
   });
