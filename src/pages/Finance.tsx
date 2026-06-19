@@ -575,7 +575,8 @@ const Finance = () => {
                                 summary: [{ label: "Total Amount", value: formatCurrency(inv.total_amount) }]
                               } : undefined,
                               stampType: "finance",
-                              showSignature: true
+                              showSignature: true,
+                              watermark: inv.status === "paid" ? "FINAL" : inv.status === "draft" ? "DRAFT" : null,
                             });
                           }}><FileDown className="h-3.5 w-3.5" /></Button>
                           </div>
