@@ -642,15 +642,21 @@ const HR = () => {
               </CardContent></Card>
             )}
             <Card className="border-border/50"><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-base flex items-center gap-2"><Users className="h-5 w-5 text-primary" /> Attendance Records</CardTitle><Input type="date" value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)} className="w-auto text-sm" /></CardHeader><CardContent>
-              {allAttendance.length === 0 ? (
-                <EmptyState
-                  compact
-                  icon={Users}
-                  title="No check-ins for this date yet"
-                  description="Attendance appears here the moment an employee taps Check-In from any device. Pick a different date above to review history."
-                  ownedBy="Employees check themselves in; HR reviews."
-                />
-              ) : (
+              <AsyncBoundary
+                loading={attendanceLoading}
+                error={attendanceError}
+                onRetry={() => refetchAttendance()}
+                isEmpty={allAttendance.length === 0}
+                loadingVariant="list"
+                loadingRows={3}
+                emptyState={{
+                  compact: true,
+                  icon: Users,
+                  title: "No check-ins for this date yet",
+                  description: "Attendance appears here the moment an employee taps Check-In from any device. Pick a different date above to review history.",
+                  ownedBy: "Employees check themselves in; HR reviews.",
+                }}
+              >
                 <div className="space-y-2">{allAttendance.map((a) => {
                   const prof = profileMap.get(a.user_id);
                   const isLate = a.check_in && new Date(a.check_in).getHours() >= 9;
@@ -660,7 +666,7 @@ const HR = () => {
                     <div className="flex items-center gap-1">{isLate && <Badge variant="outline" className="text-[10px] text-warning border-warning/30">Late</Badge>}<Badge variant="outline" className={`text-[10px] ${a.check_out ? "text-primary" : "text-warning"}`}>{a.check_out ? "Complete" : "Active"}</Badge></div>
                   </div>);
                 })}</div>
-              )}
+              </AsyncBoundary>
             </CardContent></Card>
           </TabsContent>
         )}
