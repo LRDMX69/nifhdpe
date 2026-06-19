@@ -175,7 +175,7 @@ export function NeedsAttentionPanel() {
           .select("id, leave_type, status, start_date")
           .eq("user_id", user.id)
           .in("status", ["approved", "rejected"])
-          .order("updated_at", { ascending: false })
+          .order("created_at", { ascending: false })
           .limit(3);
         (myLeaves ?? []).forEach((l: any) => {
           out.push({
