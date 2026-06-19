@@ -400,6 +400,52 @@ const Procurement = () => {
                           <div className="text-right shrink-0 space-y-2">
                             <p className="font-bold text-sm">₦{po.total_amount?.toLocaleString()}</p>
                             <p className="text-[10px] text-muted-foreground">{po.currency}</p>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 text-[10px] px-2 w-full"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const { generatePdf } = await import("@/lib/generatePdf");
+                                const { data: items } = await supabase
+                                  .from("purchase_order_items")
+                                  .select("*")
+                                  .eq("purchase_order_id", po.id);
+                                const isFinal = po.status === "received" || po.status === "approved" || po.status === "sent";
+                                generatePdf({
+                                  title: `Purchase Order ${po.document_number}`,
+                                  senderName: "NIF Technical Services Ltd",
+                                  senderDepartment: "Procurement",
+                                  contentSections: [
+                                    { heading: "Vendor", body: po.vendors?.name ?? "—" },
+                                    { heading: "Details", bullets: [
+                                      `Status: ${po.status}`,
+                                      `Currency: ${po.currency}`,
+                                      `Date: ${new Date(po.created_at).toLocaleDateString()}`,
+                                    ]},
+                                  ],
+                                  tableData: items && items.length > 0 ? {
+                                    columns: [
+                                      { header: "Description", dataKey: "description" },
+                                      { header: "Qty", dataKey: "quantity" },
+                                      { header: "Unit Price (₦)", dataKey: "unit_price" },
+                                      { header: "Total (₦)", dataKey: "total_price" },
+                                    ],
+                                    rows: (items as PoItemRow[]).map((i) => ({
+                                      description: i.description,
+                                      quantity: i.quantity,
+                                      unit_price: Number(i.unit_price).toLocaleString(),
+                                      total_price: Number(i.total_price).toLocaleString(),
+                                    })),
+                                    summary: [{ label: "Grand Total", value: `₦${Number(po.total_amount ?? 0).toLocaleString()}` }],
+                                  } : undefined,
+                                  stampType: isFinal ? "admin" : null,
+                                  watermark: isFinal ? "FINAL" : "DRAFT",
+                                });
+                              }}
+                            >
+                              <FileDown className="h-3 w-3 mr-1" />PDF
+                            </Button>
                             {(isAdmin || isWarehouse) && po.status !== "received" && po.status !== "cancelled" && (
                               <Button 
                                 size="sm" 
