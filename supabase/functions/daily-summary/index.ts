@@ -59,6 +59,10 @@ serve(async (req: Request) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    const { checkSpendCap, capExceededResponse } = await import("../_shared/spendCap.ts");
+    const cap = await checkSpendCap(organization_id);
+    if (!cap.allowed) return capExceededResponse(corsHeaders, cap);
+
     const [projects, inventory, expenses, payments, reports, equipment, attendance, compliance] = await Promise.all([
       supabase.from("projects").select("*").eq("organization_id", organization_id).in("status", ["in_progress", "planning"]),
       supabase.from("inventory").select("*").eq("organization_id", organization_id),
