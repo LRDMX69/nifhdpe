@@ -2,6 +2,7 @@ import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -194,6 +195,13 @@ const KnowledgeBase = () => {
         ))}
       </div>
 
+      <AsyncBoundary
+        loading={isLoading}
+        error={error}
+        onRetry={() => refetch()}
+        loadingVariant="cards"
+        loadingRows={3}
+      >
       <Tabs defaultValue="all" className="space-y-4">
         <div className="w-full overflow-x-auto pb-1 scrollbar-hide">
           <TabsList className="flex w-max min-w-full justify-start bg-transparent p-0 gap-1 h-auto">
@@ -239,6 +247,7 @@ const KnowledgeBase = () => {
           </TabsContent>
         ))}
       </Tabs>
+      </AsyncBoundary>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
