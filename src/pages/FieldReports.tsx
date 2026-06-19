@@ -484,6 +484,27 @@ const FieldReports = () => {
         )}
       </PageHeader>
 
+      <WorkflowBanner
+        storageKey="field-reports-overview"
+        title="How field reports flow"
+        summary={isAdmin
+          ? "Technicians and engineers submit raw notes plus site photos from the field. AI structures every report (tasks, crew, pressure tests, safety, client feedback) and routes it here for review."
+          : isTechnician
+            ? "Just type what happened today and attach photos. AI rewrites it into a clean professional report and sends it to your chosen recipient (Engineer or Administrator). Works offline — reports upload automatically when you reconnect."
+            : "Submit structured field reports for any project. AI extracts the key facts so admins see a clean summary."}
+        steps={isAdmin
+          ? [
+              { actor: "Technician / Engineer", action: "Submits raw notes + site photos from the field." },
+              { actor: "AI", action: "Structures the report and tags pressure tests, safety incidents, client feedback." },
+              { actor: "Admin (you)", action: "Reviews here; can print, message the author, or escalate." },
+            ]
+          : [
+              { actor: "You", action: "Type rough notes, attach photos, pick the recipient and submit." },
+              { actor: "AI", action: "Structures it into a professional report within seconds." },
+              { actor: "Recipient", action: "Engineer or Administrator receives the structured version." },
+            ]}
+      />
+
       {/* Offline Queue Indicator */}
       {offlineQueue.length > 0 && (
         <Card className="border-warning/30 bg-warning/5 animate-pulse">
