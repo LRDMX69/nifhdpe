@@ -10,6 +10,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Building2, Users, Shield, Check, X, Loader2, Camera, Trash2, Ban, UserX } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_LABELS, ALL_ROLES } from "@/lib/constants";
 import { supabase } from "@/integrations/supabase/client";
@@ -203,6 +204,16 @@ const AppSettings = () => {
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto">
       <PageHeader title="Settings" description="Organization and user settings" />
+
+      <WorkflowBanner
+        storageKey="settings"
+        summary="Manage the organization profile, the team roster and your own account from a single place. Role changes here flow through to every module's permissions instantly."
+        steps={[
+          { actor: "Administrator", action: "updates company details and the organization logo — both appear on every PDF, ID card and the splash screen." },
+          { actor: "Administrator", action: "assigns roles to team members (max 2 Admins). Pending users see the Awaiting Role screen until approved." },
+          { actor: "You", action: "manage your own profile, avatar and security (password, MFA) in the Profile tab." },
+        ]}
+      />
 
       <Tabs defaultValue="team" className="space-y-4">
         <div className="w-full overflow-x-auto pb-1 scrollbar-hide">

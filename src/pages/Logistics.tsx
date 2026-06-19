@@ -12,6 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, Truck, MapPin, Clock, Loader2, MoreVertical, Pencil, Trash2, CheckCircle2, Navigation, Fuel, Car, FileText } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { WorkflowBanner } from "@/components/ui/workflow-banner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";
 import { supabase } from "@/integrations/supabase/client";
@@ -290,6 +292,16 @@ const Logistics = () => {
       </PageHeader>
       <WaybillDialog open={waybillOpen} onOpenChange={setWaybillOpen} />
 
+      <WorkflowBanner
+        storageKey="logistics"
+        summary="Schedule deliveries, track fleet movement and log fuel usage. Inventory is auto-deducted and GPS validates on-site delivery."
+        steps={[
+          { actor: "Warehouse / Admin", action: "schedule a delivery with project, destination and items." },
+          { actor: "Driver", action: "moves the status to In Transit and must be within 300m of the site to mark Delivered." },
+          { actor: "Finance", action: "sees fuel cost and delivery cost roll into project P&L automatically." },
+        ]}
+      />
+
       <Tabs defaultValue="deliveries" className="space-y-4">
         <TabsList className="w-full justify-start overflow-x-auto bg-transparent p-0 gap-1 h-auto scrollbar-hide">
           <TabsTrigger value="deliveries" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
@@ -326,9 +338,17 @@ const Logistics = () => {
 
           <div ref={listRef} className="space-y-3">
             {filtered.length === 0 && (
-              <Card className="border-border/50"><CardContent className="py-8 text-center text-muted-foreground">
-                {deliveries.length === 0 ? "No deliveries yet. Schedule your first delivery above." : "No deliveries match your filter."}
-              </CardContent></Card>
+              deliveries.length === 0 ? (
+                <EmptyState
+                  icon={Truck}
+                  title="No deliveries scheduled"
+                  description="Schedule your first delivery to dispatch goods from the warehouse to a project site. GPS will confirm arrival on-site."
+                  ownedBy="Warehouse & Administrators"
+                  action={canEdit ? { label: "Schedule delivery", onClick: openAdd } : undefined}
+                />
+              ) : (
+                <EmptyState icon={Search} title="No deliveries match your filter" description="Try a different search keyword or clear the status filter." compact />
+              )
             )}
             {filtered.map((d) => (
               <Card key={d.id} className="gsap-card border-border/50 hover:border-primary/20 transition-all">
@@ -391,7 +411,14 @@ const Logistics = () => {
         <TabsContent value="vehicles">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {vehicles.length === 0 ? (
-              <p className="col-span-full text-center py-12 text-muted-foreground">No vehicles registered.</p>
+              <div className="col-span-full">
+                <EmptyState
+                  icon={Car}
+                  title="No vehicles in the fleet"
+                  description="Add the trucks, vans and pickups your team operates so fuel logs, maintenance schedules and driver assignments stay traceable."
+                  ownedBy="Logistics / Warehouse Lead"
+                />
+              </div>
             ) : (
               vehicles.map((v: VehicleRow) => (
                 <Card key={v.id} className="border-border/50">
@@ -426,7 +453,9 @@ const Logistics = () => {
                 </TableRow></TableHeader>
                 <TableBody>
                   {fuelLogs.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No fuel logs recorded.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={5} className="py-8">
+                      <EmptyState icon={Fuel} title="No fuel logs yet" description="Drivers and warehouse staff log refuels here so finance can audit consumption and detect anomalies." compact />
+                    </TableCell></TableRow>
                   ) : (
                     fuelLogs.map((log: FuelLogRow) => (
                       <TableRow key={log.id}>

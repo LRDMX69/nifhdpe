@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { WorkflowBanner } from "@/components/ui/workflow-banner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -212,6 +214,17 @@ const Procurement = () => {
         description="Manage vendors, purchase orders, goods receipt, and site requisitions"
       />
 
+      <WorkflowBanner
+        storageKey="procurement"
+        summary="The full procurement lifecycle: vendors are registered, requisitions come in from the field, Purchase Orders are issued, and Goods Received Notes (GRN) close the loop and update inventory."
+        steps={[
+          { actor: "Site Engineer", action: "raises a Material Requisition for items the project needs." },
+          { actor: "Procurement / Admin", action: "selects a vendor, issues a Purchase Order, and forwards it to the supplier." },
+          { actor: "Warehouse", action: "receives the goods and posts a GRN — inventory updates automatically." },
+          { actor: "Finance", action: "matches the invoice to the PO and GRN before releasing payment." },
+        ]}
+      />
+
       <Tabs defaultValue="vendors" className="space-y-4">
         <div className="overflow-x-auto pb-2">
           <TabsList className="inline-flex w-auto min-w-full sm:min-w-0">
@@ -277,10 +290,13 @@ const Procurement = () => {
               {vendorsLoading ? (
                 <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
               ) : vendors.length === 0 ? (
-                <div className="text-center p-12 text-muted-foreground">
-                  <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                  <p>No vendors registered yet. Add your first supplier to start procurement.</p>
-                </div>
+                <EmptyState
+                  icon={Users}
+                  title="No vendors registered yet"
+                  description="Vendors must be created here before a Purchase Order can be issued. Register the suppliers you actually transact with — contact details flow into POs automatically."
+                  ownedBy="Finance & Administrators"
+                  action={(isAdmin || isFinance) ? { label: "Register first vendor", onClick: () => setVendorOpen(true) } : undefined}
+                />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {(vendors as VendorRow[]).map((v) => (
@@ -345,10 +361,13 @@ const Procurement = () => {
               {posLoading ? (
                 <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
               ) : pos.length === 0 ? (
-                <div className="text-center p-12 text-muted-foreground">
-                  <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                  <p>No purchase orders found.</p>
-                </div>
+                <EmptyState
+                  icon={ShoppingCart}
+                  title="No purchase orders yet"
+                  description="Raise a PO after you've approved a requisition or agreed pricing with a vendor. The PO number flows automatically into the GRN and the matching invoice."
+                  ownedBy="Finance & Administrators"
+                  action={(isAdmin || isFinance) && vendors.length > 0 ? { label: "Create first PO", onClick: () => setPoOpen(true) } : undefined}
+                />
               ) : (
                 <div className="space-y-3">
                   {(pos as PoRow[]).map((po) => (
@@ -419,10 +438,13 @@ const Procurement = () => {
               )}
             </CardHeader>
             <CardContent>
-              <div className="text-center p-12 text-muted-foreground">
-                <PackageCheck className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                <p>No GRNs recorded.</p>
-              </div>
+              <EmptyState
+                icon={PackageCheck}
+                title="No goods received yet"
+                description="A GRN confirms that the items on a Purchase Order arrived in the warehouse. Posting a GRN automatically updates inventory and unlocks vendor payment."
+                ownedBy="Warehouse & Administrators"
+                action={(isAdmin || isWarehouse) && pos.some((p: PoRow) => p.status !== 'received') ? { label: "Receive goods", onClick: () => setGrnOpen(true) } : undefined}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -454,10 +476,13 @@ const Procurement = () => {
               {mrsLoading ? (
                 <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
               ) : mrs.length === 0 ? (
-                <div className="text-center p-12 text-muted-foreground">
-                  <ClipboardList className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                  <p>No requisitions from site yet.</p>
-                </div>
+                <EmptyState
+                  icon={ClipboardList}
+                  title="No site requisitions yet"
+                  description="Material Requisitions are how site engineers tell procurement what the project needs next. Once approved, they become Purchase Orders."
+                  ownedBy="Site Engineers"
+                  action={{ label: "Raise a requisition", onClick: () => setMrOpen(true) }}
+                />
               ) : (
                 <div className="space-y-3">
                   {(mrs as MrRow[]).map((mr) => (

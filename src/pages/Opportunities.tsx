@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { WorkflowBanner } from "@/components/ui/workflow-banner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -256,6 +258,16 @@ const Opportunities = () => {
         </div>
       </PageHeader>
 
+      <WorkflowBanner
+        storageKey="opportunities"
+        summary="An opportunity is a potential deal before it becomes a formal quotation — tenders, RFQs and leads the AI bid-scanner discovers every 10 minutes."
+        steps={[
+          { actor: "AI Opportunity Engine", action: "scans public tenders and surfaces new leads automatically every 10 minutes." },
+          { actor: "Marketing / Sales", action: "qualifies the lead, attaches contact details and moves it from Identified → Pursuing." },
+          { actor: "Sales", action: "converts a Won opportunity into a Quotation, then an Invoice in Finance." },
+        ]}
+      />
+
       <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "Pipeline Value", value: formatCurrency(totalValue), icon: TrendingUp },
@@ -485,9 +497,16 @@ const Opportunities = () => {
 
       <div className="print-container grid gap-3 md:grid-cols-2">
         {filtered.length === 0 && (
-          <Card className="col-span-full"><CardContent className="p-8 text-center text-muted-foreground">
-            No opportunities found. Add one manually or refresh intelligence.
-          </CardContent></Card>
+          <div className="col-span-full">
+            <EmptyState
+              icon={Target}
+              title="No opportunities tracked yet"
+              description="Press Refresh to let the AI scanner search for fresh tenders, or add one manually if you've heard about a lead through other channels."
+              ownedBy="Marketing / Sales & AI Opportunity Engine"
+              action={{ label: "Add manually", onClick: () => setOpen(true) }}
+              secondaryAction={{ label: scanning ? "Scanning…" : "Refresh intelligence", onClick: handleRefreshIntelligence }}
+            />
+          </div>
         )}
         {filtered.map((o) => {
           const info = parseContactInfo(o.description ?? "");

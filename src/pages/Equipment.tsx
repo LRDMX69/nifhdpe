@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -244,6 +245,16 @@ const Equipment = () => {
           <Button variant="outline" size="sm" onClick={handlePrintSheet}><FileDown className="h-4 w-4 mr-1" /><span className="hidden sm:inline">PDF</span></Button>
         </div>
       </PageHeader>
+
+      <WorkflowBanner
+        storageKey="equipment"
+        summary="Register every machine, tool and vehicle so technicians can request what they need, and admins see usage, maintenance and request escalations in one place."
+        steps={[
+          { actor: "Warehouse / Admin", action: "register the asset with serial number, type and assigned project." },
+          { actor: "Technician", action: "raises an equipment request from the field; the system notifies the team and tracks response time." },
+          { actor: "Admin", action: "is auto-escalated if a request remains unanswered, with a direct dialer to the requester." },
+        ]}
+      />
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>

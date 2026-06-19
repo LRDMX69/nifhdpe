@@ -13,6 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Plus, FileText, Search, Trash2, Loader2, MoreVertical, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { WorkflowBanner } from "@/components/ui/workflow-banner";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FileText } from "lucide-react";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";
 import { AiInsightPanel } from "@/components/AiInsightPanel";
@@ -425,6 +428,16 @@ const Quotations = () => {
         )}
       </PageHeader>
 
+      <WorkflowBanner
+        storageKey="quotations"
+        summary="Quotations are formal price offers to clients. Save as Draft while you fine-tune, Send when ready, then convert the accepted quote into an Invoice with one click."
+        steps={[
+          { actor: "Marketing / Admin", action: "select an existing client and build an itemized or lump-sum quotation." },
+          { actor: "Client", action: "reviews the quotation PDF; status moves through Sent → Accepted or Rejected." },
+          { actor: "Finance", action: "converts the accepted quotation into an Invoice — line items and totals carry over automatically." },
+        ]}
+      />
+
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete {deleteTarget?.quotation_number}?</AlertDialogTitle>
           <AlertDialogDescription>This will also delete all line items.</AlertDialogDescription></AlertDialogHeader>
@@ -440,9 +453,17 @@ const Quotations = () => {
 
       <div ref={listRef} className="space-y-3">
         {filtered.length === 0 && (
-          <Card className="border-border/50"><CardContent className="py-8 text-center text-muted-foreground">
-            {quotations.length === 0 ? "No quotations yet." : "No matches."}
-          </CardContent></Card>
+          quotations.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="No quotations yet"
+              description="Quotations are the first step in the revenue cycle. Create one for an existing client — once accepted, you can convert it to an invoice instantly."
+              ownedBy="Marketing / Sales & Administrators"
+              action={canEdit ? { label: "New quotation", onClick: () => setDialogOpen(true) } : undefined}
+            />
+          ) : (
+            <EmptyState icon={Search} title="No quotations match your search" description="Try a different reference or client name." compact />
+          )
         )}
         {filtered.map((q: DbQuotation) => (
           <QuotationCard

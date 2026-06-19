@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Clock, LogOut, RefreshCcw } from "lucide-react";
+import { Clock, LogOut, RefreshCcw, Mail, ShieldCheck, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import nifLogo from "@/assets/nif-logo.png";
@@ -33,6 +33,23 @@ const PendingApproval = () => {
             Your account has been created but you haven't been assigned a role yet. 
             An administrator will review your account and assign the appropriate access level.
           </p>
+        </div>
+        <div className="rounded-lg border border-border bg-card text-left p-4 space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">What happens next</p>
+          <ul className="space-y-2 text-sm">
+            <li className="flex items-start gap-2">
+              <ShieldCheck className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <span>An administrator reviews your profile and assigns a department role (HR, Finance, Technical, Marketing, Logistics or Admin).</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <UserCog className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <span>Once approved, press <strong>Retry</strong> below — you'll be taken straight to your role-specific dashboard.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Mail className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <span>If approval takes longer than a working day, contact your department head or the administrator directly.</span>
+            </li>
+          </ul>
         </div>
         {authError && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">

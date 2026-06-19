@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { WorkflowBanner } from "@/components/ui/workflow-banner";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ShieldCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -161,6 +164,17 @@ const Compliance = () => {
         {canEdit && <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />Add Document</Button>}
       </PageHeader>
 
+      <WorkflowBanner
+        storageKey="compliance"
+        tone="warning"
+        summary="Store every certificate, inspection report and regulatory document with an expiry date. The system surfaces documents that are close to expiry so renewals never lapse."
+        steps={[
+          { actor: "Technical / Admin", action: "upload the document, tag the project and set the expiry date." },
+          { actor: "System", action: "marks documents expired automatically and warns when expiry is approaching." },
+          { actor: "Compliance owner", action: "renews and re-uploads before the previous version expires." },
+        ]}
+      />
+
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editingDoc ? "Edit Document" : "Add Compliance Document"}</DialogTitle></DialogHeader>
@@ -224,7 +238,15 @@ const Compliance = () => {
       <Card><CardContent className="p-0">
         <div className="overflow-x-auto">
           {docs.length === 0 ? (
-            <p className="p-6 text-center text-muted-foreground">No compliance documents yet.</p>
+            <div className="p-6">
+              <EmptyState
+                icon={ShieldCheck}
+                title="No compliance documents yet"
+                description="Upload your pressure test certificates, material certs, regulatory permits and inspection reports here. Expiry tracking starts the moment you set a date."
+                ownedBy="Technical Department & Administrators"
+                action={canEdit ? { label: "Upload first document", onClick: openAdd } : undefined}
+              />
+            </div>
           ) : (
             <Table><TableHeader><TableRow>
               <TableHead>Document</TableHead><TableHead>Type</TableHead><TableHead>Status</TableHead><TableHead>Expiry</TableHead><TableHead className="w-[50px]"></TableHead>
