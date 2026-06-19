@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { calculateNigerianSalary, SalaryBreakdown } from "@/lib/payroll";
 import type { Database } from "@/integrations/supabase/types";
@@ -139,7 +140,7 @@ const HR = () => {
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split("T")[0]);
 
   // Attendance data
-  const { data: allAttendance = [] } = useQuery({
+  const { data: allAttendance = [], isLoading: attendanceLoading, error: attendanceError, refetch: refetchAttendance } = useQuery({
     queryKey: ["attendance-all", orgId, attendanceDate],
     queryFn: async () => {
       if (!orgId) return [];
@@ -205,15 +206,15 @@ const HR = () => {
     enabled: !!orgId && isHrOrAdmin,
   });
 
-  const { data: leaveRequests = [] } = useQuery({ queryKey: ["leave-requests", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("leave_requests").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30); return data ?? []; }, enabled: !!orgId });
-  const { data: performanceLogs = [] } = useQuery({ queryKey: ["performance-logs", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("performance_logs").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(20); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
-  const { data: recruitment = [] } = useQuery({ queryKey: ["recruitment", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("recruitment").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
-  const { data: trainingLogs = [] } = useQuery({ queryKey: ["training-logs", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("training_logs").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
-  const { data: skills = [] } = useQuery({ queryKey: ["employee-skills", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("employee_skills").select("*").eq("organization_id", orgId).order("skill_name"); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
-  const { data: disciplinary = [] } = useQuery({ queryKey: ["disciplinary", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("disciplinary_records").select("*").eq("organization_id", orgId).order("incident_date", { ascending: false }).limit(20); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
-  const { data: promotions = [] } = useQuery({ queryKey: ["promotions", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("promotions").select("*").eq("organization_id", orgId).order("effective_date", { ascending: false }).limit(20); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
+  const { data: leaveRequests = [], isLoading: leavesLoading, error: leavesError, refetch: refetchLeaves } = useQuery({ queryKey: ["leave-requests", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("leave_requests").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30); return data ?? []; }, enabled: !!orgId });
+  const { data: performanceLogs = [], isLoading: perfLoading, error: perfError, refetch: refetchPerf } = useQuery({ queryKey: ["performance-logs", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("performance_logs").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(20); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
+  const { data: recruitment = [], isLoading: recruitLoading, error: recruitError, refetch: refetchRecruit } = useQuery({ queryKey: ["recruitment", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("recruitment").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
+  const { data: trainingLogs = [], isLoading: trainingLoading, error: trainingError, refetch: refetchTraining } = useQuery({ queryKey: ["training-logs", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("training_logs").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
+  const { data: skills = [], isLoading: skillsLoading, error: skillsError, refetch: refetchSkills } = useQuery({ queryKey: ["employee-skills", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("employee_skills").select("*").eq("organization_id", orgId).order("skill_name"); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
+  const { data: disciplinary = [], isLoading: discLoading, error: discError, refetch: refetchDisc } = useQuery({ queryKey: ["disciplinary", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("disciplinary_records").select("*").eq("organization_id", orgId).order("incident_date", { ascending: false }).limit(20); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
+  const { data: promotions = [], isLoading: promoLoading, error: promoError, refetch: refetchPromo } = useQuery({ queryKey: ["promotions", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("promotions").select("*").eq("organization_id", orgId).order("effective_date", { ascending: false }).limit(20); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
 
-  const { data: salaryPayments = [] } = useQuery({
+  const { data: salaryPayments = [], isLoading: salaryLoading, error: salaryError, refetch: refetchSalary } = useQuery({
     queryKey: ["salary-payments", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -641,15 +642,21 @@ const HR = () => {
               </CardContent></Card>
             )}
             <Card className="border-border/50"><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-base flex items-center gap-2"><Users className="h-5 w-5 text-primary" /> Attendance Records</CardTitle><Input type="date" value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)} className="w-auto text-sm" /></CardHeader><CardContent>
-              {allAttendance.length === 0 ? (
-                <EmptyState
-                  compact
-                  icon={Users}
-                  title="No check-ins for this date yet"
-                  description="Attendance appears here the moment an employee taps Check-In from any device. Pick a different date above to review history."
-                  ownedBy="Employees check themselves in; HR reviews."
-                />
-              ) : (
+              <AsyncBoundary
+                loading={attendanceLoading}
+                error={attendanceError}
+                onRetry={() => refetchAttendance()}
+                isEmpty={allAttendance.length === 0}
+                loadingVariant="list"
+                loadingRows={3}
+                emptyState={{
+                  compact: true,
+                  icon: Users,
+                  title: "No check-ins for this date yet",
+                  description: "Attendance appears here the moment an employee taps Check-In from any device. Pick a different date above to review history.",
+                  ownedBy: "Employees check themselves in; HR reviews.",
+                }}
+              >
                 <div className="space-y-2">{allAttendance.map((a) => {
                   const prof = profileMap.get(a.user_id);
                   const isLate = a.check_in && new Date(a.check_in).getHours() >= 9;
@@ -659,14 +666,30 @@ const HR = () => {
                     <div className="flex items-center gap-1">{isLate && <Badge variant="outline" className="text-[10px] text-warning border-warning/30">Late</Badge>}<Badge variant="outline" className={`text-[10px] ${a.check_out ? "text-primary" : "text-warning"}`}>{a.check_out ? "Complete" : "Active"}</Badge></div>
                   </div>);
                 })}</div>
-              )}
+              </AsyncBoundary>
             </CardContent></Card>
           </TabsContent>
         )}
 
         {/* LEAVES TAB */}
         <TabsContent value="leaves"><Card className="border-border/50"><CardHeader><CardTitle className="text-base flex items-center gap-2"><CalendarDays className="h-5 w-5 text-warning" /> Leave Requests</CardTitle></CardHeader><CardContent>
-          {leaveRequests.length > 0 ? (<div className="space-y-2">{leaveRequests.map((l) => {
+          <AsyncBoundary
+            loading={leavesLoading}
+            error={leavesError}
+            onRetry={() => refetchLeaves()}
+            isEmpty={leaveRequests.length === 0}
+            loadingVariant="list"
+            loadingRows={3}
+            emptyState={{
+              compact: true,
+              icon: CalendarDays,
+              title: isHrOrAdmin ? "No leave requests submitted" : "You haven't requested any leave",
+              description: isHrOrAdmin ? "Requests appear here as soon as employees submit them. You'll be able to approve or reject from this view." : "Tap 'Request Leave' above to submit annual, sick, emergency, maternity, or unpaid leave. HR will review and update the status.",
+              ownedBy: isHrOrAdmin ? "Employees submit, HR approves." : "Submitted by you; reviewed by HR.",
+              action: isHrOrAdmin ? undefined : { label: "Request Leave", onClick: () => setLeaveOpen(true) },
+            }}
+          >
+            <div className="space-y-2">{leaveRequests.map((l) => {
             const requesterName = profileMap.get(l.user_id)?.full_name;
             return (<div key={l.id} className="flex items-center justify-between py-3 px-3 rounded-lg bg-muted/30 gap-2 flex-wrap">
               <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="text-sm capitalize font-medium">{l.leave_type} leave</p>{isHrOrAdmin && requesterName && <span className="text-xs text-muted-foreground">— {requesterName}</span>}</div><p className="text-xs text-muted-foreground">{l.start_date} → {l.end_date}</p>{l.reason && <p className="text-xs text-muted-foreground mt-1">{l.reason}</p>}</div>
@@ -675,16 +698,8 @@ const HR = () => {
                 <Badge variant="outline" className={`text-[10px] capitalize ${l.status === "approved" ? "text-primary" : l.status === "rejected" ? "text-destructive" : "text-warning"}`}>{l.status}</Badge>
               </div>
             </div>);
-          })}</div>) : (
-            <EmptyState
-              compact
-              icon={CalendarDays}
-              title={isHrOrAdmin ? "No leave requests submitted" : "You haven't requested any leave"}
-              description={isHrOrAdmin ? "Requests appear here as soon as employees submit them. You'll be able to approve or reject from this view." : "Tap 'Request Leave' above to submit annual, sick, emergency, maternity, or unpaid leave. HR will review and update the status."}
-              ownedBy={isHrOrAdmin ? "Employees submit, HR approves." : "Submitted by you; reviewed by HR."}
-              action={isHrOrAdmin ? undefined : { label: "Request Leave", onClick: () => setLeaveOpen(true) }}
-            />
-          )}
+            })}</div>
+          </AsyncBoundary>
         </CardContent></Card></TabsContent>
 
         {/* PAYROLL TAB */}
@@ -729,7 +744,16 @@ const HR = () => {
                 </Dialog>
               </CardHeader>
               <CardContent>
-                {salaryPayments.length > 0 ? (() => {
+                <AsyncBoundary
+                  loading={salaryLoading}
+                  error={salaryError}
+                  onRetry={() => refetchSalary()}
+                  isEmpty={salaryPayments.length === 0}
+                  loadingVariant="list"
+                  loadingRows={3}
+                  emptyState={{ compact: true, icon: DollarSign, title: "No salary records yet", description: "Use 'Record Salary' above to log payroll runs. Statutory deductions (PAYE, pension, NHF) are auto-calculated from each employee's base salary." }}
+                >
+                  {(() => {
                   // Group payments by employee
                   const groupedByEmployee = new Map<string, Array<{ id: string; amount: number; date: string; description: string | null }>>();
                   salaryPayments.forEach((p) => {
@@ -768,7 +792,8 @@ const HR = () => {
                       })}
                     </div>
                   );
-                })() : <p className="text-sm text-muted-foreground">No salary records yet.</p>}
+                  })()}
+                </AsyncBoundary>
               </CardContent>
             </Card>
           </TabsContent>
@@ -793,7 +818,9 @@ const HR = () => {
                       </Button>
                     </div>
                   );
-                })}</div>) : <p className="text-sm text-muted-foreground">No employees found.</p>}
+                })}</div>) : (
+                  <EmptyState compact icon={CreditCard} title="No employees found" description="Add team members from the Team module to generate ID cards." />
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -818,7 +845,16 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {performanceLogs.length > 0 ? (<div className="space-y-2">{performanceLogs.map((p) => (
+              <AsyncBoundary
+                loading={perfLoading}
+                error={perfError}
+                onRetry={() => refetchPerf()}
+                isEmpty={performanceLogs.length === 0}
+                loadingVariant="list"
+                loadingRows={3}
+                emptyState={{ compact: true, icon: Award, title: "No performance reviews yet", description: "Use 'Add Review' above to log a periodic performance rating for any team member." }}
+              >
+                <div className="space-y-2">{performanceLogs.map((p) => (
                 <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{getMemberName(p.user_id)} — {p.period}</p>{p.notes && <p className="text-xs text-muted-foreground">{p.notes}</p>}</div>
                   <div className="flex items-center gap-1">
@@ -826,7 +862,8 @@ const HR = () => {
                     <RecordActions onEdit={() => openEditPerf(p)} onDelete={() => setDeleteTarget({ id: p.id, table: "performance_logs", label: "performance review" })} />
                   </div>
                 </div>
-              ))}</div>) : <p className="text-sm text-muted-foreground">No performance reviews yet.</p>}
+                ))}</div>
+              </AsyncBoundary>
             </CardContent>
           </Card></TabsContent>
         )}
@@ -850,7 +887,16 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {recruitment.length > 0 ? (<div className="space-y-2">{recruitment.map((r) => (
+              <AsyncBoundary
+                loading={recruitLoading}
+                error={recruitError}
+                onRetry={() => refetchRecruit()}
+                isEmpty={recruitment.length === 0}
+                loadingVariant="list"
+                loadingRows={3}
+                emptyState={{ compact: true, icon: Briefcase, title: "No recruitment entries", description: "Track open positions and candidates by clicking 'Add' above." }}
+              >
+                <div className="space-y-2">{recruitment.map((r) => (
                 <div key={r.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{r.position_title}</p><p className="text-xs text-muted-foreground">{r.candidate_name ?? "No candidate"} · {r.department ?? "—"}</p></div>
                   <div className="flex items-center gap-1">
@@ -858,7 +904,8 @@ const HR = () => {
                     <RecordActions onEdit={() => openEditRecruit(r)} onDelete={() => setDeleteTarget({ id: r.id, table: "recruitment", label: "recruitment entry" })} />
                   </div>
                 </div>
-              ))}</div>) : <p className="text-sm text-muted-foreground">No recruitment entries.</p>}
+                ))}</div>
+              </AsyncBoundary>
             </CardContent>
           </Card></TabsContent>
         )}
@@ -883,12 +930,22 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {trainingLogs.length > 0 ? (<div className="space-y-2">{trainingLogs.map((t) => (
+              <AsyncBoundary
+                loading={trainingLoading}
+                error={trainingError}
+                onRetry={() => refetchTraining()}
+                isEmpty={trainingLogs.length === 0}
+                loadingVariant="list"
+                loadingRows={3}
+                emptyState={{ compact: true, icon: GraduationCap, title: "No training logs", description: "Capture internal, external, certification, or safety training sessions via 'Log Training'." }}
+              >
+                <div className="space-y-2">{trainingLogs.map((t) => (
                 <div key={t.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{t.training_title}</p><p className="text-xs text-muted-foreground">{getMemberName(t.user_id)} · {t.training_type ?? "—"}{t.completed_date ? ` · Done: ${t.completed_date}` : ""}</p></div>
                   <div className="flex items-center gap-1">{t.score != null && <Badge variant="outline" className="text-[10px]">{t.score}%</Badge>}<RecordActions onEdit={() => openEditTraining(t)} onDelete={() => setDeleteTarget({ id: t.id, table: "training_logs", label: "training log" })} /></div>
                 </div>
-              ))}</div>) : <p className="text-sm text-muted-foreground">No training logs.</p>}
+                ))}</div>
+              </AsyncBoundary>
             </CardContent>
           </Card></TabsContent>
         )}
@@ -912,7 +969,16 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {skills.length > 0 ? (<div className="space-y-2">{skills.map((s) => (
+              <AsyncBoundary
+                loading={skillsLoading}
+                error={skillsError}
+                onRetry={() => refetchSkills()}
+                isEmpty={skills.length === 0}
+                loadingVariant="list"
+                loadingRows={3}
+                emptyState={{ compact: true, icon: Star, title: "No skills recorded", description: "Build the team skills matrix by adding individual proficiencies and certifications." }}
+              >
+                <div className="space-y-2">{skills.map((s) => (
                 <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{s.skill_name}</p><p className="text-xs text-muted-foreground">{getMemberName(s.user_id)}</p></div>
                   <div className="flex items-center gap-2">
@@ -921,7 +987,8 @@ const HR = () => {
                     <RecordActions onEdit={() => openEditSkill(s)} onDelete={() => setDeleteTarget({ id: s.id, table: "employee_skills", label: "skill" })} />
                   </div>
                 </div>
-              ))}</div>) : <p className="text-sm text-muted-foreground">No skills recorded.</p>}
+                ))}</div>
+              </AsyncBoundary>
             </CardContent>
           </Card></TabsContent>
         )}
@@ -945,12 +1012,22 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {disciplinary.length > 0 ? (<div className="space-y-2">{disciplinary.map((d) => (
+              <AsyncBoundary
+                loading={discLoading}
+                error={discError}
+                onRetry={() => refetchDisc()}
+                isEmpty={disciplinary.length === 0}
+                loadingVariant="list"
+                loadingRows={3}
+                emptyState={{ compact: true, icon: ShieldAlert, title: "No disciplinary records", description: "Document warnings, suspensions, or terminations using 'Record' above. Entries here form part of the employee's history." }}
+              >
+                <div className="space-y-2">{disciplinary.map((d) => (
                 <div key={d.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{getMemberName(d.user_id)}</p><p className="text-xs text-muted-foreground">{d.description.slice(0, 80)}{d.description.length > 80 ? "..." : ""}</p><p className="text-[10px] text-muted-foreground">{d.incident_date}{d.action_taken ? ` · ${d.action_taken}` : ""}</p></div>
                   <div className="flex items-center gap-1"><Badge variant="outline" className={`text-[10px] capitalize ${d.severity === "termination" || d.severity === "suspension" ? "text-destructive" : "text-warning"}`}>{d.severity.replace("_", " ")}</Badge><RecordActions onEdit={() => openEditDisc(d)} onDelete={() => setDeleteTarget({ id: d.id, table: "disciplinary_records", label: "record" })} /></div>
                 </div>
-              ))}</div>) : <p className="text-sm text-muted-foreground">No disciplinary records.</p>}
+                ))}</div>
+              </AsyncBoundary>
             </CardContent>
           </Card></TabsContent>
         )}
@@ -977,12 +1054,22 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {promotions.length > 0 ? (<div className="space-y-2">{promotions.map((p) => (
+              <AsyncBoundary
+                loading={promoLoading}
+                error={promoError}
+                onRetry={() => refetchPromo()}
+                isEmpty={promotions.length === 0}
+                loadingVariant="list"
+                loadingRows={3}
+                emptyState={{ compact: true, icon: Award, title: "No promotion records", description: "Log role changes and effective dates using 'Add Promotion' above." }}
+              >
+                <div className="space-y-2">{promotions.map((p) => (
                 <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{getMemberName(p.user_id)}</p><p className="text-xs text-muted-foreground">{p.previous_role ?? "—"} → {p.new_role} · {p.effective_date}</p>{p.reason && <p className="text-[10px] text-muted-foreground">{p.reason}</p>}</div>
                   <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px] text-primary">Promoted</Badge><RecordActions onEdit={() => openEditPromo(p)} onDelete={() => setDeleteTarget({ id: p.id, table: "promotions", label: "promotion" })} /></div>
                 </div>
-              ))}</div>) : <p className="text-sm text-muted-foreground">No promotion records.</p>}
+                ))}</div>
+              </AsyncBoundary>
             </CardContent>
           </Card></TabsContent>
         )}
