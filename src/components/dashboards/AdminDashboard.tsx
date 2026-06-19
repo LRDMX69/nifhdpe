@@ -234,6 +234,76 @@ const AdminDashboard = () => {
     enabled: !!orgId && !!user,
   });
 
+  // --- CEO Visibility: Overdue invoices, 30-day cashflow forecast, risk projects ---
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const in30Iso = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const minus30Iso = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+
+  const { data: overdueInvoices = [] } = useQuery({
+    queryKey: ["ceo-overdue-invoices", orgId, todayIso],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase
+        .from("invoices")
+        .select("id, document_number, due_date, balance_due, status, clients(name)")
+        .eq("organization_id", orgId)
+        .lt("due_date", todayIso)
+        .gt("balance_due", 0)
+        .neq("status", "paid")
+        .order("due_date", { ascending: true })
+        .limit(5);
+      return (data ?? []) as unknown as Array<{ id: string; document_number: string; due_date: string; balance_due: number; status: string; clients: { name: string } | null }>;
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: cashflow } = useQuery({
+    queryKey: ["ceo-cashflow-30d", orgId, todayIso, in30Iso, minus30Iso],
+    queryFn: async () => {
+      if (!orgId) return { expectedInflow: 0, recentOutflow: 0, projectedNet: 0 };
+      const [inflow, outflow] = await Promise.all([
+        supabase.from("invoices").select("balance_due").eq("organization_id", orgId).gte("due_date", todayIso).lte("due_date", in30Iso).neq("status", "paid"),
+        supabase.from("expenses").select("amount").eq("organization_id", orgId).gte("date", minus30Iso),
+      ]);
+      const expectedInflow = (inflow.data ?? []).reduce((s, r: { balance_due: number | null }) => s + Number(r.balance_due ?? 0), 0);
+      const recentOutflow = (outflow.data ?? []).reduce((s, r: { amount: number | null }) => s + Number(r.amount ?? 0), 0);
+      return { expectedInflow, recentOutflow, projectedNet: expectedInflow - recentOutflow };
+    },
+    enabled: !!orgId,
+  });
+
+  const riskProjects = (projectHealth ?? [])
+    .filter((p) => p.status !== "completed" && p.status !== "cancelled")
+    .map((p) => {
+      let score = 0;
+      const reasons: string[] = [];
+      // Overdue end date
+      if (p.end_date && p.end_date < todayIso) {
+        const daysLate = Math.ceil((Date.now() - new Date(p.end_date).getTime()) / (1000 * 3600 * 24));
+        score += Math.min(40, daysLate);
+        reasons.push(`${daysLate}d past end date`);
+      }
+      // Stalled (status is on_hold)
+      if (p.status === "on_hold") {
+        score += 25;
+        reasons.push("on hold");
+      }
+      // No budget set
+      if (!p.budget || Number(p.budget) === 0) {
+        score += 10;
+        reasons.push("no budget");
+      }
+      // Started but still planning
+      if (p.start_date && p.start_date < todayIso && p.status === "planning") {
+        score += 20;
+        reasons.push("started, still planning");
+      }
+      return { id: p.id, name: p.name, score, reasons };
+    })
+    .filter((p) => p.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
   const updateClaim = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const { error } = await supabase.from("worker_claims").update({ status, reviewed_by: user?.id }).eq("id", id);
