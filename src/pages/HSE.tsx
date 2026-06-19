@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, AlertTriangle, BookOpen, ShieldCheck, Users, Loader2 } from "lucide-react";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,26 +36,58 @@ const HSE = () => {
   const [incidentDate, setIncidentDate] = useState("");
   const [incidentType, setIncidentType] = useState("near_miss");
   const [incidentSeverity, setIncidentSeverity] = useState("low");
+  const [incidentDescription, setIncidentDescription] = useState("");
+  const [incidentLocation, setIncidentLocation] = useState("");
+  const [incidentProjectId, setIncidentProjectId] = useState<string>("");
 
   const [tbtTopic, setTbtTopic] = useState("");
   const [tbtDate, setTbtDate] = useState("");
+  const [tbtProjectId, setTbtProjectId] = useState<string>("");
+  const [tbtNotes, setTbtNotes] = useState("");
+  const [tbtAttendees, setTbtAttendees] = useState<string[]>([]);
+
+  const { data: projectsList = [] } = useQuery({
+    queryKey: ["hse-projects", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase.from("projects").select("id, name").eq("organization_id", orgId).order("name");
+      return (data ?? []) as { id: string; name: string }[];
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: orgMembers = [] } = useQuery({
+    queryKey: ["hse-members", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase.from("profiles").select("user_id, full_name").eq("organization_id", orgId).order("full_name");
+      return (data ?? []) as { user_id: string; full_name: string | null }[];
+    },
+    enabled: !!orgId,
+  });
 
   const createIncident = useMutation({
     mutationFn: async () => {
       if (!orgId) throw new Error("No organization");
+      if (!incidentDescription.trim()) throw new Error("Description is required");
       const { error } = await supabase.from("hse_incidents").insert({
         organization_id: orgId,
         incident_date: incidentDate || new Date().toISOString().split('T')[0],
         type: incidentType,
         severity: incidentSeverity,
         status: "open",
-        description: "New incident reported"
+        description: incidentDescription.trim(),
+        location: incidentLocation.trim() || null,
+        project_id: incidentProjectId || null,
+        reported_by: user?.id ?? null,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       toast({ title: "Incident reported" });
       setIncidentOpen(false);
+      setIncidentDescription(""); setIncidentLocation(""); setIncidentProjectId("");
+      setIncidentDate(""); setIncidentType("near_miss"); setIncidentSeverity("low");
       queryClient.invalidateQueries({ queryKey: ["hse-incidents"] });
     },
     onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
@@ -69,12 +103,16 @@ const HSE = () => {
         topic: tbtTopic || "General Safety",
         conducted_at: tbtDate || new Date().toISOString().split('T')[0],
         conducted_by: currentUser.id,
+        project_id: tbtProjectId || null,
+        notes: tbtNotes.trim() || null,
+        attendees: tbtAttendees,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       toast({ title: "Toolbox Talk added" });
       setTbtOpen(false);
+      setTbtTopic(""); setTbtDate(""); setTbtProjectId(""); setTbtNotes(""); setTbtAttendees([]);
       queryClient.invalidateQueries({ queryKey: ["toolbox-talks"] });
     },
     onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
@@ -156,7 +194,25 @@ const HSE = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button className="w-full" onClick={() => createIncident.mutate()} disabled={createIncident.isPending}>
+                    <div className="space-y-2">
+                      <Label>Project (optional)</Label>
+                      <Select value={incidentProjectId || "__none__"} onValueChange={(v) => setIncidentProjectId(v === "__none__" ? "" : v)}>
+                        <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">None</SelectItem>
+                          {projectsList.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Location</Label>
+                      <Input value={incidentLocation} onChange={e => setIncidentLocation(e.target.value)} placeholder="e.g. Site B, trench area" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Description *</Label>
+                      <Textarea value={incidentDescription} onChange={e => setIncidentDescription(e.target.value)} rows={4} placeholder="What happened, who was involved, immediate actions taken..." />
+                    </div>
+                    <Button className="w-full" onClick={() => createIncident.mutate()} disabled={createIncident.isPending || !incidentDescription.trim()}>
                       {createIncident.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                       Submit Report
                     </Button>
@@ -218,6 +274,34 @@ const HSE = () => {
                     <div className="space-y-2">
                       <Label>Date</Label>
                       <Input type="date" value={tbtDate} onChange={e => setTbtDate(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Project (optional)</Label>
+                      <Select value={tbtProjectId || "__none__"} onValueChange={(v) => setTbtProjectId(v === "__none__" ? "" : v)}>
+                        <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">None</SelectItem>
+                          {projectsList.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Notes</Label>
+                      <Textarea value={tbtNotes} onChange={e => setTbtNotes(e.target.value)} rows={3} placeholder="Key points discussed, hazards highlighted..." />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Attendees ({tbtAttendees.length} selected)</Label>
+                      <div className="border border-border rounded-md p-2 max-h-40 overflow-y-auto space-y-1">
+                        {orgMembers.length === 0 ? <p className="text-xs text-muted-foreground">No members</p> : orgMembers.map((m) => (
+                          <label key={m.user_id} className="flex items-center gap-2 text-sm cursor-pointer">
+                            <Checkbox
+                              checked={tbtAttendees.includes(m.user_id)}
+                              onCheckedChange={() => setTbtAttendees(prev => prev.includes(m.user_id) ? prev.filter(i => i !== m.user_id) : [...prev, m.user_id])}
+                            />
+                            {m.full_name ?? "Unknown"}
+                          </label>
+                        ))}
+                      </div>
                     </div>
                     <Button className="w-full" onClick={() => createTbt.mutate()} disabled={createTbt.isPending || !tbtTopic}>
                       {createTbt.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
