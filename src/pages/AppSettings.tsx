@@ -135,8 +135,15 @@ const AppSettings = () => {
   });
 
   const assignRole = useMutation({
-    mutationFn: async ({ userId, role, requestId }: { userId: string; role: string; requestId?: string }) => {
-      const { error } = await supabase.from("organization_memberships").insert({ user_id: userId, organization_id: orgId, role: role as Database["public"]["Enums"]["app_role"] });
+    mutationFn: async ({ userId, roles, requestId }: { userId: string; roles: string[]; requestId?: string }) => {
+      const unique = Array.from(new Set(roles.filter(Boolean))).slice(0, 2);
+      if (unique.length === 0) throw new Error("Pick at least one role");
+      const rows = unique.map((role) => ({
+        user_id: userId,
+        organization_id: orgId,
+        role: role as Database["public"]["Enums"]["app_role"],
+      }));
+      const { error } = await supabase.from("organization_memberships").insert(rows);
       if (error) throw error;
       if (requestId) {
         const { error: requestError } = await (supabase as any)
@@ -147,7 +154,7 @@ const AppSettings = () => {
       }
     },
     onSuccess: () => {
-      toast({ title: "Role assigned" });
+      toast({ title: "Roles assigned" });
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
       queryClient.invalidateQueries({ queryKey: ["unassigned-users"] });
       queryClient.invalidateQueries({ queryKey: ["pending-role-requests"] });
@@ -167,7 +174,12 @@ const AppSettings = () => {
     },
   });
 
-  const [selectedRoleForUser, setSelectedRoleForUser] = useState<Record<string, string>>({});
+  const [selectedRolesForUser, setSelectedRolesForUser] = useState<Record<string, { primary: string; secondary: string }>>({});
+  const setRoleSlot = (userId: string, slot: "primary" | "secondary", value: string) =>
+    setSelectedRolesForUser((prev) => ({
+      ...prev,
+      [userId]: { primary: "", secondary: "", ...(prev[userId] ?? {}), [slot]: value === "__none__" ? "" : value },
+    }));
   const [uploading, setUploading] = useState(false);
 
   const { data: org } = useQuery({
