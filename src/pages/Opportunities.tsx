@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
-import { EmptyState } from "@/components/ui/empty-state";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,7 +46,7 @@ const Opportunities = () => {
   const [deadline, setDeadline] = useState("");
   const [description, setDescription] = useState("");
 
-  const { data: opportunities = [], refetch } = useQuery({
+  const { data: opportunities = [], refetch, isLoading: oppsLoading, error: oppsError } = useQuery({
     queryKey: ["opportunities"],
     queryFn: async () => {
       const { data } = await supabase
@@ -495,19 +495,23 @@ const Opportunities = () => {
         </Dialog>
       )}
 
+      <AsyncBoundary
+        loading={oppsLoading}
+        error={oppsError}
+        onRetry={() => refetch()}
+        isEmpty={filtered.length === 0}
+        loadingVariant="cards"
+        loadingRows={4}
+        emptyState={{
+          icon: Target,
+          title: "No opportunities tracked yet",
+          description: "Press Refresh to let the AI scanner search for fresh tenders, or add one manually if you've heard about a lead through other channels.",
+          ownedBy: "Marketing / Sales & AI Opportunity Engine",
+          action: { label: "Add manually", onClick: () => setOpen(true) },
+          secondaryAction: { label: scanning ? "Scanning…" : "Refresh intelligence", onClick: handleRefreshIntelligence },
+        }}
+      >
       <div className="print-container grid gap-3 md:grid-cols-2">
-        {filtered.length === 0 && (
-          <div className="col-span-full">
-            <EmptyState
-              icon={Target}
-              title="No opportunities tracked yet"
-              description="Press Refresh to let the AI scanner search for fresh tenders, or add one manually if you've heard about a lead through other channels."
-              ownedBy="Marketing / Sales & AI Opportunity Engine"
-              action={{ label: "Add manually", onClick: () => setOpen(true) }}
-              secondaryAction={{ label: scanning ? "Scanning…" : "Refresh intelligence", onClick: handleRefreshIntelligence }}
-            />
-          </div>
-        )}
         {filtered.map((o) => {
           const info = parseContactInfo(o.description ?? "");
           return (
@@ -556,6 +560,7 @@ const Opportunities = () => {
           );
         })}
       </div>
+      </AsyncBoundary>
     </div>
   );
 };

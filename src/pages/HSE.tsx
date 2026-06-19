@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, AlertTriangle, BookOpen, ShieldCheck, Users, Loader2 } from "lucide-react";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -78,7 +79,7 @@ const HSE = () => {
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  const { data: incidents = [], isLoading: incidentsLoading } = useQuery({
+  const { data: incidents = [], isLoading: incidentsLoading, error: incidentsError, refetch: refetchIncidents } = useQuery({
     queryKey: ["hse-incidents", orgId],
     queryFn: async () => {
       const { data } = await supabase.from("hse_incidents").select("*").order("incident_date", { ascending: false });
@@ -87,7 +88,7 @@ const HSE = () => {
     enabled: !!orgId,
   });
 
-  const { data: tbts = [], isLoading: tbtsLoading } = useQuery({
+  const { data: tbts = [], isLoading: tbtsLoading, error: tbtsError, refetch: refetchTbts } = useQuery({
     queryKey: ["toolbox-talks", orgId],
     queryFn: async () => {
       const { data } = await supabase.from("toolbox_talks").select("*").order("conducted_at", { ascending: false });
@@ -157,14 +158,20 @@ const HSE = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {incidentsLoading ? (
-                <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-              ) : incidents.length === 0 ? (
-                <div className="text-center p-12 text-muted-foreground">
-                  <ShieldCheck className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                  <p>Safety record is clean. No incidents reported.</p>
-                </div>
-              ) : (
+              <AsyncBoundary
+                loading={incidentsLoading}
+                error={incidentsError}
+                onRetry={() => refetchIncidents()}
+                isEmpty={incidents.length === 0}
+                loadingVariant="table"
+                loadingRows={4}
+                loadingColumns={5}
+                emptyState={{
+                  icon: ShieldCheck,
+                  title: "Safety record is clean",
+                  description: "No incidents reported. Continue logging hazards and near-misses to keep the record accurate.",
+                }}
+              >
                 <Table>
                   <TableHeader><TableRow>
                     <TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Location</TableHead><TableHead>Severity</TableHead><TableHead>Status</TableHead>
@@ -181,7 +188,7 @@ const HSE = () => {
                     ))}
                   </TableBody>
                 </Table>
-              )}
+              </AsyncBoundary>
             </CardContent>
           </Card>
         </TabsContent>
@@ -214,14 +221,20 @@ const HSE = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {tbtsLoading ? (
-                <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-              ) : tbts.length === 0 ? (
-                <div className="text-center p-12 text-muted-foreground">
-                  <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                  <p>No toolbox talks recorded yet.</p>
-                </div>
-              ) : (
+              <AsyncBoundary
+                loading={tbtsLoading}
+                error={tbtsError}
+                onRetry={() => refetchTbts()}
+                isEmpty={tbts.length === 0}
+                loadingVariant="cards"
+                loadingRows={3}
+                emptyState={{
+                  icon: Users,
+                  title: "No toolbox talks recorded yet",
+                  description: "Log the daily safety briefing so attendance and topic history are auditable.",
+                  action: { label: "Log toolbox talk", onClick: () => setTbtOpen(true) },
+                }}
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {tbts.map((t: TbtRow) => (
                     <Card key={t.id} className="border-border/50">
@@ -239,7 +252,7 @@ const HSE = () => {
                     </Card>
                   ))}
                 </div>
-              )}
+              </AsyncBoundary>
             </CardContent>
           </Card>
         </TabsContent>

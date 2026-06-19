@@ -2,6 +2,7 @@ import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ const Procurement = () => {
   const [mrProjectId, setMrProjectId] = useState("");
   const [mrRequiredDate, setMrRequiredDate] = useState("");
 
-  const { data: vendors = [], isLoading: vendorsLoading } = useQuery({
+  const { data: vendors = [], isLoading: vendorsLoading, error: vendorsError, refetch: refetchVendors } = useQuery({
     queryKey: ["vendors", orgId],
     queryFn: async () => {
       const { data } = await supabase.from("vendors").select("*").order("name");
@@ -57,7 +58,7 @@ const Procurement = () => {
     enabled: !!orgId,
   });
 
-  const { data: pos = [], isLoading: posLoading } = useQuery({
+  const { data: pos = [], isLoading: posLoading, error: posError, refetch: refetchPos } = useQuery({
     queryKey: ["purchase-orders", orgId],
     queryFn: async () => {
       const { data } = await supabase.from("purchase_orders").select("*, vendors(name)").order("created_at", { ascending: false });
@@ -66,7 +67,7 @@ const Procurement = () => {
     enabled: !!orgId,
   });
 
-  const { data: mrs = [], isLoading: mrsLoading } = useQuery({
+  const { data: mrs = [], isLoading: mrsLoading, error: mrsError, refetch: refetchMrs } = useQuery({
     queryKey: ["material-requisitions", orgId],
     queryFn: async () => {
       const { data } = await supabase.from("material_requisitions").select("*").order("created_at", { ascending: false });
@@ -287,17 +288,21 @@ const Procurement = () => {
               )}
             </CardHeader>
             <CardContent>
-              {vendorsLoading ? (
-                <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-              ) : vendors.length === 0 ? (
-                <EmptyState
-                  icon={Users}
-                  title="No vendors registered yet"
-                  description="Vendors must be created here before a Purchase Order can be issued. Register the suppliers you actually transact with — contact details flow into POs automatically."
-                  ownedBy="Finance & Administrators"
-                  action={(isAdmin || isFinance) ? { label: "Register first vendor", onClick: () => setVendorOpen(true) } : undefined}
-                />
-              ) : (
+              <AsyncBoundary
+                loading={vendorsLoading}
+                error={vendorsError}
+                onRetry={() => refetchVendors()}
+                isEmpty={vendors.length === 0}
+                loadingVariant="cards"
+                loadingRows={3}
+                emptyState={{
+                  icon: Users,
+                  title: "No vendors registered yet",
+                  description: "Vendors must be created here before a Purchase Order can be issued. Register the suppliers you actually transact with — contact details flow into POs automatically.",
+                  ownedBy: "Finance & Administrators",
+                  action: (isAdmin || isFinance) ? { label: "Register first vendor", onClick: () => setVendorOpen(true) } : undefined,
+                }}
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {(vendors as VendorRow[]).map((v) => (
                     <Card key={v.id} className="border-border/50">
@@ -320,7 +325,7 @@ const Procurement = () => {
                     </Card>
                   ))}
                 </div>
-              )}
+              </AsyncBoundary>
             </CardContent>
           </Card>
         </TabsContent>
@@ -358,17 +363,21 @@ const Procurement = () => {
               )}
             </CardHeader>
             <CardContent>
-              {posLoading ? (
-                <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-              ) : pos.length === 0 ? (
-                <EmptyState
-                  icon={ShoppingCart}
-                  title="No purchase orders yet"
-                  description="Raise a PO after you've approved a requisition or agreed pricing with a vendor. The PO number flows automatically into the GRN and the matching invoice."
-                  ownedBy="Finance & Administrators"
-                  action={(isAdmin || isFinance) && vendors.length > 0 ? { label: "Create first PO", onClick: () => setPoOpen(true) } : undefined}
-                />
-              ) : (
+              <AsyncBoundary
+                loading={posLoading}
+                error={posError}
+                onRetry={() => refetchPos()}
+                isEmpty={pos.length === 0}
+                loadingVariant="list"
+                loadingRows={4}
+                emptyState={{
+                  icon: ShoppingCart,
+                  title: "No purchase orders yet",
+                  description: "Raise a PO after you've approved a requisition or agreed pricing with a vendor. The PO number flows automatically into the GRN and the matching invoice.",
+                  ownedBy: "Finance & Administrators",
+                  action: (isAdmin || isFinance) && vendors.length > 0 ? { label: "Create first PO", onClick: () => setPoOpen(true) } : undefined,
+                }}
+              >
                 <div className="space-y-3">
                   {(pos as PoRow[]).map((po) => (
                     <Card key={po.id} className="border-border/50 hover:border-primary/20 transition-colors cursor-pointer">
@@ -404,7 +413,7 @@ const Procurement = () => {
                     </Card>
                   ))}
                 </div>
-              )}
+              </AsyncBoundary>
             </CardContent>
           </Card>
         </TabsContent>
@@ -473,17 +482,21 @@ const Procurement = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {mrsLoading ? (
-                <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-              ) : mrs.length === 0 ? (
-                <EmptyState
-                  icon={ClipboardList}
-                  title="No site requisitions yet"
-                  description="Material Requisitions are how site engineers tell procurement what the project needs next. Once approved, they become Purchase Orders."
-                  ownedBy="Site Engineers"
-                  action={{ label: "Raise a requisition", onClick: () => setMrOpen(true) }}
-                />
-              ) : (
+              <AsyncBoundary
+                loading={mrsLoading}
+                error={mrsError}
+                onRetry={() => refetchMrs()}
+                isEmpty={mrs.length === 0}
+                loadingVariant="list"
+                loadingRows={3}
+                emptyState={{
+                  icon: ClipboardList,
+                  title: "No site requisitions yet",
+                  description: "Material Requisitions are how site engineers tell procurement what the project needs next. Once approved, they become Purchase Orders.",
+                  ownedBy: "Site Engineers",
+                  action: { label: "Raise a requisition", onClick: () => setMrOpen(true) },
+                }}
+              >
                 <div className="space-y-3">
                   {(mrs as MrRow[]).map((mr) => (
                     <Card key={mr.id} className="border-border/50 hover:border-primary/20 transition-colors cursor-pointer">
@@ -509,7 +522,7 @@ const Procurement = () => {
                     </Card>
                   ))}
                 </div>
-              )}
+              </AsyncBoundary>
             </CardContent>
           </Card>
         </TabsContent>

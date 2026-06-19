@@ -2,6 +2,7 @@ import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -52,7 +53,7 @@ const KnowledgeBase = () => {
 
   const containerRef = useGsapAnimation("slideUp");
 
-  const { data: articles = [], isLoading } = useQuery({
+  const { data: articles = [], isLoading, error, refetch } = useQuery({
     queryKey: ["knowledge-articles", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -138,10 +139,6 @@ const KnowledgeBase = () => {
     count: articles.filter(a => a.category === c.id).length,
   }));
 
-  if (isLoading) {
-    return <div className="p-6 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  }
-
   return (
     <div ref={containerRef} className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
       <PageHeader title="Knowledge Base" description="SOPs, procedures, and technical reference library">
@@ -198,6 +195,13 @@ const KnowledgeBase = () => {
         ))}
       </div>
 
+      <AsyncBoundary
+        loading={isLoading}
+        error={error}
+        onRetry={() => refetch()}
+        loadingVariant="cards"
+        loadingRows={3}
+      >
       <Tabs defaultValue="all" className="space-y-4">
         <div className="w-full overflow-x-auto pb-1 scrollbar-hide">
           <TabsList className="flex w-max min-w-full justify-start bg-transparent p-0 gap-1 h-auto">
@@ -243,6 +247,7 @@ const KnowledgeBase = () => {
           </TabsContent>
         ))}
       </Tabs>
+      </AsyncBoundary>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>

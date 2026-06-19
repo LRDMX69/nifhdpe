@@ -11,6 +11,7 @@ import { Plus, Search, Package, AlertTriangle, Loader2, Pencil, Trash2, MapPin }
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";
 import { AiInsightPanel } from "@/components/AiInsightPanel";
@@ -65,7 +66,7 @@ const Inventory = () => {
   const [boxLabel, setBoxLabel] = useState("");
   const [boxLocId, setBoxLocId] = useState("");
 
-  const { data: inventory = [], isLoading, refetch } = useQuery({
+  const { data: inventory = [], isLoading, error, refetch } = useQuery({
     queryKey: ["inventory", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -199,10 +200,6 @@ const Inventory = () => {
   const lowStockCount = inventory.filter((i: InventoryItem) => (i.quantity_meters ?? 0) < (i.min_stock_level ?? 0)).length;
   const totalValue = inventory.reduce((s: number, i: InventoryItem) => s + (i.quantity_meters ?? 0) * (i.unit_cost ?? 0), 0);
 
-  if (isLoading) {
-    return <div className="p-6 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  }
-
   const filteredBoxes = locationId ? boxes.filter((b: StorageBox) => b.location_id === locationId) : boxes;
 
   return (
@@ -332,25 +329,27 @@ const Inventory = () => {
         </Select>
       </div>
 
+      <AsyncBoundary
+        loading={isLoading}
+        error={error}
+        onRetry={() => refetch()}
+        isEmpty={filtered.length === 0}
+        loadingVariant="list"
+        loadingRows={5}
+        emptyState={inventory.length === 0 ? {
+          icon: Package,
+          title: "No inventory registered yet",
+          description: "Inventory lives at the heart of every delivery. Register your pipes, fittings and accessories so stock levels, low-stock alerts and deliveries stay accurate.",
+          ownedBy: "Warehouse & Administrators",
+          action: canEdit ? { label: "Add first item", onClick: () => setDialogOpen(true) } : undefined,
+        } : {
+          icon: Search,
+          title: "No matches for that search",
+          description: "Try a different keyword, supplier name, or clear the type filter to see all items.",
+          compact: true,
+        }}
+      >
       <div ref={listRef} className="space-y-2">
-        {filtered.length === 0 && (
-          inventory.length === 0 ? (
-            <EmptyState
-              icon={Package}
-              title="No inventory registered yet"
-              description="Inventory lives at the heart of every delivery. Register your pipes, fittings and accessories so stock levels, low-stock alerts and deliveries stay accurate."
-              ownedBy="Warehouse & Administrators"
-              action={canEdit ? { label: "Add first item", onClick: () => setDialogOpen(true) } : undefined}
-            />
-          ) : (
-            <EmptyState
-              icon={Search}
-              title="No matches for that search"
-              description="Try a different keyword, supplier name, or clear the type filter to see all items."
-              compact
-            />
-          )
-        )}
         {filtered.map((item: InventoryItem) => {
           const isLow = (item.quantity_meters ?? 0) < (item.min_stock_level ?? 0);
           const locName = item.storage_locations?.name;
@@ -390,6 +389,7 @@ const Inventory = () => {
           );
         })}
       </div>
+      </AsyncBoundary>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
