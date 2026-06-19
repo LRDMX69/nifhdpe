@@ -61,7 +61,7 @@ const Equipment = () => {
   const [newMaintDate, setNewMaintDate] = useState("");
   const [newStatus, setNewStatus] = useState("available");
 
-  const { data: equipment = [], isLoading, error, refetch } = useQuery({
+  const { data: equipment = [], isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["equipment", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -242,7 +242,13 @@ const Equipment = () => {
 
   return (
     <div ref={containerRef} className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
-      <PageHeader title="Equipment" description="Track machinery, tools, and vehicles">
+      <PageHeader
+        title="Equipment"
+        description="Track machinery, tools, and vehicles"
+        executiveSummary={`${equipment.filter((e: any) => e.status === "in_use").length} in use · ${equipment.filter((e: any) => e.status === "available").length} available · ${requests.filter((r: any) => r.status === "pending").length} pending requests`}
+        lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
+        onRefresh={() => refetch()}
+      >
         <div className="flex gap-2 flex-wrap">
           {canManage && <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add</Button>}
           <Button variant="outline" size="sm" onClick={handlePrintSheet}><FileDown className="h-4 w-4 mr-1" /><span className="hidden sm:inline">PDF</span></Button>
