@@ -4,6 +4,8 @@
 // - Surfaces 402 (credits exhausted) and 429 (rate limited) so callers can pass them upstream.
 
 import { logger } from "./logger.ts";
+// @ts-expect-error npm import resolved by Deno
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 export interface AiCallOk {
   ok: true;
@@ -25,6 +27,10 @@ interface CallOptions {
   fallbackModel?: string;
   timeoutMs?: number;
   responseFormat?: "text" | "json";
+  /** When provided, the call is recorded in ai_usage_logs for cost tracking & monthly caps. */
+  organizationId?: string;
+  /** Optional label written to ai_usage_logs.function_name. */
+  functionName?: string;
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
@@ -46,6 +52,8 @@ export async function callAI(
     model = "google/gemini-2.5-flash-lite",
     fallbackModel = "gemini-2.0-flash-lite",
     timeoutMs = 45_000,
+    organizationId,
+    functionName,
   } = opts;
 
   // @ts-expect-error Deno global
@@ -149,12 +157,67 @@ export async function callAI(
     }
   }
 
+  await logUsage(organizationId, functionName, false, 0, "all_providers_failed");
   return {
     ok: false,
     status: 503,
     error: "AI services are temporarily unavailable. Please try again.",
     retryable: true,
   };
+}
+
+async function logUsage(
+  organizationId: string | undefined,
+  functionName: string | undefined,
+  success: boolean,
+  tokensEstimate: number,
+  error?: string,
+) {
+  if (!organizationId) return;
+  try {
+    // @ts-expect-error Deno global
+    const url = Deno.env.get("SUPABASE_URL");
+    // @ts-expect-error Deno global
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !key) return;
+    const supabase = createClient(url, key);
+    await supabase.from("ai_usage_logs").insert({
+      organization_id: organizationId,
+      function_name: functionName || "callAI",
+      success,
+      tokens_estimate: tokensEstimate,
+    });
+    void error;
+  } catch (e) {
+    logger.warn("ai_usage_logs insert failed:", e);
+  }
+}
+
+/** Estimate tokens from text length (~4 chars per token). */
+function estimateTokens(...parts: string[]): number {
+  return Math.ceil(parts.reduce((n, s) => n + (s?.length || 0), 0) / 4);
+}
+
+// Wrap success paths to log usage. We patch both providers by wrapping the
+// existing function body via a small re-export. To keep the change minimal we
+// instead instrument callers; the export below is a convenience helper that
+// callers can use for one-shot logging right after a successful callAI().
+export async function recordAiUsage(
+  organizationId: string | undefined,
+  functionName: string,
+  systemPrompt: string,
+  userMessage: string,
+  responseText: string,
+  success: boolean,
+  error?: string,
+) {
+  await logUsage(
+    organizationId,
+    functionName,
+    success,
+    estimateTokens(systemPrompt, userMessage, responseText),
+    error,
+  );
 }
 
 /**

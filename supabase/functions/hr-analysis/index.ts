@@ -74,6 +74,15 @@ serve(async (req: Request) => {
     const result = await response.json();
     const summary = result.choices?.[0]?.message?.content ?? "Analysis failed";
 
+    try {
+      await supabase.from("ai_usage_logs").insert({
+        organization_id,
+        function_name: "hr-analysis",
+        success: true,
+        tokens_estimate: Math.ceil((prompt.length + summary.length) / 4),
+      });
+    } catch { /* non-fatal */ }
+
     await supabase.from("ai_summaries").insert({
       organization_id, context: "hr", summary,
       metadata: { attendance_records: attendance?.length ?? 0, leave_requests: leaves?.length ?? 0 },

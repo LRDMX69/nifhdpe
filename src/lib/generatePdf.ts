@@ -62,7 +62,6 @@ const stripMd = (text: string): string =>
 
 const COMPANY = "NIF Technical Services";
 const TAGLINE = "HDPE Pipe Infrastructure Specialists";
-const CONTACT = "Lagos, Nigeria | info@nifhdpe.com | +234 800 000 0000"; // Fixed placeholder
 const GREEN: [number, number, number] = [63, 167, 68];
 const BLUE: [number, number, number] = [10, 22, 40]; // Using DARK as BLUE
 const DARK: [number, number, number] = [10, 22, 40];
