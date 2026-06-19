@@ -32,6 +32,8 @@ interface PdfOptions {
   documentId?: string;
   companyName?: string;
   logoUrl?: string | null;
+  /** Optional diagonal watermark drawn on every page (e.g. "DRAFT", "FINAL", "COPY"). */
+  watermark?: string | null;
 }
 
 const stampLabels: Record<string, string> = {
@@ -203,7 +205,7 @@ async function loadImageAsBase64(url: string): Promise<string | null> {
 export async function generatePdf(options: PdfOptions): Promise<void> {
   const {
     title, content, contentSections, tableData, stampType,
-    showSignature = true, senderName, senderDepartment, documentId, logoUrl,
+    showSignature = true, senderName, senderDepartment, documentId, logoUrl, watermark,
   } = options;
 
   // Client-side generation only — server-side queue table is not configured.
@@ -420,6 +422,29 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       margin,
       pageH - 24,
     );
+
+    // Optional diagonal watermark (DRAFT / FINAL / COPY etc.).
+    if (watermark) {
+      const label = String(watermark).toUpperCase();
+      const isFinal = label === "FINAL";
+      const tint: [number, number, number] = isFinal ? [40, 140, 70] : [200, 60, 60];
+      const anyDoc = doc as unknown as {
+        saveGraphicsState?: () => void;
+        restoreGraphicsState?: () => void;
+        GState?: new (opts: { opacity: number }) => unknown;
+        setGState?: (gs: unknown) => void;
+      };
+      anyDoc.saveGraphicsState?.();
+      const gs = anyDoc.GState ? new anyDoc.GState({ opacity: 0.12 }) : null;
+      if (gs && anyDoc.setGState) anyDoc.setGState(gs);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(90);
+      doc.setTextColor(...tint);
+      doc.text(label, pageW / 2, pageH / 2, { align: "center", angle: 45, baseline: "middle" });
+      anyDoc.restoreGraphicsState?.();
+      // Reset text colour for any subsequent draw on this page.
+      doc.setTextColor(0, 0, 0);
+    }
   }
 
   doc.save(`${title.replace(/\s+/g, "-").toLowerCase()}-${docId}.pdf`);
