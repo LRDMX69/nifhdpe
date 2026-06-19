@@ -107,8 +107,8 @@ const HR = () => {
     queryFn: async () => {
       if (!orgId) return new Map();
       // Payroll fields are gated by a SECURITY DEFINER RPC (HR/Admin/Finance only).
-      const { data: payroll } = await supabase.rpc("get_org_payroll_profiles", { _org_id: orgId });
-      return new Map((payroll ?? []).map((p: any) => [p.user_id, p]));
+      const { data: payroll } = await (supabase as any).rpc("get_org_payroll_profiles", { _org_id: orgId });
+      return new Map(((payroll as any[]) ?? []).map((p: any) => [p.user_id, p]));
     },
     enabled: !!orgId,
   });
