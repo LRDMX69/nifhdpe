@@ -52,7 +52,7 @@ const KnowledgeBase = () => {
 
   const containerRef = useGsapAnimation("slideUp");
 
-  const { data: articles = [], isLoading } = useQuery({
+  const { data: articles = [], isLoading, error, refetch } = useQuery({
     queryKey: ["knowledge-articles", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -137,10 +137,6 @@ const KnowledgeBase = () => {
     ...c,
     count: articles.filter(a => a.category === c.id).length,
   }));
-
-  if (isLoading) {
-    return <div className="p-6 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  }
 
   return (
     <div ref={containerRef} className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
