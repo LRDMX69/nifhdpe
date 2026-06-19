@@ -18,6 +18,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useGsapFadeUp } from "@/hooks/useGsapAnimation";
 import { CheckInWidget } from "@/components/CheckInWidget";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -142,7 +143,7 @@ const HR = () => {
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split("T")[0]);
 
   // Attendance data
-  const { data: allAttendance = [], isLoading: attendanceLoading, error: attendanceError, refetch: refetchAttendance } = useQuery({
+  const { data: allAttendance = [], isLoading: attendanceLoading, error: attendanceError, refetch: refetchAttendance, dataUpdatedAt: attendanceUpdatedAt } = useQuery({
     queryKey: ["attendance-all", orgId, attendanceDate],
     queryFn: async () => {
       if (!orgId) return [];
@@ -495,11 +496,14 @@ const HR = () => {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto">
-      <div ref={headerRef} className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Human Resources</h1>
-          <p className="text-muted-foreground text-sm">{isHrOrAdmin ? "Full HR management: attendance, recruitment, training, payroll, ID cards & more." : "Check in/out and leave requests."}</p>
-        </div>
+      <div ref={headerRef}>
+      <PageHeader
+        title="Human Resources"
+        description={isHrOrAdmin ? "Full HR management: attendance, recruitment, training, payroll, ID cards & more." : "Check in/out and leave requests."}
+        executiveSummary={isHrOrAdmin ? `${allAttendance.filter((a: any) => a.check_in).length} checked in today · ${leaveRequests.filter((l: any) => l.status === "pending").length} pending leave requests` : undefined}
+        lastUpdated={attendanceUpdatedAt ? new Date(attendanceUpdatedAt) : null}
+        onRefresh={() => refetchAttendance()}
+      >
         <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
           <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" />Request Leave</Button></DialogTrigger>
           <DialogContent>
