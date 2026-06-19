@@ -428,16 +428,20 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       const label = String(watermark).toUpperCase();
       const isFinal = label === "FINAL";
       const tint: [number, number, number] = isFinal ? [40, 140, 70] : [200, 60, 60];
-      doc.saveGraphicsState?.();
-      // @ts-expect-error - GState exists on jsPDF instance with GState plugin
-      const gs = doc.GState ? new doc.GState({ opacity: 0.12 }) : null;
-      // @ts-expect-error - setGState present in jsPDF
-      if (gs && doc.setGState) doc.setGState(gs);
+      const anyDoc = doc as unknown as {
+        saveGraphicsState?: () => void;
+        restoreGraphicsState?: () => void;
+        GState?: new (opts: { opacity: number }) => unknown;
+        setGState?: (gs: unknown) => void;
+      };
+      anyDoc.saveGraphicsState?.();
+      const gs = anyDoc.GState ? new anyDoc.GState({ opacity: 0.12 }) : null;
+      if (gs && anyDoc.setGState) anyDoc.setGState(gs);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(90);
       doc.setTextColor(...tint);
       doc.text(label, pageW / 2, pageH / 2, { align: "center", angle: 45, baseline: "middle" });
-      doc.restoreGraphicsState?.();
+      anyDoc.restoreGraphicsState?.();
       // Reset text colour for any subsequent draw on this page.
       doc.setTextColor(0, 0, 0);
     }
