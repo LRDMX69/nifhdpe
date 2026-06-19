@@ -9,6 +9,7 @@ import WarehouseDashboard from "./WarehouseDashboard";
 import FinanceDashboard from "./FinanceDashboard";
 import HRDashboard from "./HRDashboard";
 import SalesDashboard from "./SalesDashboard";
+import { NeedsAttentionPanel } from "./NeedsAttentionPanel";
 
 const dashboardMap: Record<string, React.FC> = {
   administrator: AdminDashboard,
@@ -130,6 +131,8 @@ const DashboardRouter = () => {
           steps={roleInfo.steps}
         />
       )}
+
+      {effectiveRole && <NeedsAttentionPanel />}
 
       {DashboardComponent ? (
         <DashboardComponent />
