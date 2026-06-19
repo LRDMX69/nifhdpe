@@ -427,7 +427,7 @@ const Equipment = () => {
       {isAdmin && requests.filter((r: EquipmentRequest) => r.status === "pending").length > 0 && (
         <Card className="border-warning/30">
           <CardHeader className="pb-2"><CardTitle className="text-sm text-warning flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" /> Pending Requests ({requests.filter((r: EquipmentRequest) => r.status === "pending").length})
+            <AlertCircle className="h-4 w-4" /> Inbox — Pending Requests ({requests.filter((r: EquipmentRequest) => r.status === "pending").length})
           </CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {requests.filter((r: EquipmentRequest) => r.status === "pending").map((r: EquipmentRequest) => {
@@ -454,6 +454,35 @@ const Equipment = () => {
                 </div>
               );
             })}
+          </CardContent>
+        </Card>
+      )}
+
+      {!isAdmin && canRequest && requests.filter((r: EquipmentRequest) => r.requested_by === user?.id).length > 0 && (
+        <Card className="border-primary/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Send className="h-4 w-4 text-primary" /> My Equipment Requests
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {requests
+              .filter((r: EquipmentRequest) => r.requested_by === user?.id)
+              .slice(0, 5)
+              .map((r: EquipmentRequest) => (
+                <div key={r.id} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/30">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{r.equipment?.name ?? "Equipment"}</p>
+                    <p className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString()}</p>
+                  </div>
+                  <Badge
+                    variant={r.status === "approved" ? "success" : r.status === "denied" ? "destructive" : "secondary"}
+                    className="text-[10px] capitalize shrink-0"
+                  >
+                    {r.status}
+                  </Badge>
+                </div>
+              ))}
           </CardContent>
         </Card>
       )}
