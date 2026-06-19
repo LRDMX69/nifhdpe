@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, FileText, Search, Trash2, Loader2, MoreVertical, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
-import { EmptyState } from "@/components/ui/empty-state";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";

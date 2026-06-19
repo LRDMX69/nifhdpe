@@ -9,7 +9,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Search, Phone, Mail, MapPin, User, MoreVertical, Loader2, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
-import { EmptyState } from "@/components/ui/empty-state";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Users } from "lucide-react";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
