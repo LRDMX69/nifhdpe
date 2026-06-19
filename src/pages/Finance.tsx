@@ -24,7 +24,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { stripMarkdown } from "@/lib/stripMarkdown";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
-import { EmptyState } from "@/components/ui/empty-state";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import type { Database } from "@/integrations/supabase/types";
 
