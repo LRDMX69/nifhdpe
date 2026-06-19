@@ -310,7 +310,7 @@ const AppSettings = () => {
         steps={[
           { actor: "Administrator", action: "updates company details and the organization logo — both appear on every PDF, ID card and the splash screen." },
           { actor: "Administrator", action: "assigns roles to team members (max 2 Admins). Pending users see the Awaiting Role screen until approved." },
-          { actor: "You", action: "manage your own profile, avatar and security (password, MFA) in the Profile tab." },
+          { actor: "You", action: "manage your own profile, avatar and password in the Profile tab." },
         ]}
       />
 
