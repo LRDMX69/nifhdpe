@@ -168,7 +168,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const retryableErrors = [maintenanceError, profileError, membershipError, pendingRequestError].filter(isJwtTimingError);
         if (retryableErrors.length > 0 && attempt < AUTH_RETRY_DELAYS_MS.length) {
-          logger.warn("Transient auth timing issue detected. Retrying access hydration.", {
+          // Transient PostgREST JWT-iat skew; silent retry, no user-facing noise.
+          logger.debug?.("Transient auth timing issue. Retrying access hydration.", {
             attempt: attempt + 1,
             userId,
           });
