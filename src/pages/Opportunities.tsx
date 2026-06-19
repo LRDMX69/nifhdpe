@@ -47,7 +47,7 @@ const Opportunities = () => {
   const [deadline, setDeadline] = useState("");
   const [description, setDescription] = useState("");
 
-  const { data: opportunities = [], refetch, isLoading: oppsLoading, error: oppsError } = useQuery({
+  const { data: opportunities = [], refetch, isLoading: oppsLoading, error: oppsError, dataUpdatedAt } = useQuery({
     queryKey: ["opportunities"],
     queryFn: async () => {
       const { data } = await supabase
@@ -198,7 +198,13 @@ const Opportunities = () => {
 
   return (
     <div ref={containerRef} className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
-      <PageHeader title="Opportunities" description="AI-ranked tenders, bids, and business intelligence">
+      <PageHeader
+        title="Opportunities"
+        description="AI-ranked tenders, bids, and business intelligence"
+        executiveSummary={`${opportunities.length} live opportunities · top relevance ${Math.round(Number(opportunities[0]?.relevance_score ?? 0))}`}
+        lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
+        onRefresh={() => refetch()}
+      >
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={handleRefreshIntelligence} disabled={scanning}>
             {scanning ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
