@@ -364,7 +364,67 @@ const AdminDashboard = () => {
           </Button>
           <Button variant="outline" size="sm" className="print-hide" onClick={async () => {
             const { generatePdf } = await import("@/lib/generatePdf");
-            generatePdf({ title: "Executive Dashboard Summary", content: `Dashboard summary generated on ${new Date().toLocaleDateString()}\n\nThis is an overview of the current system state.`, showSignature: false });
+            const fmt = (n: number) => formatCurrency(n);
+            const activeCount = (projectHealth ?? []).filter((p) => p.status === "in_progress").length;
+            const onHoldCount = (projectHealth ?? []).filter((p) => p.status === "on_hold").length;
+            const completedCount = (projectHealth ?? []).filter((p) => p.status === "completed").length;
+            generatePdf({
+              title: "Executive Dashboard Summary",
+              senderName: profile?.full_name ?? undefined,
+              senderDepartment: "Administrator",
+              contentSections: [
+                {
+                  heading: "Financial Position",
+                  bullets: [
+                    `Net Cash: ${fmt(financeData?.netCash ?? 0)}`,
+                    `Total Expenses (all time): ${fmt(financeSummary?.expenses ?? 0)}`,
+                    `Worker Payments (all time): ${fmt(financeSummary?.payments ?? 0)}`,
+                    `Expected Inflow (next 30 days): ${fmt(cashflow?.expectedInflow ?? 0)}`,
+                    `Recent Outflow (last 30 days): ${fmt(cashflow?.recentOutflow ?? 0)}`,
+                    `Projected Net (30-day window): ${fmt(cashflow?.projectedNet ?? 0)}`,
+                  ],
+                },
+                {
+                  heading: "Project Portfolio",
+                  bullets: [
+                    `Active: ${activeCount}`,
+                    `On Hold: ${onHoldCount}`,
+                    `Completed: ${completedCount}`,
+                    `Total tracked: ${projectHealth?.length ?? 0}`,
+                  ],
+                },
+                ...(riskProjects.length
+                  ? [{
+                      heading: "Top At-Risk Projects",
+                      bullets: riskProjects.map((p) => `${p.name} — risk ${p.score} (${p.reasons.join(", ")})`),
+                    }]
+                  : []),
+                ...(overdueInvoices.length
+                  ? [{
+                      heading: "Overdue Invoices",
+                      bullets: overdueInvoices.map((inv) => `${inv.document_number} — ${inv.clients?.name ?? "Unknown client"} · ${fmt(Number(inv.balance_due ?? 0))} outstanding (due ${inv.due_date})`),
+                    }]
+                  : []),
+                {
+                  heading: "Operational Queue",
+                  bullets: [
+                    `Pending Worker Claims: ${pendingClaims.length}`,
+                    `Pending Equipment Requests: ${pendingEquipReqs.length}`,
+                    `Open Opportunities: ${oppCount}`,
+                    `Unread Messages: ${unreadMsgCount}`,
+                    `Active Alerts (compliance / safety / maintenance): ${alerts?.length ?? 0}`,
+                  ],
+                },
+                ...(aiSummary.length
+                  ? [{
+                      heading: "Latest AI Intelligence",
+                      bullets: aiSummary.slice(0, 5).map((s) => `[${contextLabels[s.context] ?? s.context}] ${formatContent(s.content).slice(0, 220)}`),
+                    }]
+                  : []),
+              ],
+              showSignature: true,
+              stampType: "admin",
+            });
           }}>
             <Printer className="h-4 w-4 mr-1" /><span className="hidden sm:inline">Export</span>
           </Button>
