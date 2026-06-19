@@ -97,6 +97,10 @@ serve(async (req: Request) => {
     // Validate that the user is authorized for this organization
     await validateUser(req, report.organization_id);
 
+    const { checkSpendCap, capExceededResponse } = await import("../_shared/spendCap.ts");
+    const cap = await checkSpendCap(report.organization_id);
+    if (!cap.allowed) return capExceededResponse(corsHeaders, cap);
+
     // Auto-fill author metadata from the actual submitter
     const authorId = report.created_by;
     let authorName = "Unknown";

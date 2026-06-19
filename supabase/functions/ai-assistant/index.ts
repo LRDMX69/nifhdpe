@@ -228,6 +228,11 @@ serve(async (req: Request) => {
     const { context, prompt, data } = validation as { ok: true; context: keyof typeof SYSTEM_PROMPTS; prompt: string; data: unknown };
     const systemPrompt: string = SYSTEM_PROMPTS[context] || SYSTEM_PROMPTS.general;
     
+    // Enforce monthly AI spend cap per organization.
+    const { checkSpendCap, capExceededResponse } = await import("../_shared/spendCap.ts");
+    const cap = await checkSpendCap(raw.organization_id as string);
+    if (!cap.allowed) return capExceededResponse(corsHeaders, cap);
+
     // Harden against indirect prompt injection by using strict XML-style delimiters 
     // and sanitizing strings within the data object
     const safeData = data ? JSON.parse(JSON.stringify(data).replace(/<\/?script/gi, "")) : null;
@@ -237,6 +242,20 @@ serve(async (req: Request) => {
       : prompt;
 
     const response = await callGemini(systemPrompt, userMessage, true, context);
+
+    // Log token estimate (input only — output is streamed and not buffered here).
+    try {
+      // @ts-expect-error npm import resolved by Deno
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.49.1");
+      // @ts-expect-error Deno global
+      const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      await sb.from("ai_usage_logs").insert({
+        organization_id: raw.organization_id as string,
+        function_name: `ai-assistant:${context}`,
+        success: response.ok,
+        tokens_estimate: Math.ceil((systemPrompt.length + userMessage.length) / 4),
+      });
+    } catch { /* non-fatal */ }
 
     // Re-stream the response, preserving upstream Content-Type so that JSON
     // error responses (402/429/etc.) are not mis-labeled as text/event-stream.
