@@ -538,6 +538,118 @@ const AdminDashboard = () => {
           </Card>
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          <Card className="border-border/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-destructive" /> Top Overdue Invoices
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {overdueInvoices.length === 0 ? (
+                <div className="text-center py-6">
+                  <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-2 opacity-30" />
+                  <p className="text-xs text-muted-foreground">No overdue invoices. Receivables are current.</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[260px] overflow-y-auto">
+                  {overdueInvoices.map((inv) => {
+                    const days = Math.ceil((Date.now() - new Date(inv.due_date).getTime()) / (1000 * 3600 * 24));
+                    return (
+                      <button
+                        key={inv.id}
+                        onClick={() => navigate("/finance")}
+                        className="w-full text-left bg-muted/30 hover:bg-muted/60 transition rounded-lg p-3 space-y-1"
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <p className="text-sm font-medium truncate">{inv.clients?.name ?? "Unknown client"}</p>
+                          <span className="text-sm font-bold text-destructive shrink-0">{formatCurrency(inv.balance_due)}</span>
+                        </div>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-[10px] text-muted-foreground truncate">{inv.document_number}</span>
+                          <Badge variant="outline" className="text-[10px] border-destructive/40 text-destructive shrink-0">
+                            {days}d late
+                          </Badge>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" /> 30-Day Cashflow Forecast
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
+                  <p className="text-[10px] uppercase text-muted-foreground font-semibold">Expected In</p>
+                  <p className="text-base font-bold text-emerald-500 truncate">{formatCurrency(cashflow?.expectedInflow ?? 0)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Invoices due next 30d</p>
+                </div>
+                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+                  <p className="text-[10px] uppercase text-muted-foreground font-semibold">Recent Out</p>
+                  <p className="text-base font-bold text-destructive truncate">{formatCurrency(cashflow?.recentOutflow ?? 0)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Expenses last 30d</p>
+                </div>
+              </div>
+              <div className={`rounded-lg p-3 border ${(cashflow?.projectedNet ?? 0) >= 0 ? "bg-primary/5 border-primary/20" : "bg-destructive/5 border-destructive/30"}`}>
+                <p className="text-[10px] uppercase text-muted-foreground font-semibold">Projected Net</p>
+                <p className={`text-lg font-bold ${(cashflow?.projectedNet ?? 0) >= 0 ? "text-primary" : "text-destructive"}`}>
+                  {formatCurrency(cashflow?.projectedNet ?? 0)}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {(cashflow?.projectedNet ?? 0) >= 0
+                    ? "Healthy — inflows cover the recent expense run rate."
+                    : "Tight — prioritise collections or defer non-critical spend."}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-warning" /> Top Risk Projects
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {riskProjects.length === 0 ? (
+                <div className="text-center py-6">
+                  <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-2 opacity-30" />
+                  <p className="text-xs text-muted-foreground">No projects flagged. All schedules look healthy.</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[260px] overflow-y-auto">
+                  {riskProjects.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => navigate("/projects")}
+                      className="w-full text-left bg-muted/30 hover:bg-muted/60 transition rounded-lg p-3 space-y-1"
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <p className="text-sm font-medium truncate">{p.name}</p>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] shrink-0 ${p.score >= 40 ? "border-destructive/40 text-destructive" : "border-warning/40 text-warning"}`}
+                        >
+                          Risk {p.score}
+                        </Badge>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground truncate">{p.reasons.join(" · ")}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <Card className="border-border/50">
             <CardHeader className="flex flex-row items-center justify-between">
