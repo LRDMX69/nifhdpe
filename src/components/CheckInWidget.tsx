@@ -20,7 +20,8 @@ const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-const DEFAULT_RADIUS = 700; // 700 meters as per requirements
+const DEFAULT_RADIUS = 1000; // 1km — generous to tolerate phone GPS drift
+const MIN_ACCEPTABLE_ACCURACY = 200; // metres; warn user above this
 
 /** Check if current Nigeria time is past 5:00 PM */
 const isPast5pmNigeria = () => {
@@ -36,6 +37,8 @@ interface DebugInfo {
   targetLng: number;
   distance: number;
   zone: string;
+  accuracy: number;
+  effectiveDistance: number;
 }
 
 export const CheckInWidget = () => {
@@ -116,17 +119,39 @@ export const CheckInWidget = () => {
     enabled: !!orgId && !!user,
   });
 
+  /** Take several GPS samples and return the most accurate one. */
   const getLocation = (): Promise<GeolocationPosition> =>
     new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
         reject(new Error("Geolocation is not supported by your device"));
         return;
       }
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
-      });
+      let best: GeolocationPosition | null = null;
+      let samples = 0;
+      const MAX_SAMPLES = 4;
+      const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          samples++;
+          if (!best || pos.coords.accuracy < best.coords.accuracy) best = pos;
+          // Stop early if we got a tight fix or sampled enough times
+          if (best.coords.accuracy <= 30 || samples >= MAX_SAMPLES) {
+            navigator.geolocation.clearWatch(watchId);
+            resolve(best);
+          }
+        },
+        (err) => {
+          navigator.geolocation.clearWatch(watchId);
+          if (best) resolve(best);
+          else reject(err);
+        },
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
+      );
+      // Hard cutoff after 20s
+      setTimeout(() => {
+        navigator.geolocation.clearWatch(watchId);
+        if (best) resolve(best);
+        else reject(new Error("Could not get a GPS fix. Move to an open area and retry."));
+      }, 20000);
     });
 
   /** Find the closest valid zone (office or project site) */
@@ -188,13 +213,16 @@ export const CheckInWidget = () => {
     setLoading(true);
     try {
       const position = await getLocation();
-      const { latitude, longitude } = position.coords;
+      const { latitude, longitude, accuracy } = position.coords;
 
       const closest = findClosestZone(latitude, longitude);
       if (!closest) {
         toast({ title: "No location configured", description: "Contact admin.", variant: "destructive" });
         return;
       }
+
+      // Account for phone GPS uncertainty: subtract reported accuracy from distance
+      const effectiveDistance = Math.max(0, closest.distance - (accuracy || 0));
 
       setDebugInfo({
         userLat: latitude,
@@ -203,12 +231,17 @@ export const CheckInWidget = () => {
         targetLng: closest.targetLng,
         distance: closest.distance,
         zone: closest.zone,
+        accuracy: accuracy || 0,
+        effectiveDistance,
       });
 
-      if (closest.distance > closest.radius) {
+      if (effectiveDistance > closest.radius) {
+        const accuracyNote = accuracy > MIN_ACCEPTABLE_ACCURACY
+          ? ` GPS accuracy is poor (±${Math.round(accuracy)}m) — try outdoors or near a window.`
+          : "";
         toast({
           title: "Check-in denied",
-          description: `You are ${Math.round(closest.distance)}m from ${closest.zone}. Must be within ${closest.radius}m.`,
+          description: `You are ~${Math.round(closest.distance)}m from ${closest.zone} (±${Math.round(accuracy)}m). Must be within ${closest.radius}m.${accuracyNote}`,
           variant: "destructive",
         });
         return;
@@ -344,9 +377,9 @@ export const CheckInWidget = () => {
         {/* Debug GPS info */}
         {debugInfo && (
           <div className="mt-3 p-2 rounded bg-muted/50 text-[10px] font-mono text-muted-foreground space-y-0.5">
-            <p>📍 You: {debugInfo.userLat.toFixed(6)}, {debugInfo.userLng.toFixed(6)}</p>
+            <p>📍 You: {debugInfo.userLat.toFixed(6)}, {debugInfo.userLng.toFixed(6)} (±{Math.round(debugInfo.accuracy)}m)</p>
             <p>🏢 {debugInfo.zone}: {debugInfo.targetLat.toFixed(6)}, {debugInfo.targetLng.toFixed(6)}</p>
-            <p>📏 Distance: {Math.round(debugInfo.distance)}m</p>
+            <p>📏 Distance: {Math.round(debugInfo.distance)}m (effective {Math.round(debugInfo.effectiveDistance)}m after accuracy)</p>
           </div>
         )}
       </CardContent>
