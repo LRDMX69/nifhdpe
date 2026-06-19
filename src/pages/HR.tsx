@@ -744,7 +744,16 @@ const HR = () => {
                 </Dialog>
               </CardHeader>
               <CardContent>
-                {salaryPayments.length > 0 ? (() => {
+                <AsyncBoundary
+                  loading={salaryLoading}
+                  error={salaryError}
+                  onRetry={() => refetchSalary()}
+                  isEmpty={salaryPayments.length === 0}
+                  loadingVariant="list"
+                  loadingRows={3}
+                  emptyState={{ compact: true, icon: DollarSign, title: "No salary records yet", description: "Use 'Record Salary' above to log payroll runs. Statutory deductions (PAYE, pension, NHF) are auto-calculated from each employee's base salary." }}
+                >
+                  {(() => {
                   // Group payments by employee
                   const groupedByEmployee = new Map<string, Array<{ id: string; amount: number; date: string; description: string | null }>>();
                   salaryPayments.forEach((p) => {
@@ -783,7 +792,8 @@ const HR = () => {
                       })}
                     </div>
                   );
-                })() : <p className="text-sm text-muted-foreground">No salary records yet.</p>}
+                  })()}
+                </AsyncBoundary>
               </CardContent>
             </Card>
           </TabsContent>
