@@ -59,6 +59,8 @@ export const PayrollTab = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    // Free the object URL so blob memory is reclaimed.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
   return (

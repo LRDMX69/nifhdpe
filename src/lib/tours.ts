@@ -127,15 +127,15 @@ export function tourSeenKey(tourId: string) {
 
 export function hasSeenTour(tourId: string): boolean {
   if (typeof window === "undefined") return true;
-  return window.localStorage.getItem(tourSeenKey(tourId)) === "1";
+  try { return window.localStorage.getItem(tourSeenKey(tourId)) === "1"; } catch { return true; }
 }
 
 export function markTourSeen(tourId: string) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(tourSeenKey(tourId), "1");
+  try { window.localStorage.setItem(tourSeenKey(tourId), "1"); } catch { /* storage unavailable */ }
 }
 
 export function resetTourSeen(tourId: string) {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(tourSeenKey(tourId));
+  try { window.localStorage.removeItem(tourSeenKey(tourId)); } catch { /* storage unavailable */ }
 }

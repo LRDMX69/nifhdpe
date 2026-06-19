@@ -57,6 +57,7 @@ const Quotations = () => {
   const [lumpSumAmount, setLumpSumAmount] = useState("");
   const [lumpSumDesc, setLumpSumDesc] = useState("");
   const [editingQuotation, setEditingQuotation] = useState<DbQuotation | null>(null);
+  const [invoicePrompt, setInvoicePrompt] = useState<DbQuotation | null>(null);
   const listRef = useGsapStagger(".gsap-card", 0.06);
 
   const { data: quotations = [], isLoading, error, refetch } = useQuery({
@@ -213,12 +214,7 @@ const Quotations = () => {
       // If status is accepted, offer to create invoice
       if (status === "accepted") {
         const q = quotations.find(q => q.id === id);
-        if (q) {
-          const createInv = window.confirm("Quotation accepted! Would you like to generate an Invoice for this client?");
-          if (createInv) {
-            await convertToInvoice(q);
-          }
-        }
+        if (q) setInvoicePrompt(q);
       }
 
       refetch();
@@ -441,6 +437,26 @@ const Quotations = () => {
           <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
           </AlertDialogFooter></AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!invoicePrompt} onOpenChange={(open) => !open && setInvoicePrompt(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Generate invoice now?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Quotation {invoicePrompt?.quotation_number} is accepted. Generating an invoice will copy all line items and create an open balance for this client.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Not now</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                const q = invoicePrompt; setInvoicePrompt(null);
+                if (q) await convertToInvoice(q);
+              }}
+            >Generate invoice</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
       </AlertDialog>
 
       <div className="relative max-w-sm">

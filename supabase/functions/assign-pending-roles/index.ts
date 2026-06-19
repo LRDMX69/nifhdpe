@@ -24,15 +24,34 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "invalid_request" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Only allow the caller to assign roles to themselves, or allow maintenance/admins
-    if (caller.id !== targetId) {
-      const { data: maint } = await admin.from("system_maintenance_accounts").select("user_id").eq("user_id", caller.id).maybeSingle();
-      let authorized = !!maint;
-      if (!authorized) {
-        const { data: callerMembership } = await admin.from("organization_memberships").select("role").eq("user_id", caller.id).eq("organization_id", orgId).eq("role", "administrator").maybeSingle();
-        authorized = !!callerMembership;
+    // SECURITY: self-assignment is only permitted for the explicitly safe, lowest-privilege
+    // bootstrap roles. Every other role must be granted by an administrator / maintenance admin.
+    const SELF_ASSIGNABLE_ROLES = new Set(["technician", "trainee"]);
+    const isSelfAssign = caller.id === targetId;
+    const { data: maint } = await admin
+      .from("system_maintenance_accounts")
+      .select("user_id")
+      .eq("user_id", caller.id)
+      .maybeSingle();
+    let authorized = !!maint;
+    if (!authorized) {
+      const { data: callerMembership } = await admin
+        .from("organization_memberships")
+        .select("role")
+        .eq("user_id", caller.id)
+        .eq("organization_id", orgId)
+        .eq("role", "administrator")
+        .maybeSingle();
+      authorized = !!callerMembership;
+    }
+    if (!authorized) {
+      if (!isSelfAssign) {
+        return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      if (!authorized) return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const elevated = roles.find((r) => !SELF_ASSIGNABLE_ROLES.has(r));
+      if (elevated) {
+        return new Response(JSON.stringify({ error: "forbidden", detail: `Role '${elevated}' requires administrator approval` }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
 
     // Ensure target has no memberships in this org already

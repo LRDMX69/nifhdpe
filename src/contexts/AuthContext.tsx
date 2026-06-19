@@ -168,7 +168,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const retryableErrors = [maintenanceError, profileError, membershipError, pendingRequestError].filter(isJwtTimingError);
         if (retryableErrors.length > 0 && attempt < AUTH_RETRY_DELAYS_MS.length) {
-          logger.warn("Transient auth timing issue detected. Retrying access hydration.", {
+          // Transient PostgREST JWT-iat skew; silent retry, no user-facing noise.
+          logger.debug?.("Transient auth timing issue. Retrying access hydration.", {
             attempt: attempt + 1,
             userId,
           });
@@ -455,8 +456,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [hydrateSession, session]);
 
   const switchRole = (role: string) => {
-    const isLocalDev = window.location.hostname.includes("localhost");
-    if (isMaintenance || isLocalDev || memberships.some((membership) => membership.role === role)) {
+    if (isMaintenance || memberships.some((membership) => membership.role === role)) {
       setActiveRole(role);
     }
   };
@@ -482,7 +482,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         accessResolved,
         hasPendingRoleRequest,
-        isMaintenance: isMaintenance || (user ? window.location.hostname.includes("localhost") : false),
+        isMaintenance,
         isMfaEnabled,
         authError,
         signIn,

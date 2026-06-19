@@ -53,6 +53,16 @@ export async function validateUser(req: Request, organizationId: string) {
   const { data: isMaint } = await userClient.rpc("is_maintenance_admin", { _uid: user.id });
   if (isMaint === true) return user;
 
+  // Block terminated accounts from invoking any protected edge function.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("terminated")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (profile?.terminated) {
+    throw new Error("Account terminated");
+  }
+
   const { data: isMember } = await userClient.rpc("is_member_of_org", {
     _user_id: user.id,
     _org_id: organizationId,
