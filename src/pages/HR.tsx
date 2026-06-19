@@ -845,7 +845,16 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {performanceLogs.length > 0 ? (<div className="space-y-2">{performanceLogs.map((p) => (
+              <AsyncBoundary
+                loading={perfLoading}
+                error={perfError}
+                onRetry={() => refetchPerf()}
+                isEmpty={performanceLogs.length === 0}
+                loadingVariant="list"
+                loadingRows={3}
+                emptyState={{ compact: true, icon: Award, title: "No performance reviews yet", description: "Use 'Add Review' above to log a periodic performance rating for any team member." }}
+              >
+                <div className="space-y-2">{performanceLogs.map((p) => (
                 <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{getMemberName(p.user_id)} — {p.period}</p>{p.notes && <p className="text-xs text-muted-foreground">{p.notes}</p>}</div>
                   <div className="flex items-center gap-1">
@@ -853,7 +862,8 @@ const HR = () => {
                     <RecordActions onEdit={() => openEditPerf(p)} onDelete={() => setDeleteTarget({ id: p.id, table: "performance_logs", label: "performance review" })} />
                   </div>
                 </div>
-              ))}</div>) : <p className="text-sm text-muted-foreground">No performance reviews yet.</p>}
+                ))}</div>
+              </AsyncBoundary>
             </CardContent>
           </Card></TabsContent>
         )}
@@ -877,7 +887,16 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {recruitment.length > 0 ? (<div className="space-y-2">{recruitment.map((r) => (
+              <AsyncBoundary
+                loading={recruitLoading}
+                error={recruitError}
+                onRetry={() => refetchRecruit()}
+                isEmpty={recruitment.length === 0}
+                loadingVariant="list"
+                loadingRows={3}
+                emptyState={{ compact: true, icon: Briefcase, title: "No recruitment entries", description: "Track open positions and candidates by clicking 'Add' above." }}
+              >
+                <div className="space-y-2">{recruitment.map((r) => (
                 <div key={r.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{r.position_title}</p><p className="text-xs text-muted-foreground">{r.candidate_name ?? "No candidate"} · {r.department ?? "—"}</p></div>
                   <div className="flex items-center gap-1">
@@ -885,7 +904,8 @@ const HR = () => {
                     <RecordActions onEdit={() => openEditRecruit(r)} onDelete={() => setDeleteTarget({ id: r.id, table: "recruitment", label: "recruitment entry" })} />
                   </div>
                 </div>
-              ))}</div>) : <p className="text-sm text-muted-foreground">No recruitment entries.</p>}
+                ))}</div>
+              </AsyncBoundary>
             </CardContent>
           </Card></TabsContent>
         )}
@@ -910,12 +930,22 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {trainingLogs.length > 0 ? (<div className="space-y-2">{trainingLogs.map((t) => (
+              <AsyncBoundary
+                loading={trainingLoading}
+                error={trainingError}
+                onRetry={() => refetchTraining()}
+                isEmpty={trainingLogs.length === 0}
+                loadingVariant="list"
+                loadingRows={3}
+                emptyState={{ compact: true, icon: GraduationCap, title: "No training logs", description: "Capture internal, external, certification, or safety training sessions via 'Log Training'." }}
+              >
+                <div className="space-y-2">{trainingLogs.map((t) => (
                 <div key={t.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{t.training_title}</p><p className="text-xs text-muted-foreground">{getMemberName(t.user_id)} · {t.training_type ?? "—"}{t.completed_date ? ` · Done: ${t.completed_date}` : ""}</p></div>
                   <div className="flex items-center gap-1">{t.score != null && <Badge variant="outline" className="text-[10px]">{t.score}%</Badge>}<RecordActions onEdit={() => openEditTraining(t)} onDelete={() => setDeleteTarget({ id: t.id, table: "training_logs", label: "training log" })} /></div>
                 </div>
-              ))}</div>) : <p className="text-sm text-muted-foreground">No training logs.</p>}
+                ))}</div>
+              </AsyncBoundary>
             </CardContent>
           </Card></TabsContent>
         )}
@@ -939,7 +969,16 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {skills.length > 0 ? (<div className="space-y-2">{skills.map((s) => (
+              <AsyncBoundary
+                loading={skillsLoading}
+                error={skillsError}
+                onRetry={() => refetchSkills()}
+                isEmpty={skills.length === 0}
+                loadingVariant="list"
+                loadingRows={3}
+                emptyState={{ compact: true, icon: Star, title: "No skills recorded", description: "Build the team skills matrix by adding individual proficiencies and certifications." }}
+              >
+                <div className="space-y-2">{skills.map((s) => (
                 <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{s.skill_name}</p><p className="text-xs text-muted-foreground">{getMemberName(s.user_id)}</p></div>
                   <div className="flex items-center gap-2">
@@ -948,7 +987,8 @@ const HR = () => {
                     <RecordActions onEdit={() => openEditSkill(s)} onDelete={() => setDeleteTarget({ id: s.id, table: "employee_skills", label: "skill" })} />
                   </div>
                 </div>
-              ))}</div>) : <p className="text-sm text-muted-foreground">No skills recorded.</p>}
+                ))}</div>
+              </AsyncBoundary>
             </CardContent>
           </Card></TabsContent>
         )}
@@ -972,12 +1012,22 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {disciplinary.length > 0 ? (<div className="space-y-2">{disciplinary.map((d) => (
+              <AsyncBoundary
+                loading={discLoading}
+                error={discError}
+                onRetry={() => refetchDisc()}
+                isEmpty={disciplinary.length === 0}
+                loadingVariant="list"
+                loadingRows={3}
+                emptyState={{ compact: true, icon: ShieldAlert, title: "No disciplinary records", description: "Document warnings, suspensions, or terminations using 'Record' above. Entries here form part of the employee's history." }}
+              >
+                <div className="space-y-2">{disciplinary.map((d) => (
                 <div key={d.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{getMemberName(d.user_id)}</p><p className="text-xs text-muted-foreground">{d.description.slice(0, 80)}{d.description.length > 80 ? "..." : ""}</p><p className="text-[10px] text-muted-foreground">{d.incident_date}{d.action_taken ? ` · ${d.action_taken}` : ""}</p></div>
                   <div className="flex items-center gap-1"><Badge variant="outline" className={`text-[10px] capitalize ${d.severity === "termination" || d.severity === "suspension" ? "text-destructive" : "text-warning"}`}>{d.severity.replace("_", " ")}</Badge><RecordActions onEdit={() => openEditDisc(d)} onDelete={() => setDeleteTarget({ id: d.id, table: "disciplinary_records", label: "record" })} /></div>
                 </div>
-              ))}</div>) : <p className="text-sm text-muted-foreground">No disciplinary records.</p>}
+                ))}</div>
+              </AsyncBoundary>
             </CardContent>
           </Card></TabsContent>
         )}
@@ -1004,12 +1054,22 @@ const HR = () => {
               </Dialog>
             </CardHeader>
             <CardContent>
-              {promotions.length > 0 ? (<div className="space-y-2">{promotions.map((p) => (
+              <AsyncBoundary
+                loading={promoLoading}
+                error={promoError}
+                onRetry={() => refetchPromo()}
+                isEmpty={promotions.length === 0}
+                loadingVariant="list"
+                loadingRows={3}
+                emptyState={{ compact: true, icon: Award, title: "No promotion records", description: "Log role changes and effective dates using 'Add Promotion' above." }}
+              >
+                <div className="space-y-2">{promotions.map((p) => (
                 <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
                   <div className="min-w-0"><p className="text-sm font-medium">{getMemberName(p.user_id)}</p><p className="text-xs text-muted-foreground">{p.previous_role ?? "—"} → {p.new_role} · {p.effective_date}</p>{p.reason && <p className="text-[10px] text-muted-foreground">{p.reason}</p>}</div>
                   <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px] text-primary">Promoted</Badge><RecordActions onEdit={() => openEditPromo(p)} onDelete={() => setDeleteTarget({ id: p.id, table: "promotions", label: "promotion" })} /></div>
                 </div>
-              ))}</div>) : <p className="text-sm text-muted-foreground">No promotion records.</p>}
+                ))}</div>
+              </AsyncBoundary>
             </CardContent>
           </Card></TabsContent>
         )}
