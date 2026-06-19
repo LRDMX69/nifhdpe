@@ -187,6 +187,7 @@ const Finance = () => {
   const openEditPayment = (p: PaymentItem) => {
     setEditingPayment(p); setPayType(p.type); setPayAmount(p.amount.toString());
     setPayDesc(p.description ?? ""); setPayDate(p.date); setPayUserId(p.user_id ?? "");
+    setPayVendorName(p.vendor_name ?? "");
     setPaymentOpen(true);
   };
 
