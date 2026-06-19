@@ -54,6 +54,26 @@ export function NeedsAttentionPanel() {
             severity: c.status === "flagged" ? "destructive" : "warning",
           }),
         );
+        // Overdue invoices — admin & finance
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: overdue } = await (supabase as any)
+          .from("invoices")
+          .select("id, document_number, balance_due, due_date, clients(name)")
+          .lt("due_date", today)
+          .gt("balance_due", 0)
+          .neq("status", "paid")
+          .order("due_date", { ascending: true })
+          .limit(3);
+        (overdue ?? []).forEach((inv: any) => {
+          const days = Math.ceil((Date.now() - new Date(inv.due_date).getTime()) / 86400000);
+          out.push({
+            id: `inv-${inv.id}`,
+            label: `Overdue invoice: ${inv.clients?.name ?? inv.document_number}`,
+            detail: `${days}d late · ₦${Number(inv.balance_due ?? 0).toLocaleString()} outstanding`,
+            to: "/finance?tab=invoices",
+            severity: days > 30 ? "destructive" : "warning",
+          });
+        });
       }
 
       if (role === "administrator" || role === "hr") {
@@ -105,6 +125,25 @@ export function NeedsAttentionPanel() {
             severity: "destructive",
           }),
         );
+        // Compliance docs expiring within 30 days
+        const today = new Date();
+        const horizon = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+        const { data: docs } = await (supabase as any)
+          .from("compliance_documents")
+          .select("id, title, expiry_date")
+          .not("expiry_date", "is", null)
+          .lte("expiry_date", horizon)
+          .limit(3);
+        (docs ?? []).forEach((d: any) => {
+          const daysLeft = Math.ceil((new Date(d.expiry_date).getTime() - today.getTime()) / 86400000);
+          out.push({
+            id: `doc-${d.id}`,
+            label: `Compliance: ${d.title}`,
+            detail: daysLeft < 0 ? `Expired ${-daysLeft}d ago` : `Expires in ${daysLeft}d`,
+            to: "/compliance",
+            severity: daysLeft < 0 ? "destructive" : "warning",
+          });
+        });
       }
 
       // Sender-side: status of my own submissions
@@ -113,20 +152,61 @@ export function NeedsAttentionPanel() {
           .from("worker_claims")
           .select("id, category, status")
           .eq("user_id", user.id)
-          .eq("status", "rejected")
-          .limit(3);
+          .in("status", ["rejected", "flagged", "approved"])
+          .limit(5);
         (myClaims ?? []).forEach((c) =>
           out.push({
             id: `my-claim-${c.id}`,
-            label: `Your claim was rejected: ${c.category}`,
-            detail: "Open to see the reviewer's note",
+            label: `Your claim — ${c.category}`,
+            detail:
+              c.status === "rejected"
+                ? "Rejected — open to see the reviewer's note"
+                : c.status === "approved"
+                ? "Approved — finance will process payment"
+                : "Flagged — reviewer needs more info",
             to: "/claims",
-            severity: "destructive",
+            severity: c.status === "approved" ? "default" : c.status === "flagged" ? "warning" : "destructive",
           }),
         );
+
+        // Own leave requests status
+        const { data: myLeaves } = await (supabase as any)
+          .from("leave_requests")
+          .select("id, leave_type, status, start_date")
+          .eq("user_id", user.id)
+          .in("status", ["approved", "rejected"])
+          .order("updated_at", { ascending: false })
+          .limit(3);
+        (myLeaves ?? []).forEach((l: any) => {
+          out.push({
+            id: `my-leave-${l.id}`,
+            label: `Your leave (${l.leave_type})`,
+            detail: l.status === "approved" ? `Approved · starts ${l.start_date}` : "Rejected — open HR for details",
+            to: "/hr",
+            severity: l.status === "approved" ? "default" : "destructive",
+          });
+        });
+
+        // Own equipment requests status
+        const { data: myEqReqs } = await (supabase as any)
+          .from("equipment_requests")
+          .select("id, status, reason")
+          .eq("requested_by", user.id)
+          .in("status", ["approved", "denied"])
+          .order("updated_at", { ascending: false })
+          .limit(3);
+        (myEqReqs ?? []).forEach((r: any) => {
+          out.push({
+            id: `my-eq-${r.id}`,
+            label: `Equipment request ${r.status === "approved" ? "approved" : "denied"}`,
+            detail: r.reason ?? "Open Equipment for details",
+            to: "/equipment",
+            severity: r.status === "approved" ? "default" : "destructive",
+          });
+        });
       }
 
-      return out.slice(0, 8);
+      return out.slice(0, 12);
     },
   });
 
