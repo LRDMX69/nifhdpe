@@ -154,6 +154,14 @@ serve(async (req: Request) => {
         if (response.ok) {
           const result = await response.json();
           const aiText = (result.choices?.[0]?.message?.content ?? "").trim();
+          try {
+            await supabase.from("ai_usage_logs").insert({
+              organization_id: report.organization_id,
+              function_name: "process-report",
+              success: true,
+              tokens_estimate: Math.ceil((editorSystemPrompt.length + userInput.length + aiText.length) / 4),
+            });
+          } catch { /* non-fatal */ }
           if (aiText && !containsBanned(aiText)) {
             cleanedBody = aiText;
           } else if (aiText && containsBanned(aiText)) {

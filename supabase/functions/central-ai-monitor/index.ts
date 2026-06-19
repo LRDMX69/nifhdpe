@@ -183,6 +183,15 @@ serve(async (req: Request) => {
     const result = await response.json();
     const aiSummary = result.choices?.[0]?.message?.content ?? "Monitoring complete. No AI summary generated.";
 
+    try {
+      await supabase.from("ai_usage_logs").insert({
+        organization_id,
+        function_name: "central-ai-monitor",
+        success: true,
+        tokens_estimate: Math.ceil(aiSummary.length / 4) + 1000,
+      });
+    } catch { /* non-fatal */ }
+
     await supabase.from("ai_summaries").insert({
       organization_id, context: "central_ai", summary: aiSummary,
       metadata: { flags_generated: logs.length, categories: [...new Set(logs.map(l => l.category))], generated_at: new Date().toISOString() },
