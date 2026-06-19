@@ -18,6 +18,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
+import { Package } from "lucide-react";
 
 type EquipmentItem = Database["public"]["Tables"]["equipment"]["Row"] & { projects?: { name: string } | null };
 type EquipmentRequest = Database["public"]["Tables"]["equipment_requests"]["Row"] & { equipment?: { name: string } | null };
@@ -58,7 +60,7 @@ const Equipment = () => {
   const [newMaintDate, setNewMaintDate] = useState("");
   const [newStatus, setNewStatus] = useState("available");
 
-  const { data: equipment = [], isLoading } = useQuery({
+  const { data: equipment = [], isLoading, error, refetch } = useQuery({
     queryKey: ["equipment", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -487,7 +489,21 @@ const Equipment = () => {
         </Card>
       )}
 
-      {isLoading && <p className="text-sm text-muted-foreground">Loading equipment...</p>}
+      <AsyncBoundary
+        loading={isLoading}
+        error={error}
+        onRetry={() => refetch()}
+        isEmpty={equipment.length === 0}
+        emptyState={{
+          icon: Package,
+          title: "No equipment in the registry",
+          description: canManage
+            ? "Add your first equipment item — pumps, generators, vehicles, tools — so the team can request and track usage."
+            : "Your administrator hasn't added any equipment yet. Once they do, you'll be able to request items from the field.",
+        }}
+        loadingVariant="list"
+        loadingRows={4}
+      >
       <div className="space-y-2">
         {equipment.map((e: EquipmentItem) => (
           <Card key={e.id} className="hover:border-primary/20 transition-colors">
@@ -536,6 +552,7 @@ const Equipment = () => {
           </Card>
         ))}
       </div>
+      </AsyncBoundary>
     </div>
   );
 };
