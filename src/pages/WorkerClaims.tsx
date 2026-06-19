@@ -18,6 +18,7 @@ import { formatCurrency } from "@/lib/constants";
 import type { Database } from "@/integrations/supabase/types";
 import { SenderReceiverTabs } from "@/components/ui/sender-receiver-tabs";
 import { EmptyState } from "@/components/ui/empty-state";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Inbox as InboxIcon, FileText } from "lucide-react";
 
 type WorkerClaim = Database["public"]["Tables"]["worker_claims"]["Row"];
@@ -85,7 +86,7 @@ const WorkerClaims = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const { data: claims = [], isLoading } = useQuery({
+  const { data: claims = [], isLoading, error, refetch } = useQuery({
     queryKey: ["worker-claims", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -242,23 +243,31 @@ const WorkerClaims = () => {
   const inboxPending = inboxClaims.filter((c: WorkerClaim) => c.status === "pending" || c.status === "flagged").length;
 
   const renderList = (list: WorkerClaim[], emptyKind: "mine" | "inbox") => {
-    if (isLoading) return <p className="text-sm text-muted-foreground">Loading claims...</p>;
-    if (list.length === 0) {
-      return emptyKind === "mine" ? (
-        <EmptyState
-          icon={FileText}
-          title="You haven't submitted any claims yet"
-          description="Use the New Claim button to log an expense, overtime, or operational issue. Attach a receipt or photo as proof — claims without proof cannot be reviewed."
-        />
-      ) : (
-        <EmptyState
-          icon={InboxIcon}
-          title="Inbox is clear"
-          description="No claims are awaiting your review right now. New submissions from field and office staff will appear here automatically."
-        />
-      );
-    }
-    return list.map((c: WorkerClaim) => {
+    const empty =
+      emptyKind === "mine"
+        ? {
+            icon: FileText,
+            title: "You haven't submitted any claims yet",
+            description:
+              "Use the New Claim button to log an expense, overtime, or operational issue. Attach a receipt or photo as proof — claims without proof cannot be reviewed.",
+          }
+        : {
+            icon: InboxIcon,
+            title: "Inbox is clear",
+            description:
+              "No claims are awaiting your review right now. New submissions from field and office staff will appear here automatically.",
+          };
+    return (
+      <AsyncBoundary
+        loading={isLoading}
+        error={error}
+        onRetry={() => refetch()}
+        isEmpty={list.length === 0}
+        emptyState={empty}
+        loadingVariant="list"
+        loadingRows={3}
+      >
+        <div className="space-y-3">{list.map((c: WorkerClaim) => {
       const claimProfile = profileMap.get(c.user_id);
       const claimRole = membershipMap.get(c.user_id);
       const hasImage = c.file_url && isImageUrl(c.file_url);
@@ -316,7 +325,9 @@ const WorkerClaims = () => {
           </CardContent>
         </Card>
       );
-    });
+    })}</div>
+      </AsyncBoundary>
+    );
   };
 
   return (
