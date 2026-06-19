@@ -37,6 +37,7 @@ const statusIcons: Record<string, React.ReactNode> = {
 };
 
 import { useSignedUrl } from "@/hooks/useSignedUrl";
+import { humanizeError } from "@/lib/humanizeError";
 
 const ClaimImage = ({ path }: { path: string }) => {
   const { data: signedUrl } = useSignedUrl("claim-attachments", path, 3600);
@@ -158,7 +159,7 @@ const WorkerClaims = () => {
       setCategory(""); setAmount(""); setDescription(""); setSelectedFile(null);
       queryClient.invalidateQueries({ queryKey: ["worker-claims"] });
     },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const updateClaim = useMutation({

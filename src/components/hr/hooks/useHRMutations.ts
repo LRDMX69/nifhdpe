@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
+import { humanizeError } from "@/lib/humanizeError";
 
 interface UseHRMutationsProps {
   orgId: string | undefined;
@@ -30,7 +31,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       toast({ title: "Leave request submitted" });
       queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
     },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const updateLeave = useMutation({
@@ -75,7 +76,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       toast({ title: values.editingRecruit ? "Updated" : "Added" });
       queryClient.invalidateQueries({ queryKey: ["recruitment"] });
     },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const submitTraining = useMutation({
@@ -109,7 +110,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       toast({ title: values.editingTraining ? "Updated" : "Added" });
       queryClient.invalidateQueries({ queryKey: ["training-logs"] });
     },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const submitSkill = useMutation({
@@ -140,7 +141,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       toast({ title: values.editingSkill ? "Updated" : "Added" });
       queryClient.invalidateQueries({ queryKey: ["employee-skills"] });
     },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const submitDisciplinary = useMutation({
@@ -172,7 +173,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       toast({ title: values.editingDisc ? "Updated" : "Added" });
       queryClient.invalidateQueries({ queryKey: ["disciplinary"] });
     },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const submitPromotion = useMutation({
@@ -206,7 +207,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       toast({ title: values.editingPromo ? "Updated" : "Promotion recorded" });
       queryClient.invalidateQueries({ queryKey: ["promotions"] });
     },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const submitPerformance = useMutation({
@@ -237,7 +238,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       toast({ title: values.editingPerf ? "Performance review updated" : "Performance review added" });
       queryClient.invalidateQueries({ queryKey: ["performance-logs"] });
     },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const submitSalary = useMutation({
@@ -258,7 +259,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       toast({ title: "Salary payment recorded" });
       queryClient.invalidateQueries({ queryKey: ["salary-payments"] });
     },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const deleteRecord = useMutation({
@@ -274,7 +275,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       queryClient.invalidateQueries({ queryKey: ["disciplinary"] });
       queryClient.invalidateQueries({ queryKey: ["promotions"] });
     },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   return {

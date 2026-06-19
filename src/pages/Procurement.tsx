@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
+import { humanizeError } from "@/lib/humanizeError";
 
 type VendorRow = Database["public"]["Tables"]["vendors"]["Row"];
 type PoRow = Database["public"]["Tables"]["purchase_orders"]["Row"] & { vendors?: { name: string } | null };
@@ -88,7 +89,7 @@ const Procurement = () => {
       setNewVendor({ name: "", email: "", phone: "", address: "", category: "" });
       queryClient.invalidateQueries({ queryKey: ["vendors"] });
     },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const createPo = useMutation({
@@ -114,7 +115,7 @@ const Procurement = () => {
       setPoAmount("");
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
     },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const createMr = useMutation({
@@ -139,7 +140,7 @@ const Procurement = () => {
       setMrRequiredDate("");
       queryClient.invalidateQueries({ queryKey: ["material-requisitions"] });
     },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const receiveGoods = useMutation({
@@ -205,7 +206,7 @@ const Procurement = () => {
       // The user wants to update Inventory.tsx on GRN receipt, let's invalidate inventory query if it exists
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
-    onError: (err: Error) => toast({ title: "Error receiving goods", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error receiving goods", description: humanizeError(err), variant: "destructive" }),
   });
 
   return (

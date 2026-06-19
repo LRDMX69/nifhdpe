@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import type { Database } from "@/integrations/supabase/types";
+import { humanizeError } from "@/lib/humanizeError";
 
 type ProjectItem = Database["public"]["Tables"]["projects"]["Row"] & { clients?: { name: string } | null };
 type ClientItem = { id: string; name: string };
@@ -170,7 +171,7 @@ const Projects = () => {
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const handleDelete = async () => {
@@ -183,7 +184,7 @@ const Projects = () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     }
   };
 
@@ -195,7 +196,7 @@ const Projects = () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     }
   };
 

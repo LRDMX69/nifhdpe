@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Package } from "lucide-react";
+import { humanizeError } from "@/lib/humanizeError";
 
 type EquipmentItem = Database["public"]["Tables"]["equipment"]["Row"] & { projects?: { name: string } | null };
 type EquipmentRequest = Database["public"]["Tables"]["equipment_requests"]["Row"] & { equipment?: { name: string } | null };
@@ -137,7 +138,7 @@ const Equipment = () => {
       setAddOpen(false);
       queryClient.invalidateQueries({ queryKey: ["equipment"] });
     },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const handleDelete = async () => {
@@ -150,7 +151,7 @@ const Equipment = () => {
       queryClient.invalidateQueries({ queryKey: ["equipment"] });
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     }
   };
 
@@ -162,7 +163,7 @@ const Equipment = () => {
       queryClient.invalidateQueries({ queryKey: ["equipment"] });
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     }
   };
 
@@ -180,7 +181,7 @@ const Equipment = () => {
       setRequestOpen(false); setRequestReason(""); setRequestProject(""); setSelectedEquipment(null);
       queryClient.invalidateQueries({ queryKey: ["equipment-requests"] });
     },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const updateRequest = useMutation({

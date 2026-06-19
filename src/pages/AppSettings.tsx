@@ -18,6 +18,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 import { FeedbackInbox } from "@/components/feedback/FeedbackInbox";
+import { humanizeError } from "@/lib/humanizeError";
 
 type RoleRequestRow = {
   id: string;
@@ -93,7 +94,7 @@ const AppSettings = () => {
       queryClient.invalidateQueries({ queryKey: ["terminated-users"] });
       queryClient.invalidateQueries({ queryKey: ["unassigned-users"] });
     },
-    onError: (err: Error) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Failed", description: humanizeError(err), variant: "destructive" }),
   });
 
   const deleteUser = useMutation({
@@ -102,7 +103,7 @@ const AppSettings = () => {
       toast({ title: "Account deleted", description: "Login removed. Their previous work is preserved." });
       queryClient.invalidateQueries({ queryKey: ["terminated-users"] });
     },
-    onError: (err: Error) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Failed", description: humanizeError(err), variant: "destructive" }),
   });
 
   const { data: unassignedUsers = [] } = useQuery({
@@ -161,7 +162,7 @@ const AppSettings = () => {
       queryClient.invalidateQueries({ queryKey: ["unassigned-users"] });
       queryClient.invalidateQueries({ queryKey: ["pending-role-requests"] });
     },
-    onError: (err: Error) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Failed", description: humanizeError(err), variant: "destructive" }),
   });
 
   const removeMember = useMutation({
@@ -252,7 +253,7 @@ const AppSettings = () => {
                   name: fd.get("name") as string, email: fd.get("email") as string,
                   phone: fd.get("phone") as string, address: fd.get("address") as string,
                 }).eq("id", orgId);
-                toast(error ? { title: "Error", description: error.message, variant: "destructive" as const } : { title: "Organization updated" });
+                toast(error ? { title: "Error", description: humanizeError(error), variant: "destructive" as const } : { title: "Organization updated" });
               }}>
                 <div className="space-y-2 sm:col-span-2"><Label>Company Name</Label><Input name="name" defaultValue={org?.name ?? ""} /></div>
                 <div className="space-y-2"><Label>Email</Label><Input name="email" defaultValue={org?.email ?? ""} /></div>
@@ -439,7 +440,7 @@ const AppSettings = () => {
                 const { error } = await supabase.from("profiles").update({
                   full_name: fd.get("full_name") as string, phone: fd.get("phone") as string,
                 }).eq("user_id", user?.id);
-                toast(error ? { title: "Error", description: error.message, variant: "destructive" as const } : { title: "Profile updated" });
+                toast(error ? { title: "Error", description: humanizeError(error), variant: "destructive" as const } : { title: "Profile updated" });
               }}>
                 <div className="space-y-2"><Label>Full Name</Label><Input name="full_name" defaultValue={profile?.full_name ?? ""} /></div>
                 <div className="space-y-2"><Label>Phone</Label><Input name="phone" defaultValue={profile?.phone ?? ""} /></div>

@@ -21,6 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
+import { humanizeError } from "@/lib/humanizeError";
 
 type ComplianceDoc = Database["public"]["Tables"]["compliance_documents"]["Row"];
 
@@ -98,7 +99,7 @@ const Compliance = () => {
       toast({ title: "File uploaded" });
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+      toast({ title: "Upload failed", description: humanizeError(error), variant: "destructive" });
     } finally { setUploading(false); }
   };
 
@@ -124,7 +125,7 @@ const Compliance = () => {
       setOpen(false); refetch();
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     } finally { setSaving(false); }
   };
 
@@ -136,7 +137,7 @@ const Compliance = () => {
       refetch();
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     }
   };
 
@@ -149,7 +150,7 @@ const Compliance = () => {
       setDeleteTarget(null); refetch();
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     }
   };
 

@@ -26,6 +26,7 @@ import { stripMarkdown } from "@/lib/stripMarkdown";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import type { Database } from "@/integrations/supabase/types";
+import { humanizeError } from "@/lib/humanizeError";
 
 type ExpenseItem = Database["public"]["Tables"]["expenses"]["Row"];
 type PaymentItem = Database["public"]["Tables"]["worker_payments"]["Row"];
@@ -215,7 +216,7 @@ const Finance = () => {
       setPaymentOpen(false); resetPaymentForm(); refetchPayments();
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     } finally { setSaving(false); }
   };
 
@@ -240,7 +241,7 @@ const Finance = () => {
       setExpenseOpen(false); resetExpenseForm(); refetchExpenses();
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     } finally { setSaving(false); }
   };
 
@@ -255,7 +256,7 @@ const Finance = () => {
       if (deleteTarget.type === "expense") refetchExpenses(); else refetchPayments();
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     }
   };
 
