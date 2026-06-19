@@ -181,7 +181,7 @@ const Finance = () => {
 
   const getMemberName = (userId: string) => members.find(m => m.value === userId)?.label ?? "Unknown";
 
-  const resetPaymentForm = () => { setPayType(""); setPayAmount(""); setPayDesc(""); setPayUserId(""); setPayDate(new Date().toISOString().split("T")[0]); setEditingPayment(null); };
+  const resetPaymentForm = () => { setPayType(""); setPayAmount(""); setPayDesc(""); setPayUserId(""); setPayDate(new Date().toISOString().split("T")[0]); setEditingPayment(null); setPayVendorName(""); setPayOverrideMatch(false); };
   const resetExpenseForm = () => { setExpCategory(""); setExpAmount(""); setExpDesc(""); setExpDate(new Date().toISOString().split("T")[0]); setEditingExpense(null); };
 
   const openEditPayment = (p: PaymentItem) => {
