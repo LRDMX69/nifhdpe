@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Building2, Users, Shield, Check, X, Loader2, Camera, Trash2, Ban, UserX } from "lucide-react";
+import { Building2, Users, Shield, Check, X, Loader2, Camera, Trash2, Ban, UserX, MessageSquare } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
+import { FeedbackInbox } from "@/components/feedback/FeedbackInbox";
 
 type RoleRequestRow = {
   id: string;
@@ -28,6 +29,7 @@ type RoleRequestRow = {
 
 const AppSettings = () => {
   const { profile, memberships, user, isMaintenance } = useAuth();
+  const isAdmin = isMaintenance || memberships.some((m) => m.role === "administrator");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const orgId = memberships[0]?.organization_id;
@@ -233,6 +235,9 @@ const AppSettings = () => {
             <TabsTrigger value="organization" className="gap-1 text-xs sm:text-sm whitespace-nowrap"><Building2 className="h-3 w-3 hidden sm:block" /> Organization</TabsTrigger>
             <TabsTrigger value="team" className="gap-1 text-xs sm:text-sm whitespace-nowrap"><Users className="h-3 w-3 hidden sm:block" /> Team</TabsTrigger>
             <TabsTrigger value="profile" className="gap-1 text-xs sm:text-sm whitespace-nowrap"><Shield className="h-3 w-3 hidden sm:block" /> Profile</TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="feedback" className="gap-1 text-xs sm:text-sm whitespace-nowrap"><MessageSquare className="h-3 w-3 hidden sm:block" /> User Feedback</TabsTrigger>
+            )}
           </TabsList>
         </div>
 
@@ -443,6 +448,20 @@ const AppSettings = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="feedback" className="space-y-4">
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle className="text-base">User Feedback</CardTitle>
+                <CardDescription>Bugs, ideas and questions sent from across the app. Reply to close the loop with your team.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FeedbackInbox />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
