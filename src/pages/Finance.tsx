@@ -61,6 +61,8 @@ const Finance = () => {
   const [payDesc, setPayDesc] = useState("");
   const [payDate, setPayDate] = useState(new Date().toISOString().split("T")[0]);
   const [payUserId, setPayUserId] = useState("");
+  const [payVendorName, setPayVendorName] = useState("");
+  const [payOverrideMatch, setPayOverrideMatch] = useState(false);
 
   // Expense form
   const [expCategory, setExpCategory] = useState("");
