@@ -818,7 +818,9 @@ const HR = () => {
                       </Button>
                     </div>
                   );
-                })}</div>) : <p className="text-sm text-muted-foreground">No employees found.</p>}
+                })}</div>) : (
+                  <EmptyState compact icon={CreditCard} title="No employees found" description="Add team members from the Team module to generate ID cards." />
+                )}
               </CardContent>
             </Card>
           </TabsContent>
