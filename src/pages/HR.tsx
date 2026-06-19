@@ -21,6 +21,8 @@ import { CheckInWidget } from "@/components/CheckInWidget";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { WorkflowBanner } from "@/components/ui/workflow-banner";
+import { EmptyState } from "@/components/ui/empty-state";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { calculateNigerianSalary, SalaryBreakdown } from "@/lib/payroll";
 import type { Database } from "@/integrations/supabase/types";
@@ -516,6 +518,29 @@ const HR = () => {
         </Dialog>
       </div>
 
+      <WorkflowBanner
+        storageKey="hr-overview"
+        title="How HR works here"
+        summary={
+          isHrOrAdmin
+            ? "Employees check in daily and request leave from this page. You approve leave, record salaries (statutory tax/pension auto-calculated), and manage training, skills, recruitment, performance, and disciplinary records. All actions are audit-logged."
+            : "Use this page to check in for the day, request leave, and view the status of leave you've already submitted. HR will be notified automatically when you submit a request."
+        }
+        steps={
+          isHrOrAdmin
+            ? [
+                { actor: "Employee", action: "Checks in / requests leave from this page." },
+                { actor: "HR / Admin", action: "Reviews and approves leave; records salary, training, performance." },
+                { actor: "System", action: "Calculates PAYE, pension, NHF automatically; logs every change." },
+              ]
+            : [
+                { actor: "You", action: "Tap Check-In and submit any leave requests." },
+                { actor: "HR", action: "Reviews your leave and updates the status." },
+                { actor: "You", action: "See the new status in the Leaves tab — no need to ask." },
+              ]
+        }
+      />
+
       <CheckInWidget />
 
       {isHrOrAdmin && (
@@ -616,7 +641,15 @@ const HR = () => {
               </CardContent></Card>
             )}
             <Card className="border-border/50"><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-base flex items-center gap-2"><Users className="h-5 w-5 text-primary" /> Attendance Records</CardTitle><Input type="date" value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)} className="w-auto text-sm" /></CardHeader><CardContent>
-              {allAttendance.length === 0 ? <p className="text-sm text-muted-foreground">No records today.</p> : (
+              {allAttendance.length === 0 ? (
+                <EmptyState
+                  compact
+                  icon={Users}
+                  title="No check-ins for this date yet"
+                  description="Attendance appears here the moment an employee taps Check-In from any device. Pick a different date above to review history."
+                  ownedBy="Employees check themselves in; HR reviews."
+                />
+              ) : (
                 <div className="space-y-2">{allAttendance.map((a) => {
                   const prof = profileMap.get(a.user_id);
                   const isLate = a.check_in && new Date(a.check_in).getHours() >= 9;
@@ -642,7 +675,16 @@ const HR = () => {
                 <Badge variant="outline" className={`text-[10px] capitalize ${l.status === "approved" ? "text-primary" : l.status === "rejected" ? "text-destructive" : "text-warning"}`}>{l.status}</Badge>
               </div>
             </div>);
-          })}</div>) : <p className="text-sm text-muted-foreground">No leave requests.</p>}
+          })}</div>) : (
+            <EmptyState
+              compact
+              icon={CalendarDays}
+              title={isHrOrAdmin ? "No leave requests submitted" : "You haven't requested any leave"}
+              description={isHrOrAdmin ? "Requests appear here as soon as employees submit them. You'll be able to approve or reject from this view." : "Tap 'Request Leave' above to submit annual, sick, emergency, maternity, or unpaid leave. HR will review and update the status."}
+              ownedBy={isHrOrAdmin ? "Employees submit, HR approves." : "Submitted by you; reviewed by HR."}
+              action={isHrOrAdmin ? undefined : { label: "Request Leave", onClick: () => setLeaveOpen(true) }}
+            />
+          )}
         </CardContent></Card></TabsContent>
 
         {/* PAYROLL TAB */}

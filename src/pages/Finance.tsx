@@ -23,6 +23,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { stripMarkdown } from "@/lib/stripMarkdown";
+import { WorkflowBanner } from "@/components/ui/workflow-banner";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { Database } from "@/integrations/supabase/types";
 
 type ExpenseItem = Database["public"]["Tables"]["expenses"]["Row"];
@@ -346,6 +348,17 @@ const Finance = () => {
         </div>
       </PageHeader>
 
+      <WorkflowBanner
+        storageKey="finance-overview"
+        title="How money moves through this page"
+        summary="Sales raises a quotation → once accepted, you issue an Invoice → record incoming payments as Receipts → log outgoing Expenses and Worker Payments. Net Cash Position = received minus expenses + worker payments. AI flags anomalies in the background."
+        steps={[
+          { actor: "Sales / Reception", action: "Creates the quotation and converts it to an invoice once the client accepts." },
+          { actor: "Finance (you)", action: "Issues invoice, records receipts, logs expenses & worker payments." },
+          { actor: "System", action: "Auto-updates balance due, P&L per project, and flags unusual spending." },
+        ]}
+      />
+
       {/* Delete confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete this {deleteTarget?.type}?</AlertDialogTitle>
@@ -420,9 +433,14 @@ const Finance = () => {
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
               {invoices.length === 0 ? (
-                <div className="p-8 text-center space-y-3">
-                  <p className="text-muted-foreground">No invoices yet.</p>
-                  <Button onClick={() => setInvoiceOpen(true)}><Plus className="h-4 w-4 mr-1" />Create your first invoice</Button>
+                <div className="p-6">
+                  <EmptyState
+                    icon={FileText}
+                    title="No invoices issued yet"
+                    description="Issue an invoice once a client accepts a quotation. The invoice tracks the total billed and the balance still due — each receipt you record reduces the balance automatically."
+                    ownedBy="Finance issues invoices; receipts come from Reception or Finance."
+                    action={{ label: "Create your first invoice", onClick: () => setInvoiceOpen(true) }}
+                  />
                 </div>
               ) : (
                 <div className="min-w-[700px]">
@@ -488,7 +506,15 @@ const Finance = () => {
           </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
               {receipts.length === 0 ? (
-                <p className="p-6 text-center text-muted-foreground">No receipts found.</p>
+                <div className="p-6">
+                  <EmptyState
+                    compact
+                    icon={Receipt}
+                    title="No payments recorded yet"
+                    description="Receipts are created automatically when you record a payment against an invoice. Open the Invoices tab and tap 'Record' on any unpaid invoice."
+                    ownedBy="Generated when Finance records an invoice payment."
+                  />
+                </div>
               ) : (
                 <div className="min-w-[600px]">
                   <Table><TableHeader><TableRow>
@@ -515,7 +541,16 @@ const Finance = () => {
           <Card><CardHeader><CardTitle className="text-base">Logged Expenses</CardTitle></CardHeader>
             <CardContent className="p-0 overflow-x-auto">
               {expenses.length === 0 ? (
-                <p className="p-6 text-center text-muted-foreground">No expenses logged yet.</p>
+                <div className="p-6">
+                  <EmptyState
+                    compact
+                    icon={TrendingDown}
+                    title="No expenses logged"
+                    description="Log operational spend (fuel, materials, transport, equipment) so the system can report true net profit per project. Use 'Log Expense' in the page header."
+                    ownedBy="Logged by Finance; flagged by AI if amounts look unusual."
+                    action={{ label: "Log Expense", onClick: () => setExpenseOpen(true) }}
+                  />
+                </div>
               ) : (
                 <div className="min-w-[600px]">
                   <Table><TableHeader><TableRow>
@@ -551,7 +586,16 @@ const Finance = () => {
           <Card><CardHeader><CardTitle className="text-base">Worker Payments</CardTitle></CardHeader>
             <CardContent className="p-0 overflow-x-auto">
               {payments.length === 0 ? (
-                <p className="p-6 text-center text-muted-foreground">No payments logged yet.</p>
+                <div className="p-6">
+                  <EmptyState
+                    compact
+                    icon={CreditCard}
+                    title="No worker payments logged"
+                    description="Use 'Log Payment' in the page header for fuel, overtime, bonus, vendor and ad-hoc payments. Monthly salaries (with PAYE/pension/NHF) live in HR → Payroll."
+                    ownedBy="Logged by Finance; salaries flow from HR Payroll."
+                    action={{ label: "Log Payment", onClick: () => setPaymentOpen(true) }}
+                  />
+                </div>
               ) : (
                 <div className="min-w-[700px]">
                   <Table><TableHeader><TableRow>

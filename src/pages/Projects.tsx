@@ -21,6 +21,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { WorkflowBanner } from "@/components/ui/workflow-banner";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { Database } from "@/integrations/supabase/types";
 
 type ProjectItem = Database["public"]["Tables"]["projects"]["Row"] & { clients?: { name: string } | null };
@@ -211,6 +213,17 @@ const Projects = () => {
         {canEdit && <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" /> New Project</Button>}
       </PageHeader>
 
+      <WorkflowBanner
+        storageKey="projects-overview"
+        title="How projects flow"
+        summary="Admin or Engineering creates the project, assigns a Project Head and team, sets site GPS coordinates, and adds a budget. The head updates progress; field reports, deliveries, requisitions and expenses all link back here. P&L is computed live from those linked records."
+        steps={[
+          { actor: "Admin / Engineer", action: "Creates the project, sets client, budget, site GPS and assigns a head + team." },
+          { actor: "Project Head", action: "Updates status & progress; team checks in on site and submits field reports." },
+          { actor: "System", action: "Auto-links materials, deliveries and expenses; calculates project P&L on demand." },
+        ]}
+      />
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editingProject ? "Edit Project" : "Create New Project"}</DialogTitle></DialogHeader>
@@ -313,7 +326,17 @@ const Projects = () => {
 
       <div ref={listRef} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {filtered.length === 0 && !isLoading && (
-          <Card className="col-span-full"><CardContent className="p-8 text-center text-muted-foreground">No projects found.</CardContent></Card>
+          <div className="col-span-full">
+            <EmptyState
+              title={projects.length === 0 ? "No projects created yet" : "No projects match your filters"}
+              description={projects.length === 0
+                ? "Projects organise everything — field reports, deliveries, material requisitions, expenses and P&L all attach to a project. Create your first one to get started."
+                : "Try clearing the search or selecting a different status."}
+              ownedBy="Created by Admin or Engineering; updated by the assigned Project Head."
+              action={canEdit && projects.length === 0 ? { label: "Create First Project", onClick: openAdd } : undefined}
+              secondaryAction={projects.length > 0 ? { label: "Clear filters", onClick: () => { setSearch(""); setStatusFilter("all"); } } : undefined}
+            />
+          </div>
         )}
         {filtered.map((project: ProjectItem) => {
           const teamIds: string[] = Array.isArray(project.team_member_ids) ? project.team_member_ids as string[] : [];

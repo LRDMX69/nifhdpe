@@ -668,9 +668,15 @@ const FieldReports = () => {
 
       <div className="space-y-3">
         {reports.length === 0 && (
-          <Card><CardContent className="p-8 text-center text-muted-foreground">
-            {isAdmin ? "No reports received yet." : "No reports yet. Submit your first field report above."}
-          </CardContent></Card>
+          <EmptyState
+            icon={ClipboardList}
+            title={isAdmin ? "No reports received yet" : "No reports submitted yet"}
+            description={isAdmin
+              ? "Reports appear here the moment a technician or engineer submits one. AI structures the content automatically before it reaches you."
+              : "Tap 'New Report' above. Even rough notes work — the AI cleans and structures everything before it's delivered."}
+            ownedBy={isAdmin ? "Submitted by Technicians and Engineers." : "Submitted by you; structured by AI; reviewed by Engineer or Admin."}
+            action={!isAdmin ? { label: "Submit your first report", onClick: () => setOpen(true) } : undefined}
+          />
         )}
         {(reports as FieldReportWithRelations[]).map((r) => {
           const senderProfile = senderProfiles.get(r.created_by);
