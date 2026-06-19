@@ -19,6 +19,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Database } from "@/integrations/supabase/types";
 import { PrintRequestButton } from "@/components/print/PrintRequestButton";
 import { ContextMessages } from "@/components/messaging/ContextMessages";
+import { WorkflowBanner } from "@/components/ui/workflow-banner";
+import { EmptyState } from "@/components/ui/empty-state";
 
 /** Strip markdown artifacts for clean display */
 const cleanMarkdown = (text: string) =>
