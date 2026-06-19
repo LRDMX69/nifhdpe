@@ -42,7 +42,7 @@ const DocumentRegistry = () => {
   const orgId = memberships[0]?.organization_id;
   const [search, setSearch] = useState("");
 
-  const { data: docs = [], isLoading, error, refetch } = useQuery({
+  const { data: docs = [], isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["doc-registry", orgId],
     queryFn: async (): Promise<DocRow[]> => {
       if (!orgId) return [];
@@ -132,7 +132,13 @@ const DocumentRegistry = () => {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
-      <PageHeader title="Document Registry" description="Every numbered document ever issued in the system — invoices, receipts, quotations, waybills, POs and more." />
+      <PageHeader
+        title="Document Registry"
+        description="Every numbered document ever issued in the system — invoices, receipts, quotations, waybills, POs and more."
+        executiveSummary={`${docs.length} numbered documents on file`}
+        lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
+        onRefresh={() => refetch()}
+      />
 
       <WorkflowBanner
         storageKey="document-registry"
