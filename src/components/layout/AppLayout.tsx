@@ -7,6 +7,7 @@ import { RoleBasedOnboarding } from "./RoleBasedOnboarding";
 import { CommandPalette } from "../CommandPalette";
 import { HelpSheetProvider } from "../HelpSheetProvider";
 import { GuidedTour } from "../GuidedTour";
+import { FeedbackButton } from "../feedback/FeedbackButton";
 
 export const AppLayout = () => {
   return (
@@ -27,6 +28,7 @@ export const AppLayout = () => {
           <RoleBasedOnboarding />
           <CommandPalette />
           <GuidedTour />
+          <FeedbackButton />
         </div>
       </HelpSheetProvider>
     </MFAEnforcer>
