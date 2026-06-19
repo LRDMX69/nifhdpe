@@ -125,6 +125,25 @@ const WorkerClaims = () => {
       if (!user || !orgId) throw new Error("Not authenticated");
       if (!selectedFile) throw new Error("Proof file is required. Please upload a receipt, photo or document.");
 
+      // Block obvious duplicates: same user/category/amount in the last 24h
+      const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+      const amt = amount ? parseFloat(amount) : 0;
+      const { data: dup } = await supabase
+        .from("worker_claims")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("organization_id", orgId)
+        .eq("category", category)
+        .eq("amount", amt)
+        .in("status", ["pending", "approved", "flagged"])
+        .gte("created_at", since)
+        .limit(1);
+      if (dup && dup.length > 0) {
+        throw new Error(
+          "A similar claim (same category and amount) was already submitted in the last 24 hours. Please wait for it to be reviewed or update the existing one instead."
+        );
+      }
+
       setUploading(true);
       try {
         const ext = selectedFile.name.split(".").pop() || "jpg";
