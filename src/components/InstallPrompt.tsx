@@ -12,8 +12,13 @@ export const InstallPrompt = () => {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    // Check if already installed
+    // Already installed (standalone) — never prompt
     if (window.matchMedia("(display-mode: standalone)").matches) return;
+    // Only prompt on mobile form factors — desktop users rarely install PWAs
+    const isMobile =
+      window.matchMedia("(max-width: 768px)").matches ||
+      /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
+    if (!isMobile) return;
 
     // Check if dismissed recently (7 day cooldown)
     const dismissed = localStorage.getItem("install_prompt_dismissed");
