@@ -59,7 +59,7 @@ const Procurement = () => {
     enabled: !!orgId,
   });
 
-  const { data: pos = [], isLoading: posLoading, error: posError, refetch: refetchPos } = useQuery({
+  const { data: pos = [], isLoading: posLoading, error: posError, refetch: refetchPos, dataUpdatedAt: posUpdatedAt } = useQuery({
     queryKey: ["purchase-orders", orgId],
     queryFn: async () => {
       const { data } = await supabase.from("purchase_orders").select("*, vendors(name)").order("created_at", { ascending: false });
@@ -214,6 +214,9 @@ const Procurement = () => {
       <PageHeader 
         title="Procurement & Supply Chain" 
         description="Manage vendors, purchase orders, goods receipt, and site requisitions"
+        executiveSummary={`${vendors.length} vendors · ${pos.filter((p: any) => p.status !== "closed" && p.status !== "cancelled").length} open POs · ${mrs.filter((m: any) => m.status === "pending").length} pending requisitions`}
+        lastUpdated={posUpdatedAt ? new Date(posUpdatedAt) : null}
+        onRefresh={() => { refetchVendors(); refetchPos(); refetchMrs(); }}
       />
 
       <WorkflowBanner
