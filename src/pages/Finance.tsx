@@ -375,6 +375,30 @@ const Finance = () => {
                 </div>
                 <div className="space-y-2"><Label>Description</Label><Input value={payDesc} onChange={(e) => setPayDesc(e.target.value)} placeholder="Payment description" /></div>
                 <div className="space-y-2"><Label>Date</Label><Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} /></div>
+                {payType === "vendor" && (
+                  <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/5 p-3">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-warning">Vendor payment · three-way match</Label>
+                    <Input
+                      value={payVendorName}
+                      onChange={(e) => setPayVendorName(e.target.value)}
+                      placeholder="Vendor name (must match Purchase Order)"
+                    />
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Before saving we check that a Purchase Order exists for this vendor and that a Goods Received Note has been logged. This blocks paying for items the company never received.
+                    </p>
+                    <label className="flex items-start gap-2 text-[11px] text-muted-foreground cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 accent-warning"
+                        checked={payOverrideMatch}
+                        onChange={(e) => setPayOverrideMatch(e.target.checked)}
+                      />
+                      <span>
+                        Pay without three-way match <span className="italic">(use only for petty cash, advances, or one-off vendors — this will be flagged in the audit log)</span>
+                      </span>
+                    </label>
+                  </div>
+                )}
                 <Button className="w-full" onClick={handleLogPayment} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}{editingPayment ? "Update" : "Save"} Payment</Button>
               </div>
             </DialogContent>
