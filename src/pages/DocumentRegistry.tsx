@@ -61,6 +61,11 @@ const DocumentRegistry = () => {
     queryFn: async (): Promise<{ rows: DocRow[]; partial: string[] }> => {
       if (!orgId) return { rows: [], partial: [] };
       type Source = { key: string; run: () => Promise<DocRow[]> };
+      const vendorMapPromise = supabase.from("vendors").select("id, name").eq("organization_id", orgId).then(r => {
+        const m = new Map<string, string>();
+        (r.data ?? []).forEach((v: any) => m.set(v.id, v.name));
+        return m;
+      });
       const sources: Source[] = [
         { key: "invoice",   run: async () => {
           const { data, error } = await supabase.from("invoices").select("id, document_number, invoice_date, total_amount, status, clients(name)").eq("organization_id", orgId).not("document_number", "is", null).order("invoice_date", { ascending: false }).limit(SOURCE_FETCH_LIMIT);
@@ -83,14 +88,20 @@ const DocumentRegistry = () => {
           return (data ?? []).map((r: any) => ({ id: r.id, number: r.document_number, type: "delivery", date: r.delivery_date, party: r.destination, amount: r.cost, status: r.status }));
         }},
         { key: "po",        run: async () => {
-          const { data, error } = await supabase.from("purchase_orders").select("id, document_number, created_at, total_amount, status, vendors(name)").eq("organization_id", orgId).not("document_number", "is", null).order("created_at", { ascending: false }).limit(SOURCE_FETCH_LIMIT);
+          const [{ data, error }, vendorMap] = await Promise.all([
+            supabase.from("purchase_orders").select("id, document_number, created_at, total_amount, status, vendor_id").eq("organization_id", orgId).not("document_number", "is", null).order("created_at", { ascending: false }).limit(SOURCE_FETCH_LIMIT),
+            vendorMapPromise,
+          ]);
           if (error) throw error;
-          return (data ?? []).map((r: any) => ({ id: r.id, number: r.document_number, type: "po", date: r.created_at, party: r.vendors?.name ?? null, amount: r.total_amount, status: r.status }));
+          return (data ?? []).map((r: any) => ({ id: r.id, number: r.document_number, type: "po", date: r.created_at, party: (r.vendor_id ? vendorMap.get(r.vendor_id) : null) ?? null, amount: r.total_amount, status: r.status }));
         }},
         { key: "grn",       run: async () => {
-          const { data, error } = await supabase.from("goods_received_notes").select("id, document_number, received_date, status, vendors(name)").eq("organization_id", orgId).not("document_number", "is", null).order("received_date", { ascending: false }).limit(SOURCE_FETCH_LIMIT);
+          const [{ data, error }, vendorMap] = await Promise.all([
+            supabase.from("goods_received_notes").select("id, document_number, received_date, status, vendor_id").eq("organization_id", orgId).not("document_number", "is", null).order("received_date", { ascending: false }).limit(SOURCE_FETCH_LIMIT),
+            vendorMapPromise,
+          ]);
           if (error) throw error;
-          return (data ?? []).map((r: any) => ({ id: r.id, number: r.document_number, type: "grn", date: r.received_date, party: r.vendors?.name ?? null, amount: null, status: r.status }));
+          return (data ?? []).map((r: any) => ({ id: r.id, number: r.document_number, type: "grn", date: r.received_date, party: (r.vendor_id ? vendorMap.get(r.vendor_id) : null) ?? null, amount: null, status: r.status }));
         }},
         { key: "hse",       run: async () => {
           const { data, error } = await supabase.from("hse_incidents").select("id, document_number, incident_date, type, severity, status").eq("organization_id", orgId).not("document_number", "is", null).order("incident_date", { ascending: false }).limit(SOURCE_FETCH_LIMIT);
