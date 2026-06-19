@@ -418,7 +418,7 @@ const AdminDashboard = () => {
                 ...(aiSummary.length
                   ? [{
                       heading: "Latest AI Intelligence",
-                      bullets: aiSummary.slice(0, 5).map((s) => `[${contextLabels[s.context] ?? s.context}] ${formatContent(s.content).slice(0, 220)}`),
+                      bullets: aiSummary.slice(0, 5).map((s) => `[${contextLabels[s.context] ?? s.context}] ${formatContent(s.summary ?? "").slice(0, 220)}`),
                     }]
                   : []),
               ],
