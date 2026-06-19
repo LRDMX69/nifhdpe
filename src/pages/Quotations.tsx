@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, FileText, Search, Trash2, Loader2, MoreVertical, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
-import { EmptyState } from "@/components/ui/empty-state";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";
 import { AiInsightPanel } from "@/components/AiInsightPanel";
@@ -59,7 +59,7 @@ const Quotations = () => {
   const [editingQuotation, setEditingQuotation] = useState<DbQuotation | null>(null);
   const listRef = useGsapStagger(".gsap-card", 0.06);
 
-  const { data: quotations = [], isLoading, refetch } = useQuery({
+  const { data: quotations = [], isLoading, error, refetch } = useQuery({
     queryKey: ["quotations", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -338,8 +338,6 @@ const Quotations = () => {
     (q: DbQuotation) => q.quotation_number.toLowerCase().includes(search.toLowerCase()) || (q.clients?.name ?? "").toLowerCase().includes(search.toLowerCase())
   );
 
-  if (isLoading) return <div className="p-6 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <PageHeader title="Quotations" description="Create and manage pipe quotations">
@@ -450,20 +448,27 @@ const Quotations = () => {
         <Input placeholder="Search quotations..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
+      <AsyncBoundary
+        loading={isLoading}
+        error={error}
+        onRetry={() => refetch()}
+        isEmpty={filtered.length === 0}
+        loadingVariant="list"
+        loadingRows={4}
+        emptyState={quotations.length === 0 ? {
+          icon: FileText,
+          title: "No quotations yet",
+          description: "Quotations are the first step in the revenue cycle. Create one for an existing client — once accepted, you can convert it to an invoice instantly.",
+          ownedBy: "Marketing / Sales & Administrators",
+          action: canEdit ? { label: "New quotation", onClick: () => setDialogOpen(true) } : undefined,
+        } : {
+          icon: Search,
+          title: "No quotations match your search",
+          description: "Try a different reference or client name.",
+          compact: true,
+        }}
+      >
       <div ref={listRef} className="space-y-3">
-        {filtered.length === 0 && (
-          quotations.length === 0 ? (
-            <EmptyState
-              icon={FileText}
-              title="No quotations yet"
-              description="Quotations are the first step in the revenue cycle. Create one for an existing client — once accepted, you can convert it to an invoice instantly."
-              ownedBy="Marketing / Sales & Administrators"
-              action={canEdit ? { label: "New quotation", onClick: () => setDialogOpen(true) } : undefined}
-            />
-          ) : (
-            <EmptyState icon={Search} title="No quotations match your search" description="Try a different reference or client name." compact />
-          )
-        )}
         {filtered.map((q: DbQuotation) => (
           <QuotationCard
             key={q.id}
@@ -480,6 +485,7 @@ const Quotations = () => {
           />
         ))}
       </div>
+      </AsyncBoundary>
     </div>
   );
 };
