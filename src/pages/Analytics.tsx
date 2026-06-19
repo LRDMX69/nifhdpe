@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts";
-import { TrendingUp, DollarSign, Percent, Package, Loader2 } from "lucide-react";
+import { TrendingUp, DollarSign, Percent, Package } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";
+import { LoadingState } from "@/components/ui/loading-state";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -123,7 +124,7 @@ const Analytics = () => {
   const isLoading = loadingPayments || loadingExpenses;
 
   if (isLoading) {
-    return <div className="p-6 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return <LoadingState variant="page" rows={4} />;
   }
 
   const summaryStats = [

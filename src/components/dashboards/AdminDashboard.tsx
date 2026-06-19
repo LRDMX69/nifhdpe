@@ -340,7 +340,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               {financeLoading ? (
-                <div className="flex h-[300px] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                <div className="h-[300px] w-full mt-4 animate-pulse rounded-md bg-muted/40" aria-busy="true" aria-label="Loading financial chart" />
               ) : (
                 <div className="h-[300px] w-full mt-4">
                   <ResponsiveContainer width="100%" height="100%">
