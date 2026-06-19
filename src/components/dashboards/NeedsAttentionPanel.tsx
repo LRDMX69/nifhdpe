@@ -148,13 +148,13 @@ export function NeedsAttentionPanel() {
 
       // Sender-side: status of my own submissions
       if (user) {
-        const { data: myClaims } = await client
+        const { data: myClaims } = await (supabase as any)
           .from("worker_claims")
           .select("id, category, status")
           .eq("user_id", user.id)
           .in("status", ["rejected", "flagged", "approved"])
           .limit(5);
-        (myClaims ?? []).forEach((c) =>
+        (myClaims ?? []).forEach((c: any) =>
           out.push({
             id: `my-claim-${c.id}`,
             label: `Your claim — ${c.category}`,
