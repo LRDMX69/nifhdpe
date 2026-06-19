@@ -22,7 +22,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
-import { EmptyState } from "@/components/ui/empty-state";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import type { Database } from "@/integrations/supabase/types";
 
