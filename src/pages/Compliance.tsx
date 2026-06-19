@@ -52,7 +52,7 @@ const Compliance = () => {
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [docStatus, setDocStatus] = useState("pending");
 
-  const { data: docs = [], isLoading, error, refetch } = useQuery({
+  const { data: docs = [], isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["compliance-docs", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -160,7 +160,13 @@ const Compliance = () => {
 
   return (
     <div ref={containerRef} className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
-      <PageHeader title="Compliance" description="Certificates, inspections, and regulatory documents">
+      <PageHeader
+        title="Compliance"
+        description="Certificates, inspections, and regulatory documents"
+        executiveSummary={`${docs.length} documents tracked · ${docs.filter((d: any) => d.expiry_date && new Date(d.expiry_date) <= new Date(Date.now() + 30 * 86400000)).length} expiring within 30 days`}
+        lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
+        onRefresh={() => refetch()}
+      >
         {canEdit && <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />Add Document</Button>}
       </PageHeader>
 

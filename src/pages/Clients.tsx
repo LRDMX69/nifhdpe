@@ -41,7 +41,7 @@ const Clients = () => {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
 
-  const { data: clients = [], isLoading, error: clientsError, refetch } = useQuery({
+  const { data: clients = [], isLoading, error: clientsError, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["clients", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -120,7 +120,13 @@ const Clients = () => {
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <PageHeader title="Clients" description="Manage your client database">
+      <PageHeader
+        title="Clients"
+        description="Manage your client database"
+        executiveSummary={`${clients.length} client${clients.length === 1 ? "" : "s"} in directory`}
+        lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
+        onRefresh={() => refetch()}
+      >
         {canEdit && (
           <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" /><span className="hidden sm:inline">Add Client</span><span className="sm:hidden">Add</span></Button>
         )}

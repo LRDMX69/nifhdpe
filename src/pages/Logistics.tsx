@@ -74,7 +74,7 @@ const Logistics = () => {
   const [destLat, setDestLat] = useState("");
   const [destLng, setDestLng] = useState("");
 
-  const { data: deliveries = [], isLoading, error, refetch } = useQuery({
+  const { data: deliveries = [], isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["deliveries", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -283,7 +283,13 @@ const Logistics = () => {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
-      <PageHeader title="Logistics & Fleet" description="Delivery scheduling, vehicle tracking, and fuel logs">
+      <PageHeader
+        title="Logistics & Fleet"
+        description="Delivery scheduling, vehicle tracking, and fuel logs"
+        executiveSummary={`${deliveries.filter((d: any) => d.status === "in_transit").length} in transit · ${deliveries.filter((d: any) => d.status === "delivered").length} delivered · ${vehicles.length} vehicles`}
+        lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
+        onRefresh={() => refetch()}
+      >
         <Button size="sm" onClick={() => setWaybillOpen(true)}>
           <FileText className="h-4 w-4 mr-1" />New Waybill
         </Button>

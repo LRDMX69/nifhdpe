@@ -44,7 +44,7 @@ const BOQ = () => {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", project_id: "" });
 
-  const { data: boqs = [], isLoading, error, refetch } = useQuery({
+  const { data: boqs = [], isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["boqs", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -100,7 +100,13 @@ const BOQ = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Bills of Quantity" description="Itemised project quantities and rates with running totals.">
+      <PageHeader
+        title="Bills of Quantity"
+        description="Itemised project quantities and rates with running totals."
+        executiveSummary={`${boqs.length} BOQ${boqs.length === 1 ? "" : "s"} · ${boqs.filter((b: any) => b.status === "approved").length} approved`}
+        lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
+        onRefresh={() => refetch()}
+      >
         {canEdit && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>

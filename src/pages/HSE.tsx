@@ -80,7 +80,7 @@ const HSE = () => {
     onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
-  const { data: incidents = [], isLoading: incidentsLoading, error: incidentsError, refetch: refetchIncidents } = useQuery({
+  const { data: incidents = [], isLoading: incidentsLoading, error: incidentsError, refetch: refetchIncidents, dataUpdatedAt: incidentsUpdatedAt } = useQuery({
     queryKey: ["hse-incidents", orgId],
     queryFn: async () => {
       const { data } = await supabase.from("hse_incidents").select("*").order("incident_date", { ascending: false });
@@ -100,7 +100,13 @@ const HSE = () => {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
-      <PageHeader title="Health, Safety & Environment" description="Monitor site safety, report incidents, and manage toolbox talks" />
+      <PageHeader
+        title="Health, Safety & Environment"
+        description="Monitor site safety, report incidents, and manage toolbox talks"
+        executiveSummary={`${incidents.filter((i: any) => i.status !== "closed").length} open incidents · ${tbts.length} toolbox talks logged`}
+        lastUpdated={incidentsUpdatedAt ? new Date(incidentsUpdatedAt) : null}
+        onRefresh={() => { refetchIncidents(); refetchTbts(); }}
+      />
 
       <Tabs defaultValue="incidents" className="space-y-4">
         <TabsList>

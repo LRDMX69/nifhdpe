@@ -54,7 +54,7 @@ const KnowledgeBase = () => {
 
   const containerRef = useGsapAnimation("slideUp");
 
-  const { data: articles = [], isLoading, error, refetch } = useQuery({
+  const { data: articles = [], isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["knowledge-articles", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -142,7 +142,13 @@ const KnowledgeBase = () => {
 
   return (
     <div ref={containerRef} className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
-      <PageHeader title="Knowledge Base" description="SOPs, procedures, and technical reference library">
+      <PageHeader
+        title="Knowledge Base"
+        description="SOPs, procedures, and technical reference library"
+        executiveSummary={`${articles.length} article${articles.length === 1 ? "" : "s"} available`}
+        lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
+        onRefresh={() => refetch()}
+      >
         {canEdit && (
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>

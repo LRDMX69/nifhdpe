@@ -218,7 +218,11 @@ const AppSettings = () => {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto">
-      <PageHeader title="Settings" description="Organization and user settings" />
+      <PageHeader
+        title="Settings"
+        description="Organization and user settings"
+        executiveSummary={`${teamMembers.length} active team members · ${pendingRoleRequests.length} pending role requests`}
+      />
 
       <WorkflowBanner
         storageKey="settings"
