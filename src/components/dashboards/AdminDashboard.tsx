@@ -20,7 +20,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
 import { CheckInWidget } from "@/components/CheckInWidget";
 import { IntelligenceFeed } from "@/components/dashboards/IntelligenceFeed";
-import { PrintRequestsInbox } from "@/components/print/PrintRequestDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useExecutiveFinancials } from "@/hooks/useExecutiveFinancials";
 import { 
@@ -739,17 +738,6 @@ const AdminDashboard = () => {
 
             <IntelligenceFeed />
           </div>
-
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Printer className="h-5 w-5 text-primary" /> Print Requests
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PrintRequestsInbox />
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>

@@ -17,7 +17,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Database } from "@/integrations/supabase/types";
-import { PrintRequestButton } from "@/components/print/PrintRequestButton";
 import { ContextMessages } from "@/components/messaging/ContextMessages";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
@@ -574,11 +573,6 @@ const FieldReports = () => {
                   stampType: "general",
                 });
               }}><Printer className="h-4 w-4 mr-1" />PDF</Button>
-              <PrintRequestButton
-                documentTitle={`Field Report - ${new Date().toLocaleDateString()}`}
-                documentType="field_report"
-                documentContent={structuredReport ? cleanMarkdown(structuredReport) : ""}
-              />
               <Button size="sm" variant="outline" onClick={() => setStructuredReport(null)}>Close</Button>
             </div>
           </CardContent>
@@ -660,14 +654,6 @@ const FieldReports = () => {
                   stampType: "general",
                 });
               }}><Printer className="h-4 w-4 mr-1" />Print</Button>
-              <PrintRequestButton
-                documentTitle={`Report: ${viewingReport.projects?.name ?? "General"} — ${viewingReport.report_date}`}
-                documentType="field_report"
-                documentId={viewingReport.id}
-                documentContent={viewingReport.structured_reports?.[0]?.structured_content
-                  ? cleanMarkdown(viewingReport.structured_reports[0].structured_content)
-                  : viewingReport.tasks_completed}
-              />
               <Button size="sm" variant="outline" onClick={() => setViewingReport(null)}>Close</Button>
             </div>
             {memberships[0]?.organization_id && (
