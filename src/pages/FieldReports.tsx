@@ -204,7 +204,7 @@ const FieldReports = () => {
   const { data: projects = [] } = useQuery({
     queryKey: ["projects-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("projects").select("id, name").order("name");
+      const { data } = await supabase.from("projects").select("id, name, status, team_member_ids").order("name");
       return data ?? [];
     },
   });
@@ -671,7 +671,11 @@ const FieldReports = () => {
         {[
           { label: "Reports Today", value: String((reports as FieldReportWithRelations[]).filter((r) => r.report_date === new Date().toISOString().split("T")[0]).length), icon: ClipboardList },
           { label: "This Week", value: String(reports.length), icon: Calendar },
-          { label: "Active Crews", value: "—", icon: Users },
+          { label: "Active Crews", value: String(new Set(
+              (projects as Array<{ status: string; team_member_ids?: unknown }>)
+                .filter(p => p.status === "in_progress")
+                .flatMap(p => Array.isArray(p.team_member_ids) ? (p.team_member_ids as string[]) : [])
+            ).size), icon: Users },
           { label: "Incidents", value: String((reports as FieldReportWithRelations[]).filter((r) => r.safety_incidents && r.safety_incidents !== "None").length), icon: AlertTriangle },
         ].map((s) => (
           <Card key={s.label}><CardContent className="p-3 sm:p-4">

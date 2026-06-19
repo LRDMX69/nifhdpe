@@ -50,7 +50,7 @@ const Projects = () => {
   const [deleteTarget, setDeleteTarget] = useState<ProjectItem | null>(null);
   const listRef = useGsapStagger(".gsap-card", 0.06);
   const orgId = memberships[0]?.organization_id;
-  const canEdit = ["administrator", "engineer", "technician", "finance"].includes(activeRole ?? "") || isMaintenance;
+  const canEdit = ["administrator", "engineer"].includes(activeRole ?? "") || isMaintenance;
   const canDelete = activeRole === "administrator" || isMaintenance;
 
   const [newName, setNewName] = useState("");
