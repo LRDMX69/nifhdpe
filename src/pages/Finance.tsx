@@ -199,12 +199,61 @@ const Finance = () => {
 
   const handleLogPayment = async () => {
     if (!payType || !payAmount || !user || !orgId) return;
+    // Three-way-match gate for vendor payments: require PO + GRN unless the user explicitly overrides.
+    if (payType === "vendor" && !editingPayment) {
+      const nameTrim = payVendorName.trim();
+      if (!nameTrim) {
+        toast({
+          title: "Vendor name required",
+          description: "Enter the vendor exactly as it appears on the Purchase Order so we can match the payment.",
+          variant: "destructive",
+        });
+        return;
+      }
+      // Lookup vendor → POs → GRNs
+      const { data: vendorRows } = await supabase
+        .from("vendors")
+        .select("id")
+        .eq("organization_id", orgId)
+        .ilike("name", nameTrim)
+        .limit(1);
+      const vendorId = vendorRows?.[0]?.id;
+      let hasPo = false;
+      let hasGrn = false;
+      if (vendorId) {
+        const { data: poRows } = await supabase
+          .from("purchase_orders")
+          .select("id")
+          .eq("organization_id", orgId)
+          .eq("vendor_id", vendorId);
+        hasPo = !!poRows?.length;
+        if (hasPo) {
+          const poIds = (poRows ?? []).map((p) => p.id);
+          const { data: grnRows } = await supabase
+            .from("goods_received_notes")
+            .select("id")
+            .in("purchase_order_id", poIds);
+          hasGrn = !!grnRows?.length;
+        }
+      }
+      if ((!hasPo || !hasGrn) && !payOverrideMatch) {
+        toast({
+          title: hasPo ? "No goods received yet" : "No matching Purchase Order",
+          description: hasPo
+            ? `A PO exists for "${nameTrim}" but no Goods Received Note has been logged. Record the GRN first, or tick "Pay without three-way match" to proceed.`
+            : `No Purchase Order found for "${nameTrim}". Issue a PO in Procurement first, or tick "Pay without three-way match" to override.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     setSaving(true);
     try {
       const payload: Database["public"]["Tables"]["worker_payments"]["Insert"] = {
         organization_id: orgId, created_by: user.id,
         type: payType as Database["public"]["Enums"]["payment_type"], amount: parseFloat(payAmount),
         description: payDesc || null, date: payDate, user_id: payUserId || null,
+        vendor_name: payType === "vendor" ? (payVendorName.trim() || null) : null,
       };
       if (editingPayment) {
         const { error } = await supabase.from("worker_payments").update(payload as Database["public"]["Tables"]["worker_payments"]["Update"]).eq("id", editingPayment.id);
