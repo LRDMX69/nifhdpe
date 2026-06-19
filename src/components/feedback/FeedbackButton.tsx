@@ -44,14 +44,14 @@ export function FeedbackButton() {
     queryKey: ["my-feedback", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("user_feedback")
         .select("id, category, message, status, admin_reply, admin_replied_at, created_at, page_url")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as Array<{ id: string; category: string; message: string; status: string; admin_reply: string | null; admin_replied_at: string | null; created_at: string; page_url: string | null }>;
     },
     enabled: !!user && open,
   });
@@ -61,7 +61,7 @@ export function FeedbackButton() {
       if (!user || !orgId) throw new Error("Not signed in to an organization");
       const trimmed = message.trim();
       if (trimmed.length < 3) throw new Error("Please write a few words so we can help.");
-      const { error } = await supabase.from("user_feedback").insert({
+      const { error } = await (supabase as any).from("user_feedback").insert({
         user_id: user.id,
         organization_id: orgId,
         category,
