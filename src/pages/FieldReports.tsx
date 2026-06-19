@@ -21,6 +21,7 @@ import { PrintRequestButton } from "@/components/print/PrintRequestButton";
 import { ContextMessages } from "@/components/messaging/ContextMessages";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 
 /** Strip markdown artifacts for clean display */
 const cleanMarkdown = (text: string) =>
@@ -171,7 +172,7 @@ const FieldReports = () => {
   }, [offlineQueue.length]);
 
   // Filter reports based on role & routing
-  const { data: reports = [], refetch } = useQuery({
+  const { data: reports = [], refetch, isLoading: reportsLoading, error: reportsError } = useQuery({
     queryKey: ["field-reports", activeRole],
     queryFn: async () => {
       let query = supabase
@@ -689,18 +690,24 @@ const FieldReports = () => {
         ))}
       </div>
 
-      <div className="space-y-3">
-        {reports.length === 0 && (
-          <EmptyState
-            icon={ClipboardList}
-            title={isAdmin ? "No reports received yet" : "No reports submitted yet"}
-            description={isAdmin
-              ? "Reports appear here the moment a technician or engineer submits one. AI structures the content automatically before it reaches you."
-              : "Tap 'New Report' above. Even rough notes work — the AI cleans and structures everything before it's delivered."}
-            ownedBy={isAdmin ? "Submitted by Technicians and Engineers." : "Submitted by you; structured by AI; reviewed by Engineer or Admin."}
-            action={!isAdmin ? { label: "Submit your first report", onClick: () => setOpen(true) } : undefined}
-          />
-        )}
+      <AsyncBoundary
+        loading={reportsLoading}
+        error={reportsError}
+        onRetry={() => refetch()}
+        isEmpty={reports.length === 0}
+        loadingVariant="list"
+        loadingRows={4}
+        emptyState={{
+          icon: ClipboardList,
+          title: isAdmin ? "No reports received yet" : "No reports submitted yet",
+          description: isAdmin
+            ? "Reports appear here the moment a technician or engineer submits one. AI structures the content automatically before it reaches you."
+            : "Tap 'New Report' above. Even rough notes work — the AI cleans and structures everything before it's delivered.",
+          ownedBy: isAdmin ? "Submitted by Technicians and Engineers." : "Submitted by you; structured by AI; reviewed by Engineer or Admin.",
+          action: !isAdmin ? { label: "Submit your first report", onClick: () => setOpen(true) } : undefined,
+        }}
+      >
+        <div className="space-y-3">
         {(reports as FieldReportWithRelations[]).map((r) => {
           const senderProfile = senderProfiles.get(r.created_by);
           const senderRole = senderRoles.get(r.created_by);
@@ -750,7 +757,8 @@ const FieldReports = () => {
             </Card>
           );
         })}
-      </div>
+        </div>
+      </AsyncBoundary>
     </div>
   );
 };
