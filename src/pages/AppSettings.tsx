@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Building2, Users, Shield, Check, X, Loader2, Camera, Trash2, Ban, UserX, MessageSquare } from "lucide-react";
+import { Building2, Users, Shield, Check, X, Loader2, Camera, Trash2, Ban, UserX, MessageSquare, MapPin } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
@@ -267,6 +267,7 @@ const AppSettings = () => {
               </form>
             </CardContent>
           </Card>
+          {isAdmin && <OfficeCoordinatesCard org={org} orgId={orgId} onSaved={() => queryClient.invalidateQueries({ queryKey: ["organization", orgId] })} />}
         </TabsContent>
 
         <TabsContent value="team" className="space-y-4">
