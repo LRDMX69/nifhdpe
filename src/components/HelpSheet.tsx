@@ -3,7 +3,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
-import { Search, ArrowRight, Command as CommandIcon } from "lucide-react";
+import { Search, ArrowRight, Command as CommandIcon, PlayCircle } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { startTour } from "@/components/GuidedTour";
+import { getRoleTour } from "@/lib/tours";
 
 interface Entry {
   q: string;
@@ -37,6 +40,9 @@ interface Props {
 export const HelpSheet = ({ open, onOpenChange }: Props) => {
   const navigate = useNavigate();
   const [q, setQ] = useState("");
+  const { activeRole, isMaintenance } = useAuth();
+  const role = activeRole ?? (isMaintenance ? "administrator" : undefined);
+  const tour = role ? getRoleTour(role) : undefined;
 
   useEffect(() => { if (!open) setQ(""); }, [open]);
 
@@ -60,6 +66,18 @@ export const HelpSheet = ({ open, onOpenChange }: Props) => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search e.g. invoice, waybill, claim…" className="pl-9" value={q} onChange={e => setQ(e.target.value)} />
         </div>
+
+        {tour && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3 w-full justify-start gap-2"
+            onClick={() => { onOpenChange(false); startTour(role!); }}
+          >
+            <PlayCircle className="h-4 w-4 text-primary" />
+            Replay {tour.label}
+          </Button>
+        )}
 
         <div className="mt-4 space-y-3 pb-8">
           {matches.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">Nothing matched. Try another keyword.</p>}
