@@ -334,7 +334,7 @@ const HSE = () => {
                           <h3 className="font-bold text-sm">{t.topic}</h3>
                           <span className="text-[10px] text-muted-foreground">{t.conducted_at}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">Conducted by: {t.conducted_by?.slice(0, 8) ?? "—"}</p>
+                        <p className="text-xs text-muted-foreground">Conducted by: {orgMembers.find((m) => m.user_id === t.conducted_by)?.full_name ?? "—"}</p>
                         <div className="flex items-center gap-2 pt-2 border-t">
                           <Users className="h-3 w-3 text-muted-foreground" />
                           <span className="text-xs">{Array.isArray(t.attendees) ? t.attendees.length : 0} Attendees</span>
