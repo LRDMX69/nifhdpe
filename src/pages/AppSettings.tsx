@@ -19,6 +19,48 @@ import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 import { FeedbackInbox } from "@/components/feedback/FeedbackInbox";
 import { humanizeError } from "@/lib/humanizeError";
+import { isPasswordPwned } from "@/lib/hibp";
+
+function ChangePasswordCard() {
+  const { toast } = useToast();
+  const [pw, setPw] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pw.length < 6) return toast({ title: "Password too short", description: "Minimum 6 characters.", variant: "destructive" });
+    if (pw !== confirm) return toast({ title: "Passwords don't match", variant: "destructive" });
+    setBusy(true);
+    try {
+      if (await isPasswordPwned(pw)) {
+        toast({ title: "Insecure password", description: "This password appears in known breaches. Choose another.", variant: "destructive" });
+        return;
+      }
+      const { error } = await supabase.auth.updateUser({ password: pw });
+      if (error) throw error;
+      toast({ title: "Password updated" });
+      setPw(""); setConfirm("");
+    } catch (err) {
+      toast({ title: "Update failed", description: humanizeError(err as Error), variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className="border-border/50">
+      <CardHeader><CardTitle className="text-base">Change Password</CardTitle><CardDescription>Use a strong, unique password. We check it against known breaches.</CardDescription></CardHeader>
+      <CardContent>
+        <form className="grid grid-cols-1 sm:grid-cols-2 gap-4" onSubmit={submit}>
+          <div className="space-y-2"><Label>New password</Label><Input type="password" value={pw} onChange={(e) => setPw(e.target.value)} minLength={6} required /></div>
+          <div className="space-y-2"><Label>Confirm</Label><Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} minLength={6} required /></div>
+          <div className="sm:col-span-2"><Button type="submit" disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Update password"}</Button></div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
 
 function OfficeCoordinatesCard({ org, orgId, onSaved }: { org: { office_lat?: number | null; office_lng?: number | null } | null | undefined; orgId: string | undefined; onSaved: () => void }) {
   const { toast } = useToast();
@@ -310,7 +352,7 @@ const AppSettings = () => {
         steps={[
           { actor: "Administrator", action: "updates company details and the organization logo — both appear on every PDF, ID card and the splash screen." },
           { actor: "Administrator", action: "assigns roles to team members (max 2 Admins). Pending users see the Awaiting Role screen until approved." },
-          { actor: "You", action: "manage your own profile, avatar and security (password, MFA) in the Profile tab." },
+          { actor: "You", action: "manage your own profile, avatar and password in the Profile tab." },
         ]}
       />
 
@@ -533,6 +575,7 @@ const AppSettings = () => {
               </form>
             </CardContent>
           </Card>
+          <ChangePasswordCard />
         </TabsContent>
 
         {isAdmin && (

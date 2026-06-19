@@ -44,7 +44,6 @@ interface AuthContextType {
   accessResolved: boolean;
   hasPendingRoleRequest: boolean;
   isMaintenance: boolean;
-  isMfaEnabled: boolean;
   authError: string | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string, requestedRoles: string[]) => Promise<{ error: Error | null }>;
@@ -86,7 +85,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accessResolved, setAccessResolved] = useState(false);
   const [hasPendingRoleRequest, setHasPendingRoleRequest] = useState(false);
   const [isMaintenance, setIsMaintenance] = useState(false);
-  const [isMfaEnabled, setIsMfaEnabled] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const activeOrgRef = useRef<string | null>(null);
   const hydratedSessionKeyRef = useRef<string | null>(null);
@@ -109,7 +107,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     applyAccessSnapshot(EMPTY_ACCESS);
     setSession(null);
     setUser(null);
-    setIsMfaEnabled(false);
     activeOrgRef.current = null;
   }, [applyAccessSnapshot]);
 
@@ -363,13 +360,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       applyAccessSnapshot(snapshot);
 
-      try {
-        const { data: factors } = await supabase.auth.mfa.listFactors();
-        setIsMfaEnabled(factors?.all.some((factor) => factor.status === "verified") ?? false);
-      } catch (error) {
-        logger.error("MFA listFactors failed", error);
-      }
-
       hydratedSessionKeyRef.current = sessionKey;
     } catch (error) {
       logger.error("Error hydrating session:", error);
@@ -483,7 +473,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         accessResolved,
         hasPendingRoleRequest,
         isMaintenance,
-        isMfaEnabled,
         authError,
         signIn,
         signUp,
