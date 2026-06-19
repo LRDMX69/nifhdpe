@@ -673,7 +673,23 @@ const HR = () => {
 
         {/* LEAVES TAB */}
         <TabsContent value="leaves"><Card className="border-border/50"><CardHeader><CardTitle className="text-base flex items-center gap-2"><CalendarDays className="h-5 w-5 text-warning" /> Leave Requests</CardTitle></CardHeader><CardContent>
-          {leaveRequests.length > 0 ? (<div className="space-y-2">{leaveRequests.map((l) => {
+          <AsyncBoundary
+            loading={leavesLoading}
+            error={leavesError}
+            onRetry={() => refetchLeaves()}
+            isEmpty={leaveRequests.length === 0}
+            loadingVariant="list"
+            loadingRows={3}
+            emptyState={{
+              compact: true,
+              icon: CalendarDays,
+              title: isHrOrAdmin ? "No leave requests submitted" : "You haven't requested any leave",
+              description: isHrOrAdmin ? "Requests appear here as soon as employees submit them. You'll be able to approve or reject from this view." : "Tap 'Request Leave' above to submit annual, sick, emergency, maternity, or unpaid leave. HR will review and update the status.",
+              ownedBy: isHrOrAdmin ? "Employees submit, HR approves." : "Submitted by you; reviewed by HR.",
+              action: isHrOrAdmin ? undefined : { label: "Request Leave", onClick: () => setLeaveOpen(true) },
+            }}
+          >
+            <div className="space-y-2">{leaveRequests.map((l) => {
             const requesterName = profileMap.get(l.user_id)?.full_name;
             return (<div key={l.id} className="flex items-center justify-between py-3 px-3 rounded-lg bg-muted/30 gap-2 flex-wrap">
               <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="text-sm capitalize font-medium">{l.leave_type} leave</p>{isHrOrAdmin && requesterName && <span className="text-xs text-muted-foreground">— {requesterName}</span>}</div><p className="text-xs text-muted-foreground">{l.start_date} → {l.end_date}</p>{l.reason && <p className="text-xs text-muted-foreground mt-1">{l.reason}</p>}</div>
@@ -682,16 +698,8 @@ const HR = () => {
                 <Badge variant="outline" className={`text-[10px] capitalize ${l.status === "approved" ? "text-primary" : l.status === "rejected" ? "text-destructive" : "text-warning"}`}>{l.status}</Badge>
               </div>
             </div>);
-          })}</div>) : (
-            <EmptyState
-              compact
-              icon={CalendarDays}
-              title={isHrOrAdmin ? "No leave requests submitted" : "You haven't requested any leave"}
-              description={isHrOrAdmin ? "Requests appear here as soon as employees submit them. You'll be able to approve or reject from this view." : "Tap 'Request Leave' above to submit annual, sick, emergency, maternity, or unpaid leave. HR will review and update the status."}
-              ownedBy={isHrOrAdmin ? "Employees submit, HR approves." : "Submitted by you; reviewed by HR."}
-              action={isHrOrAdmin ? undefined : { label: "Request Leave", onClick: () => setLeaveOpen(true) }}
-            />
-          )}
+            })}</div>
+          </AsyncBoundary>
         </CardContent></Card></TabsContent>
 
         {/* PAYROLL TAB */}
