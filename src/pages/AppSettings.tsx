@@ -448,6 +448,20 @@ const AppSettings = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="feedback" className="space-y-4">
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle className="text-base">User Feedback</CardTitle>
+                <CardDescription>Bugs, ideas and questions sent from across the app. Reply to close the loop with your team.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FeedbackInbox />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
