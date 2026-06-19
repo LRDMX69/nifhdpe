@@ -320,6 +320,7 @@ const Quotations = () => {
           ],
         },
         stampType: q.status === "accepted" ? "admin" : null,
+        watermark: q.status === "accepted" ? "FINAL" : "DRAFT",
       });
     } else {
       // Lump sum or no items
@@ -327,6 +328,7 @@ const Quotations = () => {
         title: `Quotation ${q.quotation_number}`,
         content: `Client: ${q.clients?.name ?? "N/A"}\nTotal Amount: ${formatCurrency(q.total_amount ?? 0)}\nStatus: ${q.status}\nPipe Type: ${q.pipe_type ?? "N/A"}\nDate: ${new Date(q.created_at).toLocaleDateString()}${q.notes ? `\n\nNotes:\n${q.notes}` : ""}`,
         stampType: q.status === "accepted" ? "admin" : null,
+        watermark: q.status === "accepted" ? "FINAL" : "DRAFT",
       });
     }
   };
