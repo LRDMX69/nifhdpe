@@ -105,7 +105,7 @@ const Finance = () => {
     enabled: !!orgId,
   });
 
-  const { data: payments = [], refetch: refetchPayments, isLoading: paymentsLoading, error: paymentsError } = useQuery({
+  const { data: payments = [], refetch: refetchPayments, isLoading: paymentsLoading, error: paymentsError, dataUpdatedAt: paymentsUpdatedAt } = useQuery({
     queryKey: ["worker-payments", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -125,7 +125,7 @@ const Finance = () => {
     enabled: !!orgId,
   });
 
-  const { data: invoices = [], refetch: refetchInvoices, isLoading: invoicesLoading, error: invoicesError } = useQuery({
+  const { data: invoices = [], refetch: refetchInvoices, isLoading: invoicesLoading, error: invoicesError, dataUpdatedAt: invoicesUpdatedAt } = useQuery({
     queryKey: ["invoices", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -349,7 +349,13 @@ const Finance = () => {
 
   return (
     <div ref={containerRef} className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
-      <PageHeader title="Finance" description="Revenue, expenses, payments, and profit tracking">
+      <PageHeader
+        title="Finance"
+        description="Revenue, expenses, payments, and profit tracking"
+        executiveSummary={`${invoices.filter((i: any) => i.status !== "paid").length} unpaid invoices · ${payments.length} recent payments tracked`}
+        lastUpdated={Math.max(invoicesUpdatedAt || 0, paymentsUpdatedAt || 0) || null}
+        onRefresh={() => { refetchInvoices(); refetchPayments(); refetchExpenses(); refetchReceipts(); }}
+      >
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={handleExportReport}><FileDown className="h-4 w-4 mr-1" />Export PDF</Button>
           <Button size="sm" onClick={() => { setActiveTab("invoices"); const next = new URLSearchParams(searchParams); next.set("tab", "invoices"); setSearchParams(next, { replace: true }); setInvoiceOpen(true); }}>

@@ -67,7 +67,7 @@ const Inventory = () => {
   const [boxLabel, setBoxLabel] = useState("");
   const [boxLocId, setBoxLocId] = useState("");
 
-  const { data: inventory = [], isLoading, error, refetch } = useQuery({
+  const { data: inventory = [], isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["inventory", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -205,7 +205,13 @@ const Inventory = () => {
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <PageHeader title="Inventory" description="Track pipe and fittings stock">
+      <PageHeader
+        title="Inventory"
+        description="Track pipe and fittings stock"
+        executiveSummary={`${inventory.length} SKUs tracked · ${inventory.filter((i: any) => Number(i.quantity_in_stock) <= Number(i.reorder_level ?? 0)).length} below reorder level`}
+        lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
+        onRefresh={() => { refetch(); refetchLocs(); refetchBoxes(); }}
+      >
         <div className="flex gap-2 flex-wrap">
           {canEdit && (
             <>

@@ -171,7 +171,7 @@ const FieldReports = () => {
   }, [offlineQueue.length]);
 
   // Filter reports based on role & routing
-  const { data: reports = [], refetch, isLoading: reportsLoading, error: reportsError } = useQuery({
+  const { data: reports = [], refetch, isLoading: reportsLoading, error: reportsError, dataUpdatedAt } = useQuery({
     queryKey: ["field-reports", activeRole],
     queryFn: async () => {
       let query = supabase
@@ -400,6 +400,9 @@ const FieldReports = () => {
       <PageHeader
         title={isAdmin ? "Reports Inbox" : "Field Reports"}
         description={isAdmin ? "Review structured field reports from your team" : isTechnician ? "Submit your daily work report — AI handles the rest" : "Daily work reports, pressure tests, and site documentation"}
+        executiveSummary={`${reports.length} reports on file · ${reports.filter((r: any) => r.status === "pending_review" || r.status === "submitted").length} awaiting review`}
+        lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
+        onRefresh={() => refetch()}
       >
         {/* Admin does NOT see submit button */}
         {!isAdmin && (

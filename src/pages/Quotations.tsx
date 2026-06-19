@@ -61,7 +61,7 @@ const Quotations = () => {
   const [invoicePrompt, setInvoicePrompt] = useState<DbQuotation | null>(null);
   const listRef = useGsapStagger(".gsap-card", 0.06);
 
-  const { data: quotations = [], isLoading, error, refetch } = useQuery({
+  const { data: quotations = [], isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["quotations", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -337,7 +337,13 @@ const Quotations = () => {
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <PageHeader title="Quotations" description="Create and manage pipe quotations">
+      <PageHeader
+        title="Quotations"
+        description="Create and manage pipe quotations"
+        executiveSummary={`${quotations.filter((q) => q.status === "sent").length} awaiting client · ${quotations.filter((q) => q.status === "accepted").length} accepted of ${quotations.length}`}
+        lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
+        onRefresh={() => refetch()}
+      >
         {canEdit && (
           <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
             <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Quotation</Button></DialogTrigger>

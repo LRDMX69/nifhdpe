@@ -23,7 +23,7 @@ const Analytics = () => {
   const orgId = memberships[0]?.organization_id;
   const statsRef = useGsapStagger(".gsap-card", 0.08);
 
-  const { data: payments = [], isLoading: loadingPayments } = useQuery({
+  const { data: payments = [], isLoading: loadingPayments, dataUpdatedAt: paymentsUpdatedAt, refetch: refetchPayments } = useQuery({
     queryKey: ["analytics-payments", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -136,7 +136,13 @@ const Analytics = () => {
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <PageHeader title="Analytics" description="Live business insights from your data" />
+      <PageHeader
+        title="Analytics"
+        description="Live business insights from your data"
+        executiveSummary={`${quotations.filter((q: any) => q.status === "accepted").length} accepted quotes feeding pipeline · ${inventory.length} inventory SKUs in scope`}
+        lastUpdated={paymentsUpdatedAt ? new Date(paymentsUpdatedAt) : null}
+        onRefresh={() => refetchPayments()}
+      />
 
       <div ref={statsRef} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {summaryStats.map((s) => (
