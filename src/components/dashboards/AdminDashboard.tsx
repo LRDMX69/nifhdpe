@@ -52,7 +52,7 @@ const AdminDashboard = () => {
     queryKey: ["ceo-project-health", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("projects").select("id, name, status, budget, start_date").eq("organization_id", orgId);
+      const { data } = await supabase.from("projects").select("id, name, status, budget, start_date, end_date").eq("organization_id", orgId);
       return data || [];
     },
     enabled: !!orgId
