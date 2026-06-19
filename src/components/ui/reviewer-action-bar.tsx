@@ -47,7 +47,8 @@ export function ReviewerActionBar({
   return (
     <Card
       className={cn(
-        "sticky bottom-0 md:bottom-4 z-20 p-3 shadow-lg border-primary/20 bg-card/95 backdrop-blur",
+        "sticky bottom-16 md:bottom-4 z-20 p-3 shadow-lg border-primary/20 bg-card/95 backdrop-blur",
+        "[padding-bottom:calc(0.75rem+env(safe-area-inset-bottom))]",
         className,
       )}
     >
