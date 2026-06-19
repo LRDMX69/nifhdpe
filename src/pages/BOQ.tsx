@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Loader2, ArrowLeft, FileSpreadsheet } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as supa } from "@/integrations/supabase/client";
+const supabase = supa as any;
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -127,7 +128,7 @@ const BOQ = () => {
         )}
       </PageHeader>
 
-      <AsyncBoundary isLoading={isLoading} error={error} isEmpty={boqs.length === 0} emptyMessage="No BOQs yet. Create one to begin.">
+      <AsyncBoundary loading={isLoading} error={error} isEmpty={boqs.length === 0} emptyState={{ title: "No BOQs yet", description: "Create one to begin." }}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {boqs.map((b) => (
             <Card key={b.id} className="cursor-pointer hover:border-primary transition-colors" onClick={() => setSelected(b)}>
@@ -255,7 +256,7 @@ const BoqDetail = ({ boq, onBack, canEdit }: { boq: Boq; onBack: () => void; can
         </Card>
       )}
 
-      <AsyncBoundary isLoading={isLoading} error={error} isEmpty={items.length === 0} emptyMessage="No line items yet.">
+      <AsyncBoundary loading={isLoading} error={error} isEmpty={items.length === 0} emptyState={{ title: "No line items yet", description: "Add the first BOQ line above." }}>
         <Card>
           <CardContent className="p-0 overflow-x-auto">
             <table className="w-full text-sm">
