@@ -186,8 +186,8 @@ async function logUsage(
       function_name: functionName || "callAI",
       success,
       tokens_estimate: tokensEstimate,
-      error: error || null,
     });
+    void error;
   } catch (e) {
     logger.warn("ai_usage_logs insert failed:", e);
   }

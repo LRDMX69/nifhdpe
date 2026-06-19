@@ -89,6 +89,7 @@ Only include entries where risk_score >= 30. Valid JSON only, no markdown.`;
     const aiResult = await callAI(
       "You are a security AI that analyzes workplace messages for fraud, coercion, and policy violations. Return only valid JSON arrays.",
       aiPrompt,
+      { organizationId: organization_id, functionName: "message-moderation" },
     );
 
     if (!aiResult.ok) {
