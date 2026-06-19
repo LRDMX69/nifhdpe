@@ -28,6 +28,7 @@ import {
   ResponsiveContainer, CartesianGrid
 } from "recharts";
 import type { Database } from "@/integrations/supabase/types";
+import { humanizeError } from "@/lib/humanizeError";
 
 type SummaryRow = Database["public"]["Tables"]["ai_summaries"]["Row"];
 type EquipReqRow = Database["public"]["Tables"]["equipment_requests"]["Row"] & { profiles: { full_name: string } | null; equipment: { name: string } | null };
@@ -149,7 +150,7 @@ const AdminDashboard = () => {
     },
     onError: (err: unknown) => {
       const error = err as Error;
-      toast({ title: "Scan failed", description: error.message, variant: "destructive" });
+      toast({ title: "Scan failed", description: humanizeError(error), variant: "destructive" });
     },
   });
 

@@ -27,6 +27,7 @@ import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { calculateNigerianSalary, SalaryBreakdown } from "@/lib/payroll";
 import type { Database } from "@/integrations/supabase/types";
+import { humanizeError } from "@/lib/humanizeError";
 
 const HR = () => {
   const { user, memberships, activeRole, isMaintenance } = useAuth();
@@ -234,7 +235,7 @@ const HR = () => {
       if (error) throw error;
     },
     onSuccess: () => { toast({ title: "Leave request submitted" }); setLeaveOpen(false); setStartDate(""); setEndDate(""); setLeaveReason(""); queryClient.invalidateQueries({ queryKey: ["leave-requests"] }); },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const updateLeave = useMutation({
@@ -243,7 +244,7 @@ const HR = () => {
       if (error) throw error;
     },
     onSuccess: (_, { status }) => { toast({ title: `Leave ${status}` }); queryClient.invalidateQueries({ queryKey: ["leave-requests"] }); },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const submitRecruitment = useMutation({
@@ -259,7 +260,7 @@ const HR = () => {
       }
     },
     onSuccess: () => { toast({ title: editingRecruit ? "Updated" : "Added" }); setRecruitOpen(false); setEditingRecruit(null); setRecruitTitle(""); setRecruitDept(""); setCandidateName(""); setCandidateEmail(""); setCandidatePhone(""); queryClient.invalidateQueries({ queryKey: ["recruitment"] }); },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const submitTraining = useMutation({
@@ -275,7 +276,7 @@ const HR = () => {
       }
     },
     onSuccess: () => { toast({ title: editingTraining ? "Updated" : "Added" }); setTrainingOpen(false); setEditingTraining(null); setTrainingTitle(""); setTrainingUserId(""); setTrainingScore(""); setTrainingNotes(""); queryClient.invalidateQueries({ queryKey: ["training-logs"] }); },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const submitSkill = useMutation({
@@ -291,7 +292,7 @@ const HR = () => {
       }
     },
     onSuccess: () => { toast({ title: editingSkill ? "Updated" : "Added" }); setSkillOpen(false); setEditingSkill(null); setSkillName(""); setSkillUserId(""); setSkillLevel(3); setSkillCertified(false); queryClient.invalidateQueries({ queryKey: ["employee-skills"] }); },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const submitDisciplinary = useMutation({
@@ -307,7 +308,7 @@ const HR = () => {
       }
     },
     onSuccess: () => { toast({ title: editingDisc ? "Updated" : "Added" }); setDiscOpen(false); setEditingDisc(null); setDiscUserId(""); setDiscDescription(""); setDiscAction(""); queryClient.invalidateQueries({ queryKey: ["disciplinary"] }); },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const submitPromotion = useMutation({
@@ -328,7 +329,7 @@ const HR = () => {
       }
     },
     onSuccess: () => { toast({ title: editingPromo ? "Updated" : "Promotion recorded" }); setPromoOpen(false); setEditingPromo(null); setPromoUserId(""); setPromoPrevRole(""); setPromoNewRole(""); setPromoDate(""); setPromoReason(""); queryClient.invalidateQueries({ queryKey: ["promotions"] }); },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const submitPerformance = useMutation({
@@ -350,7 +351,7 @@ const HR = () => {
       }
     },
     onSuccess: () => { toast({ title: editingPerf ? "Performance review updated" : "Performance review added" }); setPerfOpen(false); setEditingPerf(null); setPerfUserId(""); setPerfPeriod(""); setPerfRating(3); setPerfNotes(""); queryClient.invalidateQueries({ queryKey: ["performance-logs"] }); },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const submitSalary = useMutation({
@@ -384,7 +385,7 @@ const HR = () => {
       if (error) throw error;
     },
     onSuccess: () => { toast({ title: "Salary payment recorded with statutory deductions" }); setPayrollOpen(false); setPayUserId(""); setPayAmount(""); setPayDate(""); setPayDesc(""); queryClient.invalidateQueries({ queryKey: ["salary-payments"] }); },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const deleteRecord = useMutation({
@@ -401,7 +402,7 @@ const HR = () => {
       queryClient.invalidateQueries({ queryKey: ["disciplinary"] });
       queryClient.invalidateQueries({ queryKey: ["promotions"] });
     },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const checkedInCount = allAttendance.filter((a: Database["public"]["Tables"]["attendance"]["Row"]) => a.check_in && !a.check_out).length;

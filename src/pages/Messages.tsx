@@ -17,6 +17,7 @@ import { ChatView } from "@/components/messaging/ChatView";
 import type { Database } from "@/integrations/supabase/types";
 import { ConversationList } from "@/components/messaging/ConversationList";
 import { BroadcastView } from "@/components/messaging/BroadcastView";
+import { humanizeError } from "@/lib/humanizeError";
 
 type ViewState = { type: "list" } | { type: "chat"; recipientId: string; recipientName: string; recipientAvatar?: string | null; recipientRole?: string } | { type: "broadcasts" };
 
@@ -215,7 +216,7 @@ const Messages = () => {
       });
       setRecipientId("");
     },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const sendBroadcast = useMutation({
@@ -233,7 +234,7 @@ const Messages = () => {
       setMsgContent(""); setMsgSubject("");
       refetchMessages();
     },
-    onError: (err: { message: string }) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   // Full-height chat view

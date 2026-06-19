@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getAppUrl } from "@/lib/appUrl";
 import gsap from "gsap";
 import nifLogo from "@/assets/nif-logo.png";
+import { humanizeError } from "@/lib/humanizeError";
 
 const Login = () => {
   const { user, loading, signIn, signUp, authError } = useAuth();
@@ -80,7 +81,7 @@ const Login = () => {
 
       const { error } = await signUp(email, password, fullName, selectedRoles);
       if (error) {
-        toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
+        toast({ title: "Sign up failed", description: humanizeError(error), variant: "destructive" });
       } else {
         toast({
           title: "Account created",
@@ -225,7 +226,7 @@ const Login = () => {
                       }
                       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${getAppUrl()}/reset-password` });
                       if (error) {
-                        toast({ title: "Error", description: error.message, variant: "destructive" });
+                        toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
                       } else {
                         toast({ title: "Password reset email sent", description: "Check your inbox for a reset link." });
                       }

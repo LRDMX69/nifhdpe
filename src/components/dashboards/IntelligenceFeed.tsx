@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
+import { humanizeError } from "@/lib/humanizeError";
 
 type IntelligenceLogRow = Database["public"]["Tables"]["ai_intelligence_logs"]["Row"];
 
@@ -50,7 +51,7 @@ export const IntelligenceFeed = () => {
       queryClient.invalidateQueries({ queryKey: ["intelligence-logs"] });
       queryClient.invalidateQueries({ queryKey: ["ai-summary"] });
     },
-    onError: (err: Error) => toast({ title: "Scan failed", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Scan failed", description: humanizeError(err), variant: "destructive" }),
   });
 
   const markReviewed = useMutation({

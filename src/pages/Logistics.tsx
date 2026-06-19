@@ -25,6 +25,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { generateWaybill } from "@/lib/generateWaybill";
 import { WaybillDialog } from "@/components/logistics/WaybillDialog";
 import { useSearchParams } from "react-router-dom";
+import { humanizeError } from "@/lib/humanizeError";
 
 type DeliveryRow = Database["public"]["Tables"]["deliveries"]["Row"] & { projects?: { name: string } | null };
 type VehicleRow = Database["public"]["Tables"]["vehicles"]["Row"];
@@ -177,7 +178,7 @@ const Logistics = () => {
       refetch();
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -255,7 +256,7 @@ const Logistics = () => {
       refetch();
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     }
   };
 
@@ -269,7 +270,7 @@ const Logistics = () => {
       refetch();
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     }
   };
 

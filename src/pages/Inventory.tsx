@@ -21,6 +21,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
+import { humanizeError } from "@/lib/humanizeError";
 
 type InventoryItem = Database["public"]["Tables"]["inventory"]["Row"] & { 
   storage_locations?: { name: string } | null;
@@ -151,7 +152,7 @@ const Inventory = () => {
       refetch();
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -161,7 +162,7 @@ const Inventory = () => {
     e.preventDefault();
     if (!orgId || !locName.trim()) return;
     const { error } = await supabase.from("storage_locations").insert({ organization_id: orgId, name: locName.trim(), description: locDesc || null });
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    if (error) { toast({ title: "Error", description: humanizeError(error), variant: "destructive" }); return; }
     toast({ title: "Location added" });
     setLocName(""); setLocDesc(""); setLocDialogOpen(false); refetchLocs();
   };
@@ -170,7 +171,7 @@ const Inventory = () => {
     e.preventDefault();
     if (!orgId || !boxCode.trim() || !boxLocId) return;
     const { error } = await supabase.from("storage_boxes").insert({ organization_id: orgId, box_code: boxCode.trim(), label: boxLabel || null, location_id: boxLocId });
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    if (error) { toast({ title: "Error", description: humanizeError(error), variant: "destructive" }); return; }
     toast({ title: "Box added" });
     setBoxCode(""); setBoxLabel(""); setBoxLocId(""); setBoxDialogOpen(false); refetchBoxes();
   };
@@ -187,7 +188,7 @@ const Inventory = () => {
     },
     onError: (err: unknown) => {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     },
   });
 

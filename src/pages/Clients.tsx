@@ -18,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
+import { humanizeError } from "@/lib/humanizeError";
 
 type ClientItem = Database["public"]["Tables"]["clients"]["Row"];
 
@@ -93,7 +94,7 @@ const Clients = () => {
       refetch();
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -109,7 +110,7 @@ const Clients = () => {
       refetch();
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     }
   };
 

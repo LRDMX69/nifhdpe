@@ -23,6 +23,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
+import { humanizeError } from "@/lib/humanizeError";
 
 type DbQuotation = Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null, quotation_items?: { count: number }[] };
 type DbQuotationItem = Database["public"]["Tables"]["quotation_items"]["Row"];
@@ -220,7 +221,7 @@ const Quotations = () => {
       refetch();
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     }
   };
 
@@ -272,7 +273,7 @@ const Quotations = () => {
       refetch();
     } catch (err: unknown) {
       const error = err as Error;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     }
   };
 

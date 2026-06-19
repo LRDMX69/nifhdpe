@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { humanizeError } from "@/lib/humanizeError";
 
 /** Haversine distance in meters */
 const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -226,7 +227,7 @@ export const CheckInWidget = () => {
         if (error.code === "23505") {
           toast({ title: "Already checked in", description: "You have already checked in today.", variant: "destructive" });
         } else {
-          toast({ title: "Check-in failed", description: error.message, variant: "destructive" });
+          toast({ title: "Check-in failed", description: humanizeError(error), variant: "destructive" });
         }
       } else {
         toast({ title: "Checked in!", description: `${closest.zone} verified (${Math.round(closest.distance)}m).` });
@@ -237,7 +238,7 @@ export const CheckInWidget = () => {
       if (error.code === 1) {
         toast({ title: "Location required", description: "Please enable GPS/location to check in.", variant: "destructive" });
       } else {
-        toast({ title: "Error", description: error.message || "Unknown error", variant: "destructive" });
+        toast({ title: "Error", description: humanizeError(error) || "Unknown error", variant: "destructive" });
       }
     } finally {
       setLoading(false);
@@ -264,14 +265,14 @@ export const CheckInWidget = () => {
         .update({ check_out: new Date().toISOString() })
         .eq("id", todayAttendance.id);
       if (error) {
-        toast({ title: "Check-out failed", description: error.message, variant: "destructive" });
+        toast({ title: "Check-out failed", description: humanizeError(error), variant: "destructive" });
       } else {
         toast({ title: "Checked out!" });
         refetch();
       }
     } catch (err: unknown) {
       const error = err as { message?: string };
-      toast({ title: "Error", description: error.message || "Unknown error", variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error) || "Unknown error", variant: "destructive" });
     } finally {
       setLoading(false);
     }

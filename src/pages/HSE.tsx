@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import type { Database } from "@/integrations/supabase/types";
+import { humanizeError } from "@/lib/humanizeError";
 
 type IncidentRow = Database["public"]["Tables"]["hse_incidents"]["Row"];
 type TbtRow = Database["public"]["Tables"]["toolbox_talks"]["Row"];
@@ -55,7 +56,7 @@ const HSE = () => {
       setIncidentOpen(false);
       queryClient.invalidateQueries({ queryKey: ["hse-incidents"] });
     },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const createTbt = useMutation({
@@ -76,7 +77,7 @@ const HSE = () => {
       setTbtOpen(false);
       queryClient.invalidateQueries({ queryKey: ["toolbox-talks"] });
     },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const { data: incidents = [], isLoading: incidentsLoading, error: incidentsError, refetch: refetchIncidents } = useQuery({

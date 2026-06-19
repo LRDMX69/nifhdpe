@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
+import { humanizeError } from "@/lib/humanizeError";
 
 type HolidayRow = Database["public"]["Tables"]["holidays"]["Row"];
 
@@ -67,7 +68,7 @@ export const HolidayManager = () => {
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("holidays").delete().eq("id", id);
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     } else {
       toast({ title: "Holiday removed" });
       refetch();

@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { PrintableDocument, cleanForPrint } from "./PrintableDocument";
 import type { Database } from "@/integrations/supabase/types";
+import { humanizeError } from "@/lib/humanizeError";
 
 type PrintRequestRow = Database["public"]["Tables"]["print_requests"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
@@ -56,7 +57,7 @@ export const PrintRequestDialog = ({
       onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: ["print-requests"] });
     },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   return (

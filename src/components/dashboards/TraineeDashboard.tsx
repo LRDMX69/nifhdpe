@@ -14,6 +14,7 @@ import { ROLE_LABELS } from "@/lib/constants";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
+import { humanizeError } from "@/lib/humanizeError";
 
 type ArticleRow = Pick<Database["public"]["Tables"]["knowledge_articles"]["Row"], "id" | "title" | "category" | "created_at">;
 type ReflectionRow = Database["public"]["Tables"]["learning_reflections"]["Row"];
@@ -84,7 +85,7 @@ const TraineeDashboard = () => {
       setReflWeek("");
       queryClient.invalidateQueries({ queryKey: ["learning-reflections"] });
     },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
   const roleLabel = ROLE_LABELS[activeRole ?? ""] ?? "Trainee";
