@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +42,7 @@ const DocumentRegistry = () => {
   const orgId = memberships[0]?.organization_id;
   const [search, setSearch] = useState("");
 
-  const { data: docs = [], isLoading } = useQuery({
+  const { data: docs = [], isLoading, error, refetch } = useQuery({
     queryKey: ["doc-registry", orgId],
     queryFn: async (): Promise<DocRow[]> => {
       if (!orgId) return [];
@@ -158,9 +159,17 @@ const DocumentRegistry = () => {
           ))}
         </TabsList>
 
-        <TabsContent value="all">{isLoading ? <p className="text-center text-muted-foreground py-10 text-sm">Loading…</p> : renderTable(filtered)}</TabsContent>
+        <TabsContent value="all">
+          <AsyncBoundary loading={isLoading} error={error} onRetry={() => refetch()} loadingVariant="table" loadingRows={6} loadingColumns={6}>
+            {renderTable(filtered)}
+          </AsyncBoundary>
+        </TabsContent>
         {Object.keys(TYPE_META).map(k => (
-          <TabsContent key={k} value={k}>{renderTable(grouped[k] ?? [])}</TabsContent>
+          <TabsContent key={k} value={k}>
+            <AsyncBoundary loading={isLoading} error={error} onRetry={() => refetch()} loadingVariant="table" loadingRows={4} loadingColumns={6}>
+              {renderTable(grouped[k] ?? [])}
+            </AsyncBoundary>
+          </TabsContent>
         ))}
       </Tabs>
     </div>
