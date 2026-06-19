@@ -6,6 +6,7 @@
 import { logger } from "./logger.ts";
 // @ts-expect-error npm import resolved by Deno
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { checkSpendCap } from "./spendCap.ts";
 
 export interface AiCallOk {
   ok: true;
@@ -55,6 +56,19 @@ export async function callAI(
     organizationId,
     functionName,
   } = opts;
+
+  // Enforce per-org monthly token cap before spending any credits.
+  if (organizationId) {
+    const cap = await checkSpendCap(organizationId);
+    if (!cap.allowed) {
+      return {
+        ok: false,
+        status: 402,
+        error: `Monthly AI spend cap reached (${cap.used}/${cap.cap} tokens).`,
+        retryable: false,
+      };
+    }
+  }
 
   // @ts-expect-error Deno global
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
