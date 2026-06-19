@@ -44,22 +44,46 @@ export const ProjectPnL = ({ projectId, projectBudget }: ProjectPnLProps) => {
         }, 0) || 0;
       }
 
-      // 4. Labor Cost (Roll-up from attendance)
-      // This is an estimate: Days worked * Average daily rate (e.g., 5000 NGN)
-      // In a real system, we'd use the user's specific salary rate.
-      const { data: project } = await supabase.from("projects").select("team_member_ids").eq("id", projectId).single();
+      // 4. Labor Cost — sum each team member's (basic + housing + transport + other) / 22 working days
+      //    × number of days they were present during the project window. No hardcoded rates.
+      const { data: project } = await supabase
+        .from("projects")
+        .select("team_member_ids, start_date, end_date")
+        .eq("id", projectId)
+        .single();
       const teamIds = (project?.team_member_ids as unknown as string[]) || [];
-      
+      const projStart = (project as { start_date?: string } | null)?.start_date;
+      const projEnd = (project as { end_date?: string } | null)?.end_date;
+
       let totalLaborCost = 0;
       if (teamIds.length > 0) {
-        const { data: attendance } = await supabase
+        const { data: salaries } = await supabase
+          .from("profiles")
+          .select("user_id, basic_salary, housing_allowance, transport_allowance, other_allowances")
+          .in("user_id", teamIds);
+        const rateByUser = new Map<string, number>();
+        (salaries || []).forEach((p) => {
+          const monthly =
+            Number(p.basic_salary || 0) +
+            Number(p.housing_allowance || 0) +
+            Number(p.transport_allowance || 0) +
+            Number(p.other_allowances || 0);
+          rateByUser.set(p.user_id, monthly / 22); // 22 working days/month
+        });
+
+        let attQuery = supabase
           .from("attendance")
-          .select("id")
+          .select("user_id, date")
           .in("user_id", teamIds)
-          .eq("status", "present"); // Assuming attendance is filtered for this project somehow, or we just count all attendance for team during project period
-        
-        const avgDailyRate = 5000; // Placeholder for Nigerian tech daily rate
-        totalLaborCost = (attendance?.length || 0) * avgDailyRate;
+          .eq("status", "present");
+        if (projStart) attQuery = attQuery.gte("date", projStart);
+        if (projEnd) attQuery = attQuery.lte("date", projEnd);
+        const { data: attendance } = await attQuery;
+
+        totalLaborCost = (attendance || []).reduce(
+          (s, a) => s + (rateByUser.get(a.user_id as string) || 0),
+          0,
+        );
       }
 
       const totalCosts = totalDirectExpenses + totalMaterialCost + totalLaborCost;
