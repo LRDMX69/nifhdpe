@@ -57,6 +57,7 @@ const Quotations = () => {
   const [lumpSumAmount, setLumpSumAmount] = useState("");
   const [lumpSumDesc, setLumpSumDesc] = useState("");
   const [editingQuotation, setEditingQuotation] = useState<DbQuotation | null>(null);
+  const [invoicePrompt, setInvoicePrompt] = useState<DbQuotation | null>(null);
   const listRef = useGsapStagger(".gsap-card", 0.06);
 
   const { data: quotations = [], isLoading, error, refetch } = useQuery({
@@ -213,12 +214,7 @@ const Quotations = () => {
       // If status is accepted, offer to create invoice
       if (status === "accepted") {
         const q = quotations.find(q => q.id === id);
-        if (q) {
-          const createInv = window.confirm("Quotation accepted! Would you like to generate an Invoice for this client?");
-          if (createInv) {
-            await convertToInvoice(q);
-          }
-        }
+        if (q) setInvoicePrompt(q);
       }
 
       refetch();
