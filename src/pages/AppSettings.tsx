@@ -283,15 +283,35 @@ const AppSettings = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Select value={selectedRoleForUser[u.user_id] ?? ""} onValueChange={v => setSelectedRoleForUser(p => ({ ...p, [u.user_id]: v }))}>
-                        <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="Select role" /></SelectTrigger>
-                        <SelectContent>{ALL_ROLES.map(r => <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>)}</SelectContent>
-                      </Select>
-                      <Button size="sm" className="h-8" disabled={!selectedRoleForUser[u.user_id] || assignRole.isPending} onClick={() => assignRole.mutate({ userId: u.user_id, role: selectedRoleForUser[u.user_id], requestId: pendingRequest?.id })}>
-                        {assignRole.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                      </Button>
-                    </div>
+                     {(() => {
+                       const slots = selectedRolesForUser[u.user_id] ?? { primary: "", secondary: "" };
+                       const primary = slots.primary;
+                       const secondary = slots.secondary;
+                       const canSubmit = !!primary && primary !== secondary;
+                       return (
+                         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                           <Select value={primary} onValueChange={v => setRoleSlot(u.user_id, "primary", v)}>
+                             <SelectTrigger className="w-full sm:w-36 h-8 text-xs"><SelectValue placeholder="Primary role" /></SelectTrigger>
+                             <SelectContent>{ALL_ROLES.map(r => <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>)}</SelectContent>
+                           </Select>
+                           <Select value={secondary || "__none__"} onValueChange={v => setRoleSlot(u.user_id, "secondary", v)}>
+                             <SelectTrigger className="w-full sm:w-40 h-8 text-xs"><SelectValue placeholder="Secondary (optional)" /></SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="__none__">None</SelectItem>
+                               {ALL_ROLES.filter(r => r !== primary).map(r => <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>)}
+                             </SelectContent>
+                           </Select>
+                           <Button
+                             size="sm"
+                             className="h-8"
+                             disabled={!canSubmit || assignRole.isPending}
+                             onClick={() => assignRole.mutate({ userId: u.user_id, roles: [primary, secondary].filter(Boolean), requestId: pendingRequest?.id })}
+                           >
+                             {assignRole.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                           </Button>
+                         </div>
+                       );
+                     })()}
                   </div>
                 )})}
               </CardContent>
