@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Users, ShoppingCart, PackageCheck, ClipboardList, Search, Filter, Loader2, Phone, Mail, MapPin } from "lucide-react";
+import { Plus, Users, ShoppingCart, PackageCheck, ClipboardList, Search, Filter, Loader2, Phone, Mail, MapPin, FileDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
