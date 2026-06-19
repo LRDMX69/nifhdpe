@@ -325,7 +325,9 @@ const WorkerClaims = () => {
           </CardContent>
         </Card>
       );
-    });
+    })}</div>
+      </AsyncBoundary>
+    );
   };
 
   return (
