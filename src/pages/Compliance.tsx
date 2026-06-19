@@ -2,6 +2,7 @@ import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { ShieldCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,7 @@ const Compliance = () => {
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [docStatus, setDocStatus] = useState("pending");
 
-  const { data: docs = [], isLoading, refetch } = useQuery({
+  const { data: docs = [], isLoading, error, refetch } = useQuery({
     queryKey: ["compliance-docs", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -156,8 +157,6 @@ const Compliance = () => {
   const pendingCount = docs.filter(d => d.status === "pending").length;
   const expiredCount = docs.filter(d => d.status === "expired").length;
 
-  if (isLoading) return <div className="p-6 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-
   return (
     <div ref={containerRef} className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
       <PageHeader title="Compliance" description="Certificates, inspections, and regulatory documents">
@@ -237,17 +236,23 @@ const Compliance = () => {
 
       <Card><CardContent className="p-0">
         <div className="overflow-x-auto">
-          {docs.length === 0 ? (
-            <div className="p-6">
-              <EmptyState
-                icon={ShieldCheck}
-                title="No compliance documents yet"
-                description="Upload your pressure test certificates, material certs, regulatory permits and inspection reports here. Expiry tracking starts the moment you set a date."
-                ownedBy="Technical Department & Administrators"
-                action={canEdit ? { label: "Upload first document", onClick: openAdd } : undefined}
-              />
-            </div>
-          ) : (
+          <AsyncBoundary
+            loading={isLoading}
+            error={error}
+            onRetry={() => refetch()}
+            isEmpty={docs.length === 0}
+            loadingVariant="table"
+            loadingRows={5}
+            loadingColumns={5}
+            className="p-6"
+            emptyState={{
+              icon: ShieldCheck,
+              title: "No compliance documents yet",
+              description: "Upload your pressure test certificates, material certs, regulatory permits and inspection reports here. Expiry tracking starts the moment you set a date.",
+              ownedBy: "Technical Department & Administrators",
+              action: canEdit ? { label: "Upload first document", onClick: openAdd } : undefined,
+            }}
+          >
             <Table><TableHeader><TableRow>
               <TableHead>Document</TableHead><TableHead>Type</TableHead><TableHead>Status</TableHead><TableHead>Expiry</TableHead><TableHead className="w-[50px]"></TableHead>
             </TableRow></TableHeader>
@@ -283,7 +288,7 @@ const Compliance = () => {
                 );
               })}
             </TableBody></Table>
-          )}
+          </AsyncBoundary>
         </div>
       </CardContent></Card>
     </div>
