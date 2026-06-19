@@ -19,7 +19,7 @@ export const AppLayout = () => {
           </div>
           {/* Mobile top nav */}
           <MobileNav />
-          <main className="flex-1 overflow-y-auto md:pt-0 pt-14 pb-16 md:pb-0">
+          <main className="flex-1 overflow-y-auto md:pt-0 pt-14 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
             <Outlet />
           </main>
           {/* Mobile bottom nav */}
