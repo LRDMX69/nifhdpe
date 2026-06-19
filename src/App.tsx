@@ -32,6 +32,7 @@ const Messages = lazy(() => import("./pages/Messages"));
 const Procurement = lazy(() => import("./pages/Procurement"));
 const HSE = lazy(() => import("./pages/HSE"));
 const DocumentRegistry = lazy(() => import("./pages/DocumentRegistry"));
+const BOQ = lazy(() => import("./pages/BOQ"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -89,6 +90,7 @@ const App = () => {
                 <Route path="/procurement" element={<Procurement />} />
                 <Route path="/hse" element={<HSE />} />
                 <Route path="/documents" element={<DocumentRegistry />} />
+                <Route path="/boq" element={<BOQ />} />
                 <Route path="/settings" element={<AppSettings />} />
               </Route>
               <Route path="*" element={<NotFound />} />

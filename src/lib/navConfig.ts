@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, FileText, Users, Package, FolderKanban, BarChart3, Calculator,
-  Truck, Settings, ClipboardList, DollarSign, Wrench, ShieldCheck, BookOpen, Target, UserCog, AlertCircle, MessageSquare, ShoppingCart, Receipt,
+  Truck, Settings, ClipboardList, DollarSign, Wrench, ShieldCheck, BookOpen, Target, UserCog, AlertCircle, MessageSquare, ShoppingCart, Receipt, FileSpreadsheet,
 } from "lucide-react";
 
 export interface NavItem {
@@ -57,6 +57,7 @@ export const navItems: NavItem[] = [
   // Marketing
   { label: "Opportunities", icon: Target,          path: "/opportunities", roles: [...ADMIN, ...MARKETING], group: "Marketing" },
   { label: "Quotations",    icon: FileText,        path: "/quotations",    roles: [...ADMIN, ...MARKETING], group: "Marketing" },
+  { label: "BOQ",           icon: FileSpreadsheet, path: "/boq",           roles: [...ADMIN, ...TECHNICAL, ...MARKETING, ...ACCOUNTS], group: "Technical" },
   { label: "Clients",       icon: Users,           path: "/clients",       roles: [...ADMIN, ...MARKETING], group: "Marketing" },
 
   // Logistics
