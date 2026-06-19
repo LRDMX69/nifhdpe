@@ -16,6 +16,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/constants";
 import type { Database } from "@/integrations/supabase/types";
+import { SenderReceiverTabs } from "@/components/ui/sender-receiver-tabs";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Inbox as InboxIcon, FileText } from "lucide-react";
 
 type WorkerClaim = Database["public"]["Tables"]["worker_claims"]["Row"];
 type Profile = { user_id: string; full_name: string | null; avatar_url: string | null };
@@ -231,6 +234,91 @@ const WorkerClaims = () => {
     }
   };
 
+  const isReviewer = isAdmin || isFinance;
+  const myClaims = claims.filter((c: WorkerClaim) => c.user_id === user?.id);
+  const inboxClaims = isReviewer
+    ? claims.filter((c: WorkerClaim) => c.user_id !== user?.id || c.status === "pending" || c.status === "flagged")
+    : [];
+  const inboxPending = inboxClaims.filter((c: WorkerClaim) => c.status === "pending" || c.status === "flagged").length;
+
+  const renderList = (list: WorkerClaim[], emptyKind: "mine" | "inbox") => {
+    if (isLoading) return <p className="text-sm text-muted-foreground">Loading claims...</p>;
+    if (list.length === 0) {
+      return emptyKind === "mine" ? (
+        <EmptyState
+          icon={FileText}
+          title="You haven't submitted any claims yet"
+          description="Use the New Claim button to log an expense, overtime, or operational issue. Attach a receipt or photo as proof — claims without proof cannot be reviewed."
+        />
+      ) : (
+        <EmptyState
+          icon={InboxIcon}
+          title="Inbox is clear"
+          description="No claims are awaiting your review right now. New submissions from field and office staff will appear here automatically."
+        />
+      );
+    }
+    return list.map((c: WorkerClaim) => {
+      const claimProfile = profileMap.get(c.user_id);
+      const claimRole = membershipMap.get(c.user_id);
+      const hasImage = c.file_url && isImageUrl(c.file_url);
+      const showReviewerActions = emptyKind === "inbox" && isReviewer && (c.status === "pending" || c.status === "flagged");
+      return (
+        <Card key={c.id} className={`hover:border-primary/20 transition-colors ${c.status === "flagged" ? "border-orange-500/40 bg-orange-500/5" : ""}`}>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-2 flex-wrap sm:flex-nowrap">
+                <div className="space-y-1 flex-1 min-w-0">
+                  {emptyKind === "inbox" && claimProfile && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <Avatar className="h-7 w-7 shrink-0">
+                        {claimProfile.avatar_url && <AvatarImage src={claimProfile.avatar_url} />}
+                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(claimProfile.full_name)}</AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm font-medium truncate">{claimProfile.full_name}</span>
+                      {claimRole && <Badge variant="outline" className="text-[10px] capitalize shrink-0">{claimRole}</Badge>}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {statusIcons[c.status] || statusIcons.pending}
+                    <span className="font-medium text-sm">{c.category}</span>
+                    <Badge variant="outline" className="text-xs capitalize">{c.claim_type}</Badge>
+                    {c.status === "flagged" && <Badge variant="destructive" className="text-[10px]">⚠ Flagged</Badge>}
+                  </div>
+                  {c.description && <p className="text-sm text-muted-foreground break-words">{c.description}</p>}
+                  <p className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="text-right shrink-0 space-y-1">
+                  {c.amount > 0 && <p className="font-bold text-sm">{formatCurrency(c.amount)}</p>}
+                  <div className="flex gap-1 flex-wrap justify-end">
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleExportClaim(c)}>
+                      <FileDown className="h-3 w-3 mr-1" />PDF
+                    </Button>
+                    {showReviewerActions && (
+                      <>
+                        <Button size="sm" variant="outline" className="h-7 text-xs text-primary" onClick={() => updateClaim.mutate({ id: c.id, status: "approved" })}>
+                          <CheckCircle2 className="h-3 w-3 mr-1" />Approve
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => updateClaim.mutate({ id: c.id, status: "rejected" })}>
+                          <XCircle className="h-3 w-3 mr-1" />Reject
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {hasImage && <ClaimImage path={c.file_url} />}
+              {c.file_url && !hasImage && <ClaimDocumentLink path={c.file_url} />}
+              {!c.file_url && isReviewer && (
+                <p className="text-xs text-destructive flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> No proof attached</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      );
+    });
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-7xl mx-auto">
       <PageHeader title="Claims & Issues" description={isAdmin ? "Review and manage worker claims" : "Submit expenses, overtime, and operational issues"}>
@@ -305,72 +393,13 @@ const WorkerClaims = () => {
         <Card className="border-border/50 shadow-sm col-span-1 xs:col-span-2 md:col-span-1"><CardContent className="p-3 sm:p-4"><p className="text-[10px] sm:text-xs text-muted-foreground font-medium">Approved Total</p><p className="text-xl sm:text-2xl font-bold text-primary truncate">{formatCurrency(totalAmount)}</p></CardContent></Card>
       </div>
 
-      <div className="space-y-3">
-        {isLoading && <p className="text-sm text-muted-foreground">Loading claims...</p>}
-        {claims.length === 0 && !isLoading && (
-          <Card><CardContent className="p-8 text-center text-muted-foreground">No claims yet.</CardContent></Card>
-        )}
-        {claims.map((c: WorkerClaim) => {
-          const claimProfile = profileMap.get(c.user_id);
-          const claimRole = membershipMap.get(c.user_id);
-          const hasImage = c.file_url && isImageUrl(c.file_url);
-          return (
-            <Card key={c.id} className={`hover:border-primary/20 transition-colors ${c.status === "flagged" ? "border-orange-500/40 bg-orange-500/5" : ""}`}>
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-start justify-between gap-2 flex-wrap sm:flex-nowrap">
-                    <div className="space-y-1 flex-1 min-w-0">
-                      {(isAdmin || isFinance) && claimProfile && (
-                        <div className="flex items-center gap-2 mb-2">
-                          <Avatar className="h-7 w-7 shrink-0">
-                            {claimProfile.avatar_url && <AvatarImage src={claimProfile.avatar_url} />}
-                            <AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(claimProfile.full_name)}</AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm font-medium truncate">{claimProfile.full_name}</span>
-                          {claimRole && <Badge variant="outline" className="text-[10px] capitalize shrink-0">{claimRole}</Badge>}
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {statusIcons[c.status] || statusIcons.pending}
-                        <span className="font-medium text-sm">{c.category}</span>
-                        <Badge variant="outline" className="text-xs capitalize">{c.claim_type}</Badge>
-                        {c.status === "flagged" && <Badge variant="destructive" className="text-[10px]">⚠ Flagged</Badge>}
-                      </div>
-                      {c.description && <p className="text-sm text-muted-foreground break-words">{c.description}</p>}
-                      <p className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString()}</p>
-                    </div>
-                    <div className="text-right shrink-0 space-y-1">
-                      {c.amount > 0 && <p className="font-bold text-sm">{formatCurrency(c.amount)}</p>}
-                      <div className="flex gap-1 flex-wrap justify-end">
-                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleExportClaim(c)}>
-                          <FileDown className="h-3 w-3 mr-1" />PDF
-                        </Button>
-                        {(isAdmin || isFinance) && (c.status === "pending" || c.status === "flagged") && (
-                          <>
-                            <Button size="sm" variant="outline" className="h-7 text-xs text-primary" onClick={() => updateClaim.mutate({ id: c.id, status: "approved" })}>
-                              <CheckCircle2 className="h-3 w-3 mr-1" />Approve
-                            </Button>
-                            <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => updateClaim.mutate({ id: c.id, status: "rejected" })}>
-                              <XCircle className="h-3 w-3 mr-1" />Reject
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Inline proof preview */}
-                  {hasImage && <ClaimImage path={c.file_url} />}
-                  {c.file_url && !hasImage && <ClaimDocumentLink path={c.file_url} />}
-                  {!c.file_url && (isAdmin || isFinance) && (
-                    <p className="text-xs text-destructive flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> No proof attached</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <SenderReceiverTabs
+        isReviewer={isReviewer}
+        mineCount={myClaims.length}
+        inboxCount={inboxPending}
+        mineView={<div className="space-y-3">{renderList(myClaims, "mine")}</div>}
+        inboxView={<div className="space-y-3">{renderList(inboxClaims, "inbox")}</div>}
+      />
     </div>
   );
 };
