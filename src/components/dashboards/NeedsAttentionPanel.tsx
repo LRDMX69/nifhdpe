@@ -29,10 +29,18 @@ export function NeedsAttentionPanel() {
     enabled: !!orgId && !!role,
     queryFn: async (): Promise<AttentionItem[]> => {
       const out: AttentionItem[] = [];
+      const client = supabase as unknown as {
+        from: (t: string) => {
+          select: (s: string) => {
+            in: (k: string, v: string[]) => { limit: (n: number) => Promise<{ data: any[] | null }> };
+            eq: (k: string, v: string) => { limit: (n: number) => Promise<{ data: any[] | null }>; eq: (k2: string, v2: string) => { limit: (n: number) => Promise<{ data: any[] | null }> } };
+          };
+        };
+      };
 
       // Reviewer queues
       if (role === "administrator" || role === "finance") {
-        const { data: claims } = await supabase
+        const { data: claims } = await client
           .from("worker_claims")
           .select("id, category, amount, status")
           .in("status", ["pending", "flagged"])
@@ -49,7 +57,7 @@ export function NeedsAttentionPanel() {
       }
 
       if (role === "administrator" || role === "hr") {
-        const { data: leaves } = await supabase
+        const { data: leaves } = await client
           .from("leave_requests")
           .select("id, leave_type, start_date, status")
           .eq("status", "pending")
@@ -66,7 +74,7 @@ export function NeedsAttentionPanel() {
       }
 
       if (role === "administrator" || role === "warehouse") {
-        const { data: reqs } = await supabase
+        const { data: reqs } = await client
           .from("equipment_requests")
           .select("id, reason, status")
           .eq("status", "pending")
@@ -83,7 +91,7 @@ export function NeedsAttentionPanel() {
       }
 
       if (role === "administrator") {
-        const { data: pendingUsers } = await supabase
+        const { data: pendingUsers } = await client
           .from("role_assignment_requests")
           .select("id, status")
           .eq("status", "pending")
@@ -101,7 +109,7 @@ export function NeedsAttentionPanel() {
 
       // Sender-side: status of my own submissions
       if (user) {
-        const { data: myClaims } = await supabase
+        const { data: myClaims } = await client
           .from("worker_claims")
           .select("id, category, status")
           .eq("user_id", user.id)
