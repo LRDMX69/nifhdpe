@@ -94,8 +94,8 @@ const Compliance = () => {
       const filePath = `${orgId}/${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage.from("compliance-docs").upload(filePath, file);
       if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from("compliance-docs").getPublicUrl(filePath);
-      setFileUrl(urlData.publicUrl);
+      // Bucket is private — store the storage path; we mint a signed URL on demand.
+      setFileUrl(filePath);
       toast({ title: "File uploaded" });
     } catch (err: unknown) {
       const error = err as Error;
