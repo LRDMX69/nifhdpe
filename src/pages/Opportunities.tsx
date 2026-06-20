@@ -32,7 +32,8 @@ const statusColors: Record<string, string> = {
 };
 
 const Opportunities = () => {
-  const { user } = useAuth();
+  const { user, memberships } = useAuth();
+  const orgId = memberships[0]?.organization_id;
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("all");
@@ -48,27 +49,33 @@ const Opportunities = () => {
   const [description, setDescription] = useState("");
 
   const { data: opportunities = [], refetch, isLoading: oppsLoading, error: oppsError, dataUpdatedAt } = useQuery({
-    queryKey: ["opportunities"],
+    queryKey: ["opportunities", orgId],
     queryFn: async () => {
+      if (!orgId) return [];
       const { data } = await supabase
         .from("opportunities")
         .select("*")
+        .eq("organization_id", orgId)
         .order("relevance_score", { ascending: false, nullsFirst: false });
       return (data as OpportunityItem[]) ?? [];
     },
+    enabled: !!orgId,
   });
 
   const { data: aiInsights } = useQuery({
-    queryKey: ["ai-insights-opportunities"],
+    queryKey: ["ai-insights-opportunities", orgId],
     queryFn: async () => {
+      if (!orgId) return null;
       const { data } = await supabase
         .from("ai_summaries")
         .select("*")
+        .eq("organization_id", orgId)
         .eq("context", "opportunities")
         .order("created_at", { ascending: false })
         .limit(1);
       return data?.[0] ?? null;
     },
+    enabled: !!orgId,
   });
 
   const filtered = filter === "all" ? opportunities : opportunities.filter((o) => o.status === filter);
