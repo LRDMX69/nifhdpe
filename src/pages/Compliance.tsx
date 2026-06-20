@@ -94,8 +94,8 @@ const Compliance = () => {
       const filePath = `${orgId}/${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage.from("compliance-docs").upload(filePath, file);
       if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from("compliance-docs").getPublicUrl(filePath);
-      setFileUrl(urlData.publicUrl);
+      // Bucket is private — store the storage path; we mint a signed URL on demand.
+      setFileUrl(filePath);
       toast({ title: "File uploaded" });
     } catch (err: unknown) {
       const error = err as Error;
@@ -152,6 +152,22 @@ const Compliance = () => {
       const error = err as Error;
       toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     }
+  };
+
+  const openDocument = async (raw: string | null) => {
+    if (!raw) return;
+    // Backward-compat: if value is already an absolute URL, open as-is.
+    if (/^https?:\/\//i.test(raw)) { window.open(raw, "_blank", "noopener,noreferrer"); return; }
+    // Legacy stored as a public URL containing the bucket path — extract the path.
+    let path = raw;
+    const m = raw.match(/\/storage\/v1\/object\/(?:public|sign)\/compliance-docs\/(.+?)(?:\?|$)/);
+    if (m) path = decodeURIComponent(m[1]);
+    const { data, error } = await supabase.storage.from("compliance-docs").createSignedUrl(path, 60 * 10);
+    if (error || !data?.signedUrl) {
+      toast({ title: "Could not open file", description: humanizeError(error as Error | null) || "Document not found", variant: "destructive" });
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
   const validCount = docs.filter(d => d.status === "valid").length;
@@ -270,7 +286,7 @@ const Compliance = () => {
                   <TableRow key={d.id}>
                     <TableCell className="font-medium text-sm">
                       {d.file_url ? (
-                        <a href={d.file_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{d.title}</a>
+                        <button type="button" onClick={() => openDocument(d.file_url)} className="text-primary hover:underline text-left">{d.title}</button>
                       ) : d.title}
                     </TableCell>
                     <TableCell><Badge variant="outline">{d.doc_type}</Badge></TableCell>
