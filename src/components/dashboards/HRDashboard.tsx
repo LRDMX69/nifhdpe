@@ -1,10 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import { Users, CalendarDays, Award, Clock } from "lucide-react";
+import { CalendarDays, Award, Clock } from "lucide-react";
 import { useGsapFadeUp, useGsapStagger } from "@/hooks/useGsapAnimation";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Skeleton } from "@/components/ui/skeleton";
 
 const HRDashboard = () => {
   const { profile, memberships } = useAuth();
@@ -53,7 +52,7 @@ const HRDashboard = () => {
         .eq("context", "hr")
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       return data;
     },
     enabled: !!orgId,
