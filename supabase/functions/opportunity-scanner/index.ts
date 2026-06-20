@@ -5,6 +5,7 @@ import { logger } from "../_shared/logger.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { validateServiceOrUser } from "../_shared/auth.ts";
 import { isCronOrServiceRequest } from "../_shared/cronAuth.ts";
+import { isAutoModeEnabled, autoModeSkippedResponse } from "../_shared/autoMode.ts";
 
 
 import { callAI, safeExtractJSON } from "../_shared/aiProvider.ts";
@@ -58,6 +59,11 @@ serve(async (req: Request) => {
       const orgs = await dbQuery<{ id: string }>(`SELECT id FROM public.organizations ORDER BY created_at ASC LIMIT 1`);
       if (orgs.length === 0) throw new Error("No organizations found");
       orgId = orgs[0].id;
+    }
+
+    // Auto-Mode gate for cron / service-triggered runs.
+    if (isCronOrService && !(await isAutoModeEnabled(orgId))) {
+      return autoModeSkippedResponse(corsHeaders, orgId);
     }
 
     const existingOpps = await dbQuery<{ title: string }>(
