@@ -5,7 +5,6 @@ import { DollarSign, TrendingUp, AlertTriangle, CreditCard } from "lucide-react"
 import { useGsapFadeUp, useGsapStagger } from "@/hooks/useGsapAnimation";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Skeleton } from "@/components/ui/skeleton";
 
 const FinanceDashboard = () => {
   const { profile, memberships } = useAuth();
@@ -54,7 +53,7 @@ const FinanceDashboard = () => {
         .eq("context", "finance")
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       return data;
     },
     enabled: !!orgId,
