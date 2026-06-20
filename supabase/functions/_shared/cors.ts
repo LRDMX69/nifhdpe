@@ -29,10 +29,14 @@ export function getCorsHeaders(req?: Request): Record<string, string> {
   };
 }
 
-// Backwards-compatible static export (kept so existing imports keep working).
+// Backwards-compatible static export.
+// We intentionally use "*" here so requests from any Lovable preview / Vercel
+// preview / custom domain succeed without per-function wiring. Functions are
+// still protected by JWT validation + rate limiting. Use getCorsHeaders(req)
+// above for stricter, allow-listed origin echoing.
 export const corsHeaders: Record<string, string> = {
-  "Access-Control-Allow-Origin": envAllowed[0] || DEFAULT_ALLOWED[0],
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-  "Vary": "Origin",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
