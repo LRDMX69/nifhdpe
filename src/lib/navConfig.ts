@@ -76,7 +76,6 @@ export const navItems: NavItem[] = [
   // Cross-department
   { label: "Claims",        icon: AlertCircle,     path: "/claims",        roles: ALL_DEPTS, group: "People" },
   { label: "Messages",      icon: MessageSquare,   path: "/messages",      roles: ALL_DEPTS, group: "Workspace" },
-  { label: "Knowledge Base",icon: BookOpen,        path: "/knowledge-base",roles: ADMIN, group: "Workspace" },
   { label: "Documents",     icon: FileText,        path: "/documents",     roles: ALL_DEPTS, group: "Workspace" },
 
   { label: "Settings",      icon: Settings,        path: "/settings",      roles: ADMIN, group: "Workspace" },
