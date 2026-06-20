@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { BookOpen, GraduationCap, FileText, Plus, Loader2, PenLine } from "lucide-react";
+import { FileText, Plus, Loader2, PenLine, Calculator } from "lucide-react";
 import { useGsapFadeUp } from "@/hooks/useGsapAnimation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +16,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
 
-type ArticleRow = Pick<Database["public"]["Tables"]["knowledge_articles"]["Row"], "id" | "title" | "category" | "created_at">;
 type ReflectionRow = Database["public"]["Tables"]["learning_reflections"]["Row"];
 
 const TraineeDashboard = () => {
@@ -32,21 +31,6 @@ const TraineeDashboard = () => {
   const [reflTitle, setReflTitle] = useState("");
   const [reflText, setReflText] = useState("");
   const [reflWeek, setReflWeek] = useState("");
-
-  const { data: articles = [] } = useQuery({
-    queryKey: ["kb-articles-trainee", orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await supabase
-        .from("knowledge_articles")
-        .select("id, title, category, created_at")
-        .eq("organization_id", orgId)
-        .order("created_at", { ascending: false })
-        .limit(10);
-      return (data ?? []) as ArticleRow[];
-    },
-    enabled: !!orgId,
-  });
 
   const { data: reflections = [] } = useQuery({
     queryKey: ["learning-reflections", orgId, user?.id],
