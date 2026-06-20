@@ -4,6 +4,8 @@ import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { validateServiceOrUser, isUuid } from "../_shared/auth.ts";
+import { isCronOrServiceRequest } from "../_shared/cronAuth.ts";
+import { isAutoModeEnabled, autoModeSkippedResponse } from "../_shared/autoMode.ts";
 
 
 async function callAI(systemPrompt: string, userMessage: string) {
@@ -55,6 +57,11 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "invalid organization_id" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     await validateServiceOrUser(req, organization_id);
+    if (await isCronOrServiceRequest(req)) {
+      if (!(await isAutoModeEnabled(organization_id))) {
+        return autoModeSkippedResponse(corsHeaders, organization_id);
+      }
+    }
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
