@@ -29,7 +29,6 @@ const tooltipData: Record<string, string> = {
   "Logistics": "Fleet Logistics & Shipping: Plan material deliveries, track vehicle plates, assign certified drivers, and calculate travel distances.",
   "Equipment": "Machinery Assets: Track operations schedules, usage logs, maintenance intervals, and operator allocations for all heavy site tools.",
   "Compliance": "Regulatory Frameworks: Track state environmental approvals, safety standards, and pipeline regulatory checklists.",
-  "Knowledge Base": "Engineering Documentation: Complete engineering library of pipe sizing guides, SDR standards, safety procedures, and installation protocols.",
   "Analytics": "Performance Metrics: Review pipeline performance, delivery speeds, warehouse trends, and financial growth charts.",
   "Calculator": "Engineering Pipe Sizer: Hazen-Williams calculator that computes velocities, head losses, pressure bounds, and unit weights in real-time.",
   "Settings": "Operations Settings: Manage multi-tenant workspaces, edit system profiles, and assign/approve team access permissions."
