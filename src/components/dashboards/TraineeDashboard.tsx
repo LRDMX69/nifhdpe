@@ -110,28 +110,19 @@ const TraineeDashboard = () => {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Card className="border-border/50">
           <CardContent className="pt-4 pb-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary"><GraduationCap className="h-5 w-5" /></div>
+            <div className="p-2 rounded-lg bg-primary/10 text-primary"><PenLine className="h-5 w-5" /></div>
             <div>
-              <p className="text-2xl font-bold">{articles.length}</p>
-              <p className="text-xs text-muted-foreground">Knowledge Articles</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => navigate("/knowledge-base")}>
-          <CardContent className="pt-4 pb-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary"><BookOpen className="h-5 w-5" /></div>
-            <div>
-              <p className="text-sm font-medium">Knowledge Base</p>
-              <p className="text-xs text-muted-foreground">Browse articles & guides</p>
+              <p className="text-2xl font-bold">{reflections.length}</p>
+              <p className="text-xs text-muted-foreground">My Reflections</p>
             </div>
           </CardContent>
         </Card>
         <Card className="border-border/50 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => navigate("/calculator")}>
           <CardContent className="pt-4 pb-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary"><FileText className="h-5 w-5" /></div>
+            <div className="p-2 rounded-lg bg-primary/10 text-primary"><Calculator className="h-5 w-5" /></div>
             <div>
               <p className="text-sm font-medium">Pipe Calculator</p>
               <p className="text-xs text-muted-foreground">Practice calculations</p>
@@ -175,31 +166,6 @@ const TraineeDashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Recent Articles */}
-      <Card className="border-border/50">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-primary" /> Recent Articles
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {articles.length > 0 ? (
-            <div className="space-y-2">
-              {articles.map((a: ArticleRow) => (
-                <div key={a.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navigate("/knowledge-base")}>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{a.title}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{a.category}</p>
-                  </div>
-                  <span className="text-[10px] text-muted-foreground shrink-0">{new Date(a.created_at).toLocaleDateString()}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">No articles available yet.</p>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 };
