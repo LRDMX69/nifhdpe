@@ -37,7 +37,7 @@ const WarehouseDashboard = () => {
         .eq("context", "warehouse")
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       return data;
     },
     enabled: !!orgId,
