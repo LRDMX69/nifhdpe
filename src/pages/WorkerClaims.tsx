@@ -192,8 +192,8 @@ const WorkerClaims = () => {
     },
     onSettled: (_, error, __) => {
       if (!error) {
-        queryClient.invalidateQueries({ queryKey: ["unread-notifications", orgId, user.id] });
-        queryClient.invalidateQueries({ queryKey: ["messages", orgId, user.id] });
+        queryClient.invalidateQueries({ queryKey: ["unread-notifications", orgId, user?.id] });
+        queryClient.invalidateQueries({ queryKey: ["messages", orgId, user?.id] });
       }
     },
   });
@@ -258,7 +258,7 @@ const WorkerClaims = () => {
   const isReviewer = isAdmin || isFinance;
   const myClaims = claims.filter((c: WorkerClaim) => c.user_id === user?.id);
   const inboxClaims = isReviewer
-    ? claims.filter((c: WorkerClaim) => c.user_id !== user?.id || c.status === "pending" || c.status === "flagged")
+    ? claims.filter((c: WorkerClaim) => c.user_id !== user?.id)
     : [];
   const inboxPending = inboxClaims.filter((c: WorkerClaim) => c.status === "pending" || c.status === "flagged").length;
 

@@ -155,7 +155,8 @@ const Quotations = () => {
         }
         toast({ title: "Quotation updated" });
       } else {
-        const qNum = `QT-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 999) + 1).padStart(3, "0")}`;
+        const { data: qNumRpc } = await supabase.rpc("next_doc_number", { _org_id: orgId, _doc_type: "quotations" });
+        const qNum = qNumRpc ?? `QT-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
         const { data: quotation, error } = await supabase.from("quotations").insert({
           organization_id: orgId, created_by: user.id, client_id: clientId || null, quotation_number: qNum,
           pipe_type: pipeType as Database["public"]["Enums"]["pipe_type"], profit_margin_percent: profitMargin, labor_cost_per_meter: laborCost,
@@ -190,7 +191,8 @@ const Quotations = () => {
         if (error) throw error;
         toast({ title: "Quotation updated" });
       } else {
-        const qNum = `QT-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 999) + 1).padStart(3, "0")}`;
+        const { data: qNumRpc } = await supabase.rpc("next_doc_number", { _org_id: orgId, _doc_type: "quotations" });
+        const qNum = qNumRpc ?? `QT-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
         const { error } = await supabase.from("quotations").insert({
           organization_id: orgId, created_by: user.id, client_id: clientId || null, quotation_number: qNum,
           is_lump_sum: true, lump_sum_amount: parseFloat(lumpSumAmount), total_amount: parseFloat(lumpSumAmount),
