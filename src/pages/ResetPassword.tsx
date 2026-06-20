@@ -19,22 +19,35 @@ const ResetPassword = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Supabase sends recovery tokens via URL hash fragment, not query params.
-    // The onAuthStateChange listener picks it up automatically.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
+    // Supabase parses the recovery hash on client init and fires either
+    // PASSWORD_RECOVERY or SIGNED_IN/INITIAL_SESSION. Listen for the event
+    // but also fall back to (a) the raw hash and (b) any existing session,
+    // because by the time this component mounts the hash may already be cleared.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
         setReady(true);
       }
     });
 
-    // Also check current hash for recovery token (type=recovery in hash)
     const hash = window.location.hash;
     if (hash.includes("type=recovery") || hash.includes("access_token")) {
       setReady(true);
     }
 
+    // Last-resort: if a session already exists (hash was parsed before mount),
+    // the user is authenticated and updateUser() will work.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setReady(true);
+    });
+
+    // Stop "Verifying…" from spinning forever — if nothing arrives in 4s,
+    // let the user try anyway; updateUser will surface a real error if the
+    // link was invalid.
+    const fallback = window.setTimeout(() => setReady(true), 4000);
+
     return () => {
       subscription.unsubscribe();
+      window.clearTimeout(fallback);
     };
   }, []);
 
