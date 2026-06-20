@@ -28,7 +28,7 @@ export const PayrollTab = ({
     const now = new Date();
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const monthPayments = salaryPayments.filter((p) => p.date?.startsWith(thisMonth));
-    const totalThisMonth = monthPayments.reduce((s, p) => s + Number(p.amount), 0);
+    const totalThisMonth = monthPayments.reduce((s, p) => s + Number(p.net_pay ?? p.amount), 0);
     return { totalThisMonth, count: monthPayments.length, total: salaryPayments.length };
   })();
 
@@ -113,7 +113,7 @@ export const PayrollTab = ({
             return (
               <div className="space-y-3">
                 {[...groupedByEmployee.entries()].map(([userId, payments]) => {
-                  const totalAmount = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+                  const totalAmount = payments.reduce((sum, p) => sum + Number(p.net_pay ?? p.amount), 0);
                   return (
                     <div key={userId} className="border rounded-lg p-3 space-y-2">
                       <div className="flex items-center justify-between">
@@ -138,7 +138,7 @@ export const PayrollTab = ({
                             <div className="flex items-center justify-between text-xs font-medium">
                               <span>{p.date} — {p.description || "Salary"}</span>
                               <div className="flex items-center gap-2">
-                                <span>Net: ₦{Number(p.amount).toLocaleString()}</span>
+                                <span>Net: ₦{Number(p.net_pay ?? p.amount).toLocaleString()}</span>
                                 <Button size="icon" variant="ghost" className="h-6 w-6" onClick={async () => {
                                   const { generatePdf } = await import("@/lib/generatePdf");
                                   generatePdf({
