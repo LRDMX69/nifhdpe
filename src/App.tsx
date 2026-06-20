@@ -24,7 +24,6 @@ const FieldReports = lazy(() => import("./pages/FieldReports"));
 const Finance = lazy(() => import("./pages/Finance"));
 const Equipment = lazy(() => import("./pages/Equipment"));
 const Compliance = lazy(() => import("./pages/Compliance"));
-const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
 const Opportunities = lazy(() => import("./pages/Opportunities"));
 const HR = lazy(() => import("./pages/HR"));
 const WorkerClaims = lazy(() => import("./pages/WorkerClaims"));
@@ -80,7 +79,6 @@ const App = () => {
                 <Route path="/finance" element={<Finance />} />
                 <Route path="/equipment" element={<Equipment />} />
                 <Route path="/compliance" element={<Compliance />} />
-                <Route path="/knowledge-base" element={<KnowledgeBase />} />
                 <Route path="/opportunities" element={<Opportunities />} />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/hr" element={<HR />} />

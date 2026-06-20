@@ -91,17 +91,17 @@ const ROLE_RESPONSIBILITIES: Record<string, { summary: string; steps: { actor: s
     ],
   },
   knowledge_manager: {
-    summary: "You curate the institutional knowledge: training modules, SOPs and reference articles the rest of the team relies on.",
+    summary: "You curate institutional knowledge: training modules, SOPs and reference material the rest of the team relies on.",
     steps: [
-      { actor: "Weekly", action: "publish or update at least one knowledge-base article and review trainee reflections." },
-      { actor: "Per request", action: "respond to article suggestions from field staff and engineers." },
-      { actor: "Monthly", action: "archive stale content and reorganise categories for searchability." },
+      { actor: "Weekly", action: "review trainee reflections and update internal documentation in the Document Registry." },
+      { actor: "Per request", action: "respond to documentation requests from field staff and engineers." },
+      { actor: "Monthly", action: "archive stale documents and reorganise the Document Registry for searchability." },
     ],
   },
   siwes_trainee: {
-    summary: "You're here to learn: read the knowledge base, shadow the technical team, and submit weekly reflections.",
+    summary: "You're here to learn: shadow the technical team, review project documentation, and submit weekly reflections.",
     steps: [
-      { actor: "Daily", action: "study at least one knowledge-base article and note questions for your supervisor." },
+      { actor: "Daily", action: "study one project document or SOP and note questions for your supervisor." },
       { actor: "Weekly", action: "submit a learning reflection covering what you learned and what challenged you." },
       { actor: "Always", action: "you cannot log attendance, raise claims or edit project data — focus on learning." },
     ],
@@ -109,7 +109,7 @@ const ROLE_RESPONSIBILITIES: Record<string, { summary: string; steps: { actor: s
   it_student: {
     summary: "You're on IT placement: learn the system, observe operations, and submit weekly reflections.",
     steps: [
-      { actor: "Daily", action: "explore the knowledge base and shadow the assigned engineer." },
+      { actor: "Daily", action: "explore the Document Registry and shadow the assigned engineer." },
       { actor: "Weekly", action: "submit a structured reflection on what you observed and learned." },
       { actor: "Always", action: "your account is read-only for operational data — focus on learning." },
     ],
@@ -117,7 +117,7 @@ const ROLE_RESPONSIBILITIES: Record<string, { summary: string; steps: { actor: s
   nysc_member: {
     summary: "You're on NYSC posting: contribute to operations as guided, learn the system, and submit reflections.",
     steps: [
-      { actor: "Daily", action: "follow the work plan from your supervisor and consult the knowledge base." },
+      { actor: "Daily", action: "follow the work plan from your supervisor and consult project documentation." },
       { actor: "Weekly", action: "submit a reflection summarising progress and lessons learned." },
       { actor: "Monthly", action: "review your performance log with your supervisor." },
     ],

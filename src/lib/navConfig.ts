@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, FileText, Users, Package, FolderKanban, BarChart3, Calculator,
-  Truck, Settings, ClipboardList, DollarSign, Wrench, ShieldCheck, BookOpen, Target, UserCog, AlertCircle, MessageSquare, ShoppingCart, Receipt, FileSpreadsheet,
+  Truck, Settings, ClipboardList, DollarSign, Wrench, ShieldCheck, Target, UserCog, AlertCircle, MessageSquare, ShoppingCart, Receipt, FileSpreadsheet,
 } from "lucide-react";
 
 export interface NavItem {
@@ -76,7 +76,6 @@ export const navItems: NavItem[] = [
   // Cross-department
   { label: "Claims",        icon: AlertCircle,     path: "/claims",        roles: ALL_DEPTS, group: "People" },
   { label: "Messages",      icon: MessageSquare,   path: "/messages",      roles: ALL_DEPTS, group: "Workspace" },
-  { label: "Knowledge Base",icon: BookOpen,        path: "/knowledge-base",roles: ADMIN, group: "Workspace" },
   { label: "Documents",     icon: FileText,        path: "/documents",     roles: ALL_DEPTS, group: "Workspace" },
 
   { label: "Settings",      icon: Settings,        path: "/settings",      roles: ADMIN, group: "Workspace" },

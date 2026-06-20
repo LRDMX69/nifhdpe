@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import {
   LayoutDashboard, FileText, Users, Package, FolderKanban, Calculator, Truck,
-  DollarSign, Wrench, ShieldCheck, BookOpen, Target, UserCog, AlertCircle,
+  DollarSign, Wrench, ShieldCheck, Target, UserCog, AlertCircle,
   MessageSquare, ShoppingCart, BarChart3, Settings, Plus, Receipt, ClipboardList,
 } from "lucide-react";
 
@@ -61,7 +61,6 @@ export const CommandPalette = () => {
           <CommandItem onSelect={() => go("/hr")}><UserCog className="h-4 w-4 mr-2" />HR</CommandItem>
           <CommandItem onSelect={() => go("/analytics")}><BarChart3 className="h-4 w-4 mr-2" />Analytics</CommandItem>
           <CommandItem onSelect={() => go("/calculator")}><Calculator className="h-4 w-4 mr-2" />Pipe Calculator</CommandItem>
-          <CommandItem onSelect={() => go("/knowledge-base")}><BookOpen className="h-4 w-4 mr-2" />Knowledge Base</CommandItem>
           <CommandItem onSelect={() => go("/documents")}><FileText className="h-4 w-4 mr-2" />Document Registry</CommandItem>
           <CommandItem onSelect={() => go("/messages")}><MessageSquare className="h-4 w-4 mr-2" />Messages</CommandItem>
           <CommandItem onSelect={() => go("/settings")}><Settings className="h-4 w-4 mr-2" />Settings</CommandItem>
