@@ -39,7 +39,7 @@ const EngineerDashboard = () => {
         .eq("context", "engineering")
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       return data;
     },
     enabled: !!orgId,
