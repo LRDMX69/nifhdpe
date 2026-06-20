@@ -53,7 +53,8 @@ const Procurement = () => {
   const { data: vendors = [], isLoading: vendorsLoading, error: vendorsError, refetch: refetchVendors } = useQuery({
     queryKey: ["vendors", orgId],
     queryFn: async () => {
-      const { data } = await supabase.from("vendors").select("*").order("name");
+      if (!orgId) return [];
+      const { data } = await supabase.from("vendors").select("*").eq("organization_id", orgId).order("name");
       return (data ?? []) as VendorRow[];
     },
     enabled: !!orgId,
@@ -62,7 +63,8 @@ const Procurement = () => {
   const { data: pos = [], isLoading: posLoading, error: posError, refetch: refetchPos, dataUpdatedAt: posUpdatedAt } = useQuery({
     queryKey: ["purchase-orders", orgId],
     queryFn: async () => {
-      const { data } = await supabase.from("purchase_orders").select("*, vendors(name)").order("created_at", { ascending: false });
+      if (!orgId) return [];
+      const { data } = await supabase.from("purchase_orders").select("*, vendors(name)").eq("organization_id", orgId).order("created_at", { ascending: false });
       return (data ?? []) as PoRow[];
     },
     enabled: !!orgId,
@@ -71,7 +73,8 @@ const Procurement = () => {
   const { data: mrs = [], isLoading: mrsLoading, error: mrsError, refetch: refetchMrs } = useQuery({
     queryKey: ["material-requisitions", orgId],
     queryFn: async () => {
-      const { data } = await supabase.from("material_requisitions").select("*").order("created_at", { ascending: false });
+      if (!orgId) return [];
+      const { data } = await supabase.from("material_requisitions").select("*").eq("organization_id", orgId).order("created_at", { ascending: false });
       return (data ?? []) as MrRow[];
     },
     enabled: !!orgId,

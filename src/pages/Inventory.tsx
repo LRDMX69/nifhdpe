@@ -208,7 +208,7 @@ const Inventory = () => {
       <PageHeader
         title="Inventory"
         description="Track pipe and fittings stock"
-        executiveSummary={`${inventory.length} SKUs tracked · ${inventory.filter((i: any) => Number(i.quantity_in_stock) <= Number(i.reorder_level ?? 0)).length} below reorder level`}
+        executiveSummary={`${inventory.length} SKUs tracked · ${lowStockCount} below minimum stock level`}
         lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
         onRefresh={() => { refetch(); refetchLocs(); refetchBoxes(); }}
       >
