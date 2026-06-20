@@ -4,6 +4,8 @@ import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
 import { validateUser } from "../_shared/auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { isCronOrServiceRequest } from "../_shared/cronAuth.ts";
+import { isAutoModeEnabled, autoModeSkippedResponse } from "../_shared/autoMode.ts";
 
 async function callAI(systemPrompt: string, userMessage: string) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -51,6 +53,12 @@ serve(async (req: Request) => {
 
     // Validate that the user is authorized for this organization
     await validateUser(req, organization_id);
+
+    if (await isCronOrServiceRequest(req)) {
+      if (!(await isAutoModeEnabled(organization_id))) {
+        return autoModeSkippedResponse(corsHeaders, organization_id);
+      }
+    }
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
