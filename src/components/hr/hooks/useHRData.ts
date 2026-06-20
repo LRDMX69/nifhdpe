@@ -1,12 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import type { Database } from "@/integrations/supabase/types";
 
 export const useHRData = (orgId: string | undefined, isHrOrAdmin: boolean) => {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
   const { data: allAttendance = [] } = useQuery({
     queryKey: ["attendance-all", orgId],
     queryFn: async () => {
