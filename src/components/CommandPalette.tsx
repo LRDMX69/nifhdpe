@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import {
   LayoutDashboard, FileText, Users, Package, FolderKanban, Calculator, Truck,
-  DollarSign, Wrench, ShieldCheck, BookOpen, Target, UserCog, AlertCircle,
+  DollarSign, Wrench, ShieldCheck, Target, UserCog, AlertCircle,
   MessageSquare, ShoppingCart, BarChart3, Settings, Plus, Receipt, ClipboardList,
 } from "lucide-react";
 

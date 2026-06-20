@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, FileText, Users, Package, FolderKanban, BarChart3, Calculator,
-  Truck, Settings, ClipboardList, DollarSign, Wrench, ShieldCheck, BookOpen, Target, UserCog, AlertCircle, MessageSquare, ShoppingCart, Receipt, FileSpreadsheet,
+  Truck, Settings, ClipboardList, DollarSign, Wrench, ShieldCheck, Target, UserCog, AlertCircle, MessageSquare, ShoppingCart, Receipt, FileSpreadsheet,
 } from "lucide-react";
 
 export interface NavItem {
