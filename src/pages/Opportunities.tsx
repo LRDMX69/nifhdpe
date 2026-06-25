@@ -177,7 +177,7 @@ const Opportunities = () => {
 
     const normalize = (raw: string | undefined, confRaw: string | undefined) => {
       const value = (raw ?? "").trim();
-      let confidence: Confidence = parseConfidence(confRaw) ?? (value ? "Estimated" : "Not Available");
+      const confidence: Confidence = parseConfidence(confRaw) ?? (value ? "Estimated" : "Not Available");
       if (!value || isGenericFallback(value)) {
         return { value: NOT_AVAILABLE_TEXT, confidence: "Not Available" as Confidence };
       }
