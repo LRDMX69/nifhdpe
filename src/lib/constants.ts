@@ -53,6 +53,18 @@ export const ALL_ROLES = DEPARTMENTS.map((d) => d.value) as readonly string[];
 
 export type AppRole = string;
 
+/**
+ * Roles that carry Finance-head authority.
+ * Org structure: HR is the head of the Finance department, so the `hr` role
+ * inherits every `finance` capability (invoices, payments, expenses, claims
+ * review, procurement spend, BOQ costing). Kept in ONE place so the UI gates
+ * and the RLS helper (`has_org_role` in the DB) can never drift apart.
+ */
+export const FINANCE_CAPABLE_ROLES = ["finance", "hr"];
+
+export const isFinanceCapable = (role: string | null | undefined): boolean =>
+  !!role && FINANCE_CAPABLE_ROLES.includes(role);
+
 export const formatCurrency = (amount: number): string => {
   return `${CURRENCY_SYMBOL}${amount.toLocaleString("en-NG", {
     minimumFractionDigits: 2,

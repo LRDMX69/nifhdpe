@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Package, AlertTriangle, Loader2, Pencil, Trash2, MapPin } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Loader2, Pencil, Trash2, MapPin, Download } from "lucide-react";
+import { exportCsv } from "@/lib/exportCsv";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -201,6 +202,19 @@ const Inventory = () => {
   const lowStockCount = inventory.filter((i: InventoryItem) => (i.quantity_meters ?? 0) < (i.min_stock_level ?? 0)).length;
   const totalValue = inventory.reduce((s: number, i: InventoryItem) => s + (i.quantity_meters ?? 0) * (i.unit_cost ?? 0), 0);
 
+  const handleExport = () => {
+    exportCsv(`inventory-${new Date().toISOString().slice(0, 10)}`, [
+      { header: "Item", value: (i: InventoryItem) => i.item_name },
+      { header: "Type", value: (i: InventoryItem) => i.item_type ?? "" },
+      { header: "Diameter (mm)", value: (i: InventoryItem) => i.diameter_mm ?? "" },
+      { header: "Qty (m)", value: (i: InventoryItem) => i.quantity_meters ?? 0 },
+      { header: "Min Stock", value: (i: InventoryItem) => i.min_stock_level ?? 0 },
+      { header: "Unit Cost (₦)", value: (i: InventoryItem) => Number(i.unit_cost ?? 0).toLocaleString() },
+      { header: "Supplier", value: (i: InventoryItem) => i.supplier ?? "" },
+      { header: "Location", value: (i: InventoryItem) => i.storage_locations?.name ?? "" },
+    ], inventory);
+  };
+
   const filteredBoxes = locationId ? boxes.filter((b: StorageBox) => b.location_id === locationId) : boxes;
 
   return (
@@ -213,6 +227,9 @@ const Inventory = () => {
         onRefresh={() => { refetch(); refetchLocs(); refetchBoxes(); }}
       >
         <div className="flex gap-2 flex-wrap">
+          <Button size="sm" variant="outline" onClick={handleExport} disabled={inventory.length === 0}>
+            <Download className="h-3.5 w-3.5 mr-1" /> Export CSV
+          </Button>
           {canEdit && (
             <>
               <Dialog open={locDialogOpen} onOpenChange={setLocDialogOpen}>

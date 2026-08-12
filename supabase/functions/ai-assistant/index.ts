@@ -1,5 +1,5 @@
 // @ts-expect-error - Deno http module import type mismatch
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 // @ts-expect-error - Shared module type mismatch in Deno
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
@@ -243,12 +243,15 @@ serve(async (req: Request) => {
 
     const response = await callGemini(systemPrompt, userMessage, true, context);
 
-    // Log token estimate (input only — output is streamed and not buffered here).
+    // Log token estimate for the input immediately (so a client disconnect can
+    // never lose accounting), then count the streamed OUTPUT bytes and record
+    // them when the stream completes. Without the output side the monthly
+    // spend cap systematically under-counts the assistant.
+    // @ts-expect-error npm import resolved by Deno
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.49.1");
+    // @ts-expect-error Deno global
+    const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     try {
-      // @ts-expect-error npm import resolved by Deno
-      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.49.1");
-      // @ts-expect-error Deno global
-      const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       await sb.from("ai_usage_logs").insert({
         organization_id: raw.organization_id as string,
         function_name: `ai-assistant:${context}`,
@@ -257,9 +260,38 @@ serve(async (req: Request) => {
       });
     } catch { /* non-fatal */ }
 
-    // Re-stream the response, preserving upstream Content-Type so that JSON
-    // error responses (402/429/etc.) are not mis-labeled as text/event-stream.
     const upstreamCt = response.headers.get("Content-Type") || "text/event-stream";
+
+    // Only streamed, successful responses need output accounting; JSON error
+    // bodies (402/429/rule fallback) are re-emitted as-is.
+    if (response.ok && upstreamCt.includes("text/event-stream") && response.body) {
+      const outputBytes = { count: 0 };
+      const counted = new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+          outputBytes.count += chunk.byteLength;
+          controller.enqueue(chunk);
+        },
+        flush() {
+          if (outputBytes.count === 0) return;
+          try {
+            // SSE framing inflates byte counts slightly — acceptable for a cap.
+            const outputEstimate = Math.ceil(outputBytes.count / 4);
+            sb.from("ai_usage_logs").insert({
+              organization_id: raw.organization_id as string,
+              function_name: `ai-assistant:${context}`,
+              success: true,
+              tokens_estimate: outputEstimate,
+            }).then(() => {}).catch(() => {});
+          } catch { /* non-fatal */ }
+        },
+      });
+      const streamed = response.body.pipeThrough(counted);
+      return new Response(streamed, {
+        status: response.status,
+        headers: { ...corsHeaders, "Content-Type": upstreamCt },
+      });
+    }
+
     return new Response(response.body, {
       status: response.status,
       headers: { ...corsHeaders, "Content-Type": upstreamCt },

@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Calendar, Loader2, MoreVertical, Pencil, Trash2, Users, MapPin, BarChart3 } from "lucide-react";
+import { Plus, Search, Calendar, Loader2, MoreVertical, Pencil, Trash2, Users, MapPin, BarChart3, Download } from "lucide-react";
 import { ProjectPnL } from "@/components/projects/ProjectPnL";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
@@ -25,6 +25,7 @@ import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
+import { exportCsv, csvDate } from "@/lib/exportCsv";
 
 type ProjectItem = Database["public"]["Tables"]["projects"]["Row"] & { clients?: { name: string } | null };
 type ClientItem = { id: string; name: string };
@@ -106,6 +107,18 @@ const Projects = () => {
     setNewProjectLat(p.project_lat?.toString() ?? ""); setNewProjectLng(p.project_lng?.toString() ?? "");
     setNewRadius(p.radius_meters?.toString() ?? "500");
     setDialogOpen(true);
+  };
+
+  const handleExport = () => {
+    exportCsv(`projects-${new Date().toISOString().slice(0, 10)}`, [
+      { header: "Project", value: (p: ProjectItem) => p.name },
+      { header: "Client", value: (p: ProjectItem) => p.clients?.name ?? "" },
+      { header: "Status", value: (p: ProjectItem) => p.status },
+      { header: "Budget (₦)", value: (p: ProjectItem) => Number(p.budget ?? 0).toLocaleString() },
+      { header: "Progress (%)", value: (p: ProjectItem) => p.progress_percent ?? "" },
+      { header: "Start", value: (p: ProjectItem) => csvDate(p.start_date) },
+      { header: "End", value: (p: ProjectItem) => csvDate(p.end_date) },
+    ], projects);
   };
 
   const openAdd = () => {
@@ -217,6 +230,9 @@ const Projects = () => {
         lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
         onRefresh={() => refetch()}
       >
+        <Button size="sm" variant="outline" onClick={handleExport} disabled={projects.length === 0}>
+          <Download className="h-3.5 w-3.5 mr-1" /> Export CSV
+        </Button>
         {canEdit && <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" /> New Project</Button>}
       </PageHeader>
 

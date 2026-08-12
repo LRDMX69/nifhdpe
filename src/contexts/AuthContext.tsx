@@ -123,8 +123,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserData = useCallback(async (userId: string): Promise<AccessSnapshot> => {
     const runAccessQueries = async () => {
+      // NOTE: the sign-up flow and the settings approval queue operate on
+      // role_assignment_requests. Querying admin_requests here (the legacy
+      // table) meant a genuinely pending sign-up request was never detected
+      // and the user was routed into a role-less dead-end instead of the
+      // Pending Approval screen. (Finding H-08.)
       const pendingRequestQuery = (supabase as any)
-        .from("admin_requests")
+        .from("role_assignment_requests")
         .select("organization_id")
         .eq("user_id", userId)
         .eq("status", "pending")

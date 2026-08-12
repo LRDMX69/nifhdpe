@@ -1,37 +1,56 @@
 project_id = "pxuqddhgbkjwykeirkmz"
 
+# User-facing functions. verify_jwt = true means the platform gateway validates
+# the caller's JWT before the function runs; the function also validates the
+# user's membership server-side.
 [functions.ai-assistant]
 verify_jwt = true
 
 [functions.process-report]
 verify_jwt = true
 
+# Cron-invoked functions. verify_jwt = false so the pg_cron jobs (which send the
+# rotating cron shared secret, not a JWT) are not rejected at the platform
+# gateway with UNAUTHORIZED_INVALID_JWT_FORMAT. Each function performs its own
+# authorization: isCronOrServiceRequest (shared secret / service role) for
+# scheduled runs and validateUser / validateServiceOrUser for interactive runs.
 [functions.stock-analysis]
-verify_jwt = true
+verify_jwt = false
 
 [functions.anomaly-detection]
-verify_jwt = true
+verify_jwt = false
 
 [functions.hr-analysis]
-verify_jwt = true
+verify_jwt = false
 
 [functions.daily-summary]
-verify_jwt = true
+verify_jwt = false
 
 [functions.opportunity-scanner]
 verify_jwt = false
 
 [functions.central-ai-monitor]
-verify_jwt = true
+verify_jwt = false
 
 [functions.department-automation]
-verify_jwt = true
+verify_jwt = false
 
 [functions.auto-mode-runner]
 verify_jwt = false
 
 [functions.message-moderation]
-verify_jwt = true
+verify_jwt = false
 
+# Admin action driven from the app with the caller's JWT; the function checks
+# the caller is an administrator / maintenance admin itself.
 [functions.admin-terminate-user]
 verify_jwt = false
+
+# The sign-up bootstrap grants the first membership; reads the caller JWT.
+[functions.assign-pending-roles]
+verify_jwt = true
+
+# Push notifications: called from the app with a signed-in user JWT or the
+# service role. The function validates the token itself.
+[functions.send-push]
+verify_jwt = true

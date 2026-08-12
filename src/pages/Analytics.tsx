@@ -15,6 +15,8 @@ type QuotationRow = Database["public"]["Tables"]["quotations"]["Row"] & { client
 type ExpenseRow = Database["public"]["Tables"]["expenses"]["Row"];
 type PaymentRow = Database["public"]["Tables"]["worker_payments"]["Row"];
 type InventoryRow = Database["public"]["Tables"]["inventory"]["Row"];
+type InvoiceRow = Database["public"]["Tables"]["invoices"]["Row"];
+type ReceiptRow = Database["public"]["Tables"]["receipts"]["Row"];
 
 const COLORS = ["hsl(105,73%,49%)", "hsl(207,80%,40%)", "hsl(38,92%,50%)", "hsl(0,72%,51%)", "hsl(210,10%,60%)"];
 
@@ -63,11 +65,36 @@ const Analytics = () => {
     enabled: !!orgId,
   });
 
+  const { data: invoices = [] } = useQuery({
+    queryKey: ["analytics-invoices", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase.from("invoices").select("total_amount, balance_due, status, created_at, due_date").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(500);
+      return (data ?? []) as InvoiceRow[];
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: receipts = [] } = useQuery({
+    queryKey: ["analytics-receipts", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data } = await supabase.from("receipts").select("amount_received, payment_date").eq("organization_id", orgId).order("payment_date", { ascending: false }).limit(500);
+      return (data ?? []) as ReceiptRow[];
+    },
+    enabled: !!orgId,
+  });
+
   const analytics = useMemo(() => {
+    // Money actually on the books (invoices/receipts) — not just accepted quotes.
+    const billed = invoices.filter((inv) => inv.status !== "draft").reduce((s: number, inv) => s + Number(inv.total_amount ?? 0), 0);
+    const collected = receipts.reduce((s: number, r) => s + Number(r.amount_received ?? 0), 0);
+    const outstanding = invoices.reduce((s: number, inv) => s + Number(inv.balance_due ?? 0), 0);
+
     const totalRevenue = quotations.filter((q) => q.status === "accepted").reduce((s: number, q) => s + Number(q.total_amount ?? 0), 0);
     const totalExpenses = expenses.reduce((s: number, e) => s + Number(e.amount ?? 0), 0);
     const totalPayments = payments.reduce((s: number, p) => s + Number(p.amount ?? 0), 0);
-    const netProfit = totalRevenue - totalExpenses - totalPayments;
+    const netProfit = billed - totalExpenses - totalPayments;
 
     const sentCount = quotations.filter((q) => ["sent", "accepted", "rejected"].includes(q.status)).length;
     const acceptedCount = quotations.filter((q) => q.status === "accepted").length;
@@ -90,6 +117,22 @@ const Analytics = () => {
       monthlyMap.set(month, entry);
     });
     const revenueData = Array.from(monthlyMap.entries()).map(([month, data]) => ({ month, ...data })).slice(-6);
+
+    // Cash flow: billed (invoices issued) vs collected (receipts) by month
+    const cashMap = new Map<string, { billed: number; collected: number }>();
+    invoices.filter((inv) => inv.status !== "draft").forEach((inv) => {
+      const month = new Date(inv.created_at).toLocaleString("en", { month: "short" });
+      const entry = cashMap.get(month) ?? { billed: 0, collected: 0 };
+      entry.billed += Number(inv.total_amount ?? 0);
+      cashMap.set(month, entry);
+    });
+    receipts.forEach((r) => {
+      const month = new Date(r.payment_date).toLocaleString("en", { month: "short" });
+      const entry = cashMap.get(month) ?? { billed: 0, collected: 0 };
+      entry.collected += Number(r.amount_received ?? 0);
+      cashMap.set(month, entry);
+    });
+    const cashFlowData = Array.from(cashMap.entries()).map(([month, data]) => ({ month, ...data })).slice(-6);
 
     // Pipe usage by diameter
     const diameterMap = new Map<string, number>();
@@ -118,8 +161,8 @@ const Analytics = () => {
     });
     const topClients = Array.from(clientMap.entries()).map(([name, revenue]) => ({ name, revenue })).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 
-    return { totalRevenue, totalExpenses: totalExpenses + totalPayments, netProfit, conversionRate, sentCount, acceptedCount, inventoryValue, revenueData, pipeUsageData, conversionData, topClients };
-  }, [payments, expenses, quotations, inventory]);
+    return { billed, collected, outstanding, totalRevenue, totalExpenses: totalExpenses + totalPayments, netProfit, conversionRate, sentCount, acceptedCount, inventoryValue, revenueData, cashFlowData, pipeUsageData, conversionData, topClients };
+  }, [payments, expenses, quotations, inventory, invoices, receipts]);
 
   const isLoading = loadingPayments || loadingExpenses;
 
@@ -128,9 +171,9 @@ const Analytics = () => {
   }
 
   const summaryStats = [
-    { label: "Total Revenue", value: formatCurrency(analytics.totalRevenue), icon: DollarSign, sub: `${analytics.acceptedCount} accepted quotations` },
-    { label: "Conversion Rate", value: `${analytics.conversionRate}%`, icon: Percent, sub: `${analytics.acceptedCount} of ${analytics.sentCount} quotations` },
-    { label: "Net Profit", value: formatCurrency(analytics.netProfit), icon: TrendingUp, sub: `After ₦${(analytics.totalExpenses / 1000000).toFixed(1)}M expenses` },
+    { label: "Billed", value: formatCurrency(analytics.billed), icon: DollarSign, sub: `${invoices.filter((i) => i.status !== "draft").length} invoices issued` },
+    { label: "Collected", value: formatCurrency(analytics.collected), icon: TrendingUp, sub: `${analytics.outstanding > 0 ? `${formatCurrency(analytics.outstanding)} outstanding` : "All invoices settled"}` },
+    { label: "Net Profit", value: formatCurrency(analytics.netProfit), icon: Percent, sub: `After ${formatCurrency(analytics.totalExpenses)} expenses & payments` },
     { label: "Inventory Value", value: formatCurrency(analytics.inventoryValue), icon: Package, sub: `${inventory.length} items in stock` },
   ];
 
@@ -160,6 +203,27 @@ const Analytics = () => {
           </Card>
         ))}
       </div>
+
+      <Card className="border-border/50">
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Cash Flow — Billed vs Collected</CardTitle></CardHeader>
+        <CardContent>
+          {analytics.cashFlowData.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-16">Issue invoices and record receipts to see cash flow trends.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={analytics.cashFlowData} barGap={4}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(210,10%,87%)" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `₦${(v / 1000000).toFixed(0)}M`} />
+                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Legend />
+                <Bar dataKey="billed" fill="hsl(207,80%,40%)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="collected" fill="hsl(105,73%,49%)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="border-border/50">

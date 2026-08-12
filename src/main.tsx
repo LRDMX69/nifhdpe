@@ -19,7 +19,7 @@ const isPreviewHost =
   window.location.hostname.includes("lovableproject.com");
 
 if (!isPreviewHost && !isInIframe) {
-  initPushNotifications().catch(console.error);
+  initPushNotifications().catch((err) => console.error("initPushNotifications failed", err));
 } else {
   // Clean up any stale SW registrations in preview contexts
   navigator.serviceWorker?.getRegistrations().then((regs) => {

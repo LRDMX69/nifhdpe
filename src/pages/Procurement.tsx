@@ -17,6 +17,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
+import { isFinanceCapable } from "@/lib/constants";
 
 type VendorRow = Database["public"]["Tables"]["vendors"]["Row"];
 type PoRow = Database["public"]["Tables"]["purchase_orders"]["Row"] & { vendors?: { name: string } | null };
@@ -29,7 +30,7 @@ const Procurement = () => {
   const queryClient = useQueryClient();
   const orgId = memberships[0]?.organization_id;
   const isAdmin = activeRole === "administrator";
-  const isFinance = activeRole === "finance";
+  const isFinance = isFinanceCapable(activeRole);
   const isWarehouse = activeRole === "warehouse";
 
   const [vendorOpen, setVendorOpen] = useState(false);
@@ -54,7 +55,9 @@ const Procurement = () => {
     queryKey: ["vendors", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("vendors").select("*").eq("organization_id", orgId).order("name");
+      // Select explicit columns only — bank_details is column-revoked at the
+      // database level and must never be shipped to the browser.
+      const { data } = await supabase.from("vendors").select("id, name, email, phone, address, category, is_active, created_at, updated_at").eq("organization_id", orgId).order("name");
       return (data ?? []) as VendorRow[];
     },
     enabled: !!orgId,

@@ -82,7 +82,7 @@ const Messages = () => {
           osc.stop(ctx.currentTime + 0.3);
         } catch (e) {
           // Audio context blocked by browser - user must interact first
-          console.debug("Audio notification blocked by browser autoplay policy");
+          console.debug("Audio notification blocked by browser autoplay policy"); // informational only
         }
       })
       .subscribe();

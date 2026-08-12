@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { corsHeaders } from "../_shared/cors.ts";
+import { logger } from "../_shared/logger.ts";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -29,9 +30,10 @@ serve(async (req: Request) => {
     const privateKey = Deno.env.get('VAPID_PRIVATE_KEY');
     const subject = Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@example.com';
     if (!publicKey || !privateKey) {
-      console.error('send-push: VAPID keys not configured');
+      logger.error('send-push: VAPID keys not configured');
       return new Response('Push service not configured', { status: 500, headers: corsHeaders });
     }
+
 
     const options = {
       vapidDetails: {
@@ -45,7 +47,7 @@ serve(async (req: Request) => {
     await webpush.sendNotification(subscription, JSON.stringify(payload || {}), options);
     return new Response('Sent', { status: 200, headers: corsHeaders });
   } catch (err) {
-    console.error('send-push error', err);
+    logger.error('send-push error', err);
     return new Response('Error', { status: 500, headers: corsHeaders });
   }
 });

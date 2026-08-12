@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 import { Pool } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
@@ -172,7 +172,7 @@ Return ONLY valid JSON, no markdown fences:
     const aiResult = await callAI(
       "You are an AI business development analyst for Nigerian HDPE piping companies. Return valid JSON only, no markdown.",
       prompt,
-      { organizationId: bodyOrgId || undefined, functionName: "opportunity-scanner" },
+      { organizationId: bodyOrgId || undefined, functionName: "opportunity-scanner", strictSpendCap: isCronOrService },
     );
 
     if (!aiResult.ok) {

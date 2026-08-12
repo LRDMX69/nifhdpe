@@ -311,7 +311,7 @@ const AppSettings = () => {
     queryKey: ["organization", orgId],
     queryFn: async () => {
       if (!orgId) return null;
-      const { data } = await supabase.from("organizations").select("*").eq("id", orgId).single();
+      const { data } = await supabase.from("organizations").select("*").eq("id", orgId).maybeSingle();
       return data;
     },
     enabled: !!orgId,
@@ -322,10 +322,10 @@ const AppSettings = () => {
     setUploading(true);
     try {
       const file = e.target.files[0];
-      const filePath = `avatars/${user.id}/${Date.now()}-${file.name}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage.from("site-photos").upload(filePath, file);
+      const filePath = `${user.id}/${Date.now()}-${file.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage.from("avatars").upload(filePath, file);
       if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from("site-photos").getPublicUrl(uploadData.path);
+      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(uploadData.path);
       const { error: updateError } = await supabase.from("profiles").update({ avatar_url: urlData.publicUrl }).eq("user_id", user.id);
       if (updateError) throw updateError;
       toast({ title: "Profile photo updated" });

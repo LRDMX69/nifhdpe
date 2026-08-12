@@ -1,5 +1,5 @@
 // @ts-expect-error - Deno http module import type mismatch
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 // @ts-expect-error - Deno import type mismatch for supabase-js
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
@@ -35,7 +35,8 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "invalid organization_id" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     await validateServiceOrUser(req, organization_id);
-    if (await isCronOrServiceRequest(req)) {
+    const isScheduled = await isCronOrServiceRequest(req);
+    if (isScheduled) {
       if (!(await isAutoModeEnabled(organization_id))) {
         return autoModeSkippedResponse(corsHeaders, organization_id);
       }
@@ -96,7 +97,7 @@ Only include entries where risk_score >= 30. Valid JSON only, no markdown.`;
     const aiResult = await callAI(
       "You are a security AI that analyzes workplace messages for fraud, coercion, and policy violations. Return only valid JSON arrays.",
       aiPrompt,
-      { organizationId: organization_id, functionName: "message-moderation" },
+      { organizationId: organization_id, functionName: "message-moderation", strictSpendCap: isScheduled },
     );
 
     if (!aiResult.ok) {

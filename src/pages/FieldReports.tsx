@@ -39,7 +39,24 @@ type FieldReportWithRelations = Database["public"]["Tables"]["field_reports"]["R
 };
 
 import { useSignedUrl } from "@/hooks/useSignedUrl";
-import { useOfflineQueue } from "@/hooks/useOfflineQueue";
+import { useOfflineQueue, MAX_QUEUE_ATTEMPTS } from "@/hooks/useOfflineQueue";
+import { isPermanentQueueError } from "@/lib/offlineQueueErrors";
+import { logger } from "@/lib/logger";
+
+type OfflineReportItem = {
+  _id: number;
+  _status?: "pending" | "failed";
+  _attempts?: number;
+  _error?: string | null;
+  project_id?: string;
+  tasks_completed: string;
+  crew_members: string;
+  safety_incidents: string;
+  pressure_test_result: string;
+  client_feedback: string;
+  notes: string | null;
+  photos: string[];
+};
 
 const ReportPhotos = ({ photos }: { photos: { id: string; photo_url: string }[] }) => {
   if (!photos || photos.length === 0) return null;
@@ -91,7 +108,7 @@ const FieldReports = () => {
   const [clientFeedback, setClientFeedback] = useState("");
   const [photos, setPhotos] = useState<File[]>([]);
   const [sendTo, setSendTo] = useState<"engineer" | "administrator">("engineer");
-  const { queue: offlineQueue, addToQueue, removeFromQueue } = useOfflineQueue("field-reports-offline");
+  const { queue: offlineQueue, pendingItems: pendingOfflineReports, failedItems: failedOfflineReports, addToQueue, removeFromQueue, updateItem } = useOfflineQueue("field-reports-offline");
 
   const isTechnician = activeRole === "technician";
   const isAdmin = activeRole === "administrator" || isMaintenance;
@@ -99,15 +116,16 @@ const FieldReports = () => {
 
   const syncOfflineReports = async () => {
     if (offlineQueue.length === 0 || !navigator.onLine || !user) return;
-    
+
     setProcessing(true);
     let successCount = 0;
+    let failureCount = 0;
 
     try {
-      const { data: profile } = await supabase.from("profiles").select("organization_id").eq("user_id", user.id).single();
+      const { data: profile } = await supabase.from("profiles").select("organization_id").eq("user_id", user.id).maybeSingle();
       if (!profile?.organization_id) return;
 
-      for (const item of offlineQueue as Array<{ _id: number; project_id?: string; tasks_completed: string; crew_members: string; safety_incidents: string; pressure_test_result: string; client_feedback: string; notes: string | null; photos: string[] }>) {
+      for (const item of offlineQueue as OfflineReportItem[]) {
         try {
           const photoUrls: string[] = [];
           if (item.photos && item.photos.length > 0) {
@@ -115,9 +133,11 @@ const FieldReports = () => {
               const base64 = item.photos[i];
               // Convert base64 to Blob
               const res = await fetch(base64);
+              if (!res.ok) throw new Error("Could not read a stored photo from the queue");
               const blob = await res.blob();
               const fileName = `${user.id}/offline-${Date.now()}-${i}.jpg`;
-              const { data: uploadData } = await supabase.storage.from("site-photos").upload(fileName, blob);
+              const { data: uploadData, error: uploadError } = await supabase.storage.from("site-photos").upload(fileName, blob);
+              if (uploadError) throw uploadError;
               if (uploadData) photoUrls.push(uploadData.path);
             }
           }
@@ -135,26 +155,55 @@ const FieldReports = () => {
           }).select().single();
 
           if (error) throw error;
-          
+
           for (const url of photoUrls) {
-            await supabase.from("field_report_photos").insert({ field_report_id: report.id, photo_url: url });
+            const { error: photoError } = await supabase.from("field_report_photos").insert({ field_report_id: report.id, photo_url: url });
+            if (photoError) throw photoError;
           }
 
+          // Confirmed success — the ONLY case an item leaves the queue.
           successCount++;
           await removeFromQueue(item._id);
-          // Optional: Invoke AI processing
+          // Optional: Invoke AI processing (non-fatal)
           await supabase.functions.invoke("process-report", { body: { reportId: report.id } });
         } catch (itemErr) {
-          console.error("Failed to sync an offline report", itemErr);
+          failureCount++;
+          const attempts = (item._attempts ?? 0) + 1;
+          const permanent = isPermanentQueueError(itemErr);
+          if (permanent || attempts >= MAX_QUEUE_ATTEMPTS) {
+            const reason = itemErr instanceof Error ? itemErr.message : String(itemErr);
+            logger.error("Offline report permanently failed", { queuedId: item._id, reason, attempts });
+            await updateItem(item._id, {
+              _status: "failed",
+              _attempts: attempts,
+              _error: reason,
+            } as Partial<OfflineReportItem>);
+          } else {
+            // Transient — keep it pending for the next reconnect, record attempts.
+            logger.warn("Offline report sync failed, will retry", { queuedId: item._id, attempts, reason: String(itemErr) });
+            await updateItem(item._id, { _attempts: attempts } as Partial<OfflineReportItem>);
+          }
         }
       }
 
       if (successCount > 0) {
-        toast({ title: "Sync Complete", description: `Successfully uploaded ${successCount} offline reports.` });
+        toast({
+          title: "Sync Complete",
+          description: failureCount > 0
+            ? `Uploaded ${successCount} offline report(s). ${failureCount} could not be synced.`
+            : `Successfully uploaded ${successCount} offline reports.`,
+          variant: failureCount > 0 ? "default" : "default",
+        });
         queryClient.invalidateQueries({ queryKey: ["field-reports"] });
+      } else if (failureCount > 0) {
+        toast({
+          title: "Sync issue",
+          description: `${failureCount} offline report(s) could not be synced. See the queue below for details.`,
+          variant: "destructive",
+        });
       }
     } catch (err) {
-      console.error("Sync failed", err);
+      logger.error("Sync failed", err);
     } finally {
       setProcessing(false);
     }
@@ -247,7 +296,7 @@ const FieldReports = () => {
         reader.onerror = e => reject(e);
       })));
     } catch (e) {
-      console.error("Failed to convert photos to base64", e);
+      logger.error("Failed to convert photos to base64", e);
     }
 
     let geoTag = "";
@@ -257,7 +306,7 @@ const FieldReports = () => {
         geoTag = `\n\n[GPS_LOCATION: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}]`;
       }
     } catch (e) {
-      console.error("Failed to get GPS location", e);
+      logger.error("Failed to get GPS location", e);
     }
     
     const tasksWithGeo = rawNotes + geoTag;
@@ -285,7 +334,7 @@ const FieldReports = () => {
         await addToQueue(fallbackItem);
         queuedId = fallbackItem._id;
       } catch (err) {
-        console.error("Total failure to use IndexedDB", err);
+        logger.error("Total failure to use IndexedDB", err);
       }
     }
 
@@ -301,7 +350,7 @@ const FieldReports = () => {
 
     // 3. Attempt actual upload
     try {
-      const { data: profile } = await supabase.from("profiles").select("organization_id").eq("user_id", user.id).single();
+      const { data: profile } = await supabase.from("profiles").select("organization_id").eq("user_id", user.id).maybeSingle();
       if (!profile?.organization_id) throw new Error("No organization found");
 
       const photoUrls: string[] = [];
@@ -353,7 +402,7 @@ const FieldReports = () => {
 
       refetch();
     } catch (err: unknown) {
-      console.error(err);
+      logger.error("Field report direct upload failed (queued for retry)", err);
       toast({ title: "Upload failed", description: "Network error. Don't worry, your report is saved safely offline in the queue.", variant: "default" });
     } finally {
       setSubmitting(false);
@@ -518,16 +567,64 @@ const FieldReports = () => {
       />
 
       {/* Offline Queue Indicator */}
-      {offlineQueue.length > 0 && (
-        <Card className="border-warning/30 bg-warning/5 animate-pulse">
+      {pendingOfflineReports.length > 0 && (
+        <Card className="border-warning/30 bg-warning/5">
           <CardContent className="p-3 flex items-center justify-between">
             <div className="flex items-center gap-2 text-warning">
               <Clock className="h-4 w-4" />
-              <span className="text-xs font-medium">{offlineQueue.length} reports waiting for connection...</span>
+              <span className="text-xs font-medium">{pendingOfflineReports.length} report{pendingOfflineReports.length === 1 ? "" : "s"} waiting for connection...</span>
             </div>
-            <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={syncOfflineReports} disabled={!navigator.onLine}>
-              Sync Now
+            <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={syncOfflineReports} disabled={!navigator.onLine || processing}>
+              {processing ? <Loader2 className="h-3 w-3 animate-spin" /> : "Sync Now"}
             </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Offline Queue Failures — never silently dropped (H-01) */}
+      {failedOfflineReports.length > 0 && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="text-xs font-medium">{failedOfflineReports.length} report{failedOfflineReports.length === 1 ? "" : "s"} could not be uploaded</span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-[10px]"
+                onClick={async () => {
+                  for (const item of failedOfflineReports) {
+                    await updateItem(item._id!, { _status: "pending", _attempts: 0, _error: null } as Partial<OfflineReportItem>);
+                  }
+                  void syncOfflineReports();
+                }}
+                disabled={!navigator.onLine || processing}
+              >
+                Retry all
+              </Button>
+            </div>
+            {failedOfflineReports.map((item) => (
+              <div key={item._id} className="rounded-md border border-destructive/20 bg-background/50 p-2 flex items-start justify-between gap-2">
+                <div className="min-w-0 text-xs text-muted-foreground">
+                  <p className="font-medium text-foreground truncate">{(item as OfflineReportItem).tasks_completed?.slice(0, 60) || "Field report"}</p>
+                  <p className="break-words line-clamp-2 mt-0.5">{(item as OfflineReportItem)._error || "Unknown error"}</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-[10px] shrink-0"
+                  onClick={async () => {
+                    await updateItem(item._id!, { _status: "pending", _attempts: 0, _error: null } as Partial<OfflineReportItem>);
+                    void syncOfflineReports();
+                  }}
+                  disabled={!navigator.onLine || processing}
+                >
+                  Retry
+                </Button>
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}

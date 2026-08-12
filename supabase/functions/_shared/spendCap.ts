@@ -14,10 +14,19 @@ export interface SpendCapResult {
 
 /**
  * Returns whether the org is still under its monthly token budget.
- * Fail-open (allowed=true) if the check itself errors so a transient DB
- * issue cannot silently disable every AI feature.
+ *
+ * Failure philosophy is deliberately documented and asymmetric:
+ *  - Interactive (user-waiting) calls: FAIL OPEN — a transient DB issue must
+ *    not silently disable every AI feature the user is looking at.
+ *  - Scheduled (cron / service-role) calls: FAIL CLOSED — nobody is waiting,
+ *    and the budget ceiling matters most for unattended automation. Pass
+ *    { failOpen: false } for those calls.
  */
-export async function checkSpendCap(organizationId: string | undefined): Promise<SpendCapResult> {
+export async function checkSpendCap(
+  organizationId: string | undefined,
+  opts: { failOpen?: boolean } = {},
+): Promise<SpendCapResult> {
+  const failOpen = opts.failOpen ?? true;
   const cap = Number(
     // @ts-expect-error Deno global
     Deno.env.get("AI_MONTHLY_TOKEN_CAP") ?? DEFAULT_MONTHLY_TOKEN_CAP,
@@ -28,7 +37,11 @@ export async function checkSpendCap(organizationId: string | undefined): Promise
     const url = Deno.env.get("SUPABASE_URL");
     // @ts-expect-error Deno global
     const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!url || !key) return { allowed: true, used: 0, cap };
+    if (!url || !key) {
+      return failOpen
+        ? { allowed: true, used: 0, cap }
+        : { allowed: false, used: 0, cap, reason: "spend_cap_unavailable" };
+    }
     const supabase = createClient(url, key);
     const monthStart = new Date();
     monthStart.setUTCDate(1);
@@ -49,7 +62,9 @@ export async function checkSpendCap(organizationId: string | undefined): Promise
       reason: used >= cap ? "monthly_ai_cap_reached" : undefined,
     };
   } catch {
-    return { allowed: true, used: 0, cap };
+    return failOpen
+      ? { allowed: true, used: 0, cap }
+      : { allowed: false, used: 0, cap, reason: "spend_cap_unavailable" };
   }
 }
 

@@ -60,8 +60,10 @@ const stripMd = (text: string): string =>
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
+// Fallback company name used in the circular stamp. Callers that have the
+// organization record should pass options.companyName so multi-organization
+// documents carry the right name (see generateWaybill).
 const COMPANY = "NIF Technical Services";
-const TAGLINE = "HDPE Pipe Infrastructure Specialists";
 const GREEN: [number, number, number] = [63, 167, 68];
 const BLUE: [number, number, number] = [10, 22, 40]; // Using DARK as BLUE
 const DARK: [number, number, number] = [10, 22, 40];
@@ -115,9 +117,10 @@ function drawPageChrome(doc: jsPDF, letterheadDataUrl: string | null = null) {
   drawLetterheadBackground(doc, letterheadDataUrl);
 }
 
-function drawCircularStamp(doc: jsPDF, x: number, y: number, stampType: string) {
+function drawCircularStamp(doc: jsPDF, x: number, y: number, stampType: string, companyName?: string) {
   const radius = 18;
   const label = stampLabels[stampType] || "APPROVED";
+  const companyLabel = companyName || COMPANY;
 
   doc.setDrawColor(...STAMP_RED);
   doc.setLineWidth(1.2);
@@ -128,7 +131,7 @@ function drawCircularStamp(doc: jsPDF, x: number, y: number, stampType: string) 
   doc.setFontSize(5.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...STAMP_RED);
-  doc.text(COMPANY.toUpperCase(), x, y - radius + 6, { align: "center" });
+  doc.text(companyLabel.toUpperCase(), x, y - radius + 6, { align: "center" });
 
   doc.setDrawColor(...STAMP_RED);
   doc.setLineWidth(0.3);
@@ -403,7 +406,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   if (stampType) {
     const stampX = pageW - margin - 20;
     const stampY = Math.min(y + 5, pageH - 36);
-    drawCircularStamp(doc, stampX, stampY, stampType);
+    drawCircularStamp(doc, stampX, stampY, stampType, options.companyName);
     y = stampY + 22;
   }
 

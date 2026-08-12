@@ -65,13 +65,18 @@ export const RecordPaymentDialog = ({ open, onOpenChange, invoice, onRecorded }:
       } as Database["public"]["Tables"]["receipts"]["Insert"]).select("*").single();
       if (error) throw error;
 
-      // Update invoice balance + status
+      // Update invoice balance + status. NEVER swallow this error: a receipt
+      // without the matching invoice adjustment would silently corrupt
+      // balance_due and every downstream report.
       const newBalance = Math.max(0, Number(invoice.balance_due ?? invoice.total_amount ?? 0) - amt);
       const newStatus = newBalance <= 0 ? "paid" : "partial";
-      await supabase.from("invoices").update({
+      const { error: invoiceError } = await supabase.from("invoices").update({
         balance_due: newBalance,
         status: newStatus,
       } as Database["public"]["Tables"]["invoices"]["Update"]).eq("id", invoice.id);
+      if (invoiceError) {
+        throw new Error(`Receipt saved but the invoice could not be updated (${invoiceError.message}). Contact an administrator — the balance must be reconciled.`);
+      }
 
       // Generate receipt PDF
       const { generatePdf } = await import("@/lib/generatePdf");

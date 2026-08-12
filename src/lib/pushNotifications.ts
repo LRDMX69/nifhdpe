@@ -6,6 +6,7 @@
 
 let swRegistration: ServiceWorkerRegistration | null = null;
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 import { Json } from "@/integrations/supabase/types";
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -42,11 +43,11 @@ export async function subscribeToPush(vapidPublicKey?: string, userId?: string, 
       }, { onConflict: 'endpoint' });
     } catch (e) {
       // best-effort
-      console.warn('Failed to persist push subscription', e);
+      logger.warn('Failed to persist push subscription', e);
     }
     return sub;
   } catch (e) {
-    console.warn('subscribeToPush failed', e);
+    logger.warn('subscribeToPush failed', e);
     return null;
   }
 }
@@ -54,7 +55,7 @@ export async function subscribeToPush(vapidPublicKey?: string, userId?: string, 
 /** Register the service worker */
 export async function registerServiceWorker(): Promise<boolean> {
   if (!("serviceWorker" in navigator)) {
-    console.warn("Service workers not supported");
+    logger.warn("Service workers not supported");
     return false;
   }
   // Block registration inside iframes or Lovable preview hosts
@@ -67,7 +68,7 @@ export async function registerServiceWorker(): Promise<boolean> {
     swRegistration = await navigator.serviceWorker.register("/sw.js");
     return true;
   } catch (err) {
-    console.error("SW registration failed:", err);
+    logger.error("SW registration failed:", err);
     return false;
   }
 }
@@ -100,7 +101,7 @@ export async function showNotification(title: string, body: string, data?: Recor
       } as NotificationOptions);
       return true;
     } catch (e) {
-      console.warn("SW notification failed, trying fallback:", e);
+      logger.warn("SW notification failed, trying fallback:", e);
     }
   }
 
@@ -110,7 +111,7 @@ export async function showNotification(title: string, body: string, data?: Recor
       new Notification(title, { body, icon: "/nif-logo.png" });
       return true;
     } catch (e) {
-      console.warn("Notification API failed:", e);
+      logger.warn("Notification API failed:", e);
     }
   }
 

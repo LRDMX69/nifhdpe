@@ -1,11 +1,12 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
-import { validateUser } from "../_shared/auth.ts";
+import { validateServiceOrUser, isUuid } from "../_shared/auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { isCronOrServiceRequest } from "../_shared/cronAuth.ts";
 import { isAutoModeEnabled, autoModeSkippedResponse } from "../_shared/autoMode.ts";
+import { callAI } from "../_shared/aiProvider.ts";
 
 
 interface IntelLog {
@@ -16,38 +17,6 @@ interface IntelLog {
   details: string;
   source_table?: string;
   metadata?: Record<string, unknown>;
-}
-
-async function callAI(systemPrompt: string, userMessage: string) {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-
-  if (LOVABLE_API_KEY) {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "google/gemini-2.5-flash-lite", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }] }),
-    });
-    // Only return if truly successful (2xx status)
-    if (res.ok) return res;
-    // If it's a 502 (gateway error), try fallback
-    if (res.status === 502) {
-      logger.warn("Lovable AI gateway returned 502, trying fallback");
-    } else {
-      logger.error(`Lovable AI gateway error: ${res.status} ${res.statusText}`);
-    }
-  }
-  if (GEMINI_API_KEY) {
-    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "gemini-2.0-flash-lite", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }] }),
-    });
-    // Only return if truly successful
-    if (res.ok) return res;
-    logger.error(`Gemini API error: ${res.status} ${res.statusText}`);
-  }
-  throw new Error("No AI API key configured or all AI services failed (LOVABLE_API_KEY or GEMINI_API_KEY)");
 }
 
 serve(async (req: Request) => {
@@ -61,13 +30,17 @@ serve(async (req: Request) => {
 
   try {
     const { organization_id } = await req.json();
+    if (!isUuid(organization_id)) {
+      return new Response(JSON.stringify({ error: "invalid organization_id" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     // Validate that the user is authorized for this organization
-    await validateUser(req, organization_id);
+    await validateServiceOrUser(req, organization_id);
 
     // Auto-Mode gate: scheduled/cron runs only execute when the org has
     // Auto Mode turned ON. Manual user invocations bypass this check.
-    if (await isCronOrServiceRequest(req)) {
+    const isScheduled = await isCronOrServiceRequest(req);
+    if (isScheduled) {
       if (!(await isAutoModeEnabled(organization_id))) {
         return autoModeSkippedResponse(corsHeaders, organization_id);
       }
@@ -76,10 +49,6 @@ serve(async (req: Request) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-    const { checkSpendCap, capExceededResponse } = await import("../_shared/spendCap.ts");
-    const cap = await checkSpendCap(organization_id);
-    if (!cap.allowed) return capExceededResponse(corsHeaders, cap);
 
     const today = new Date().toISOString().split("T")[0];
     const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString();
@@ -185,26 +154,20 @@ serve(async (req: Request) => {
     // Generate AI executive summary
     const aiPrompt = `You are the Central AI Monitor for NIF Technical Services. Generate a concise executive intelligence brief.\n\nFLAGS DETECTED:\n${JSON.stringify(logs.map(l => ({ category: l.category, severity: l.severity, title: l.title })), null, 2)}\n\nProvide:\n1. Priority actions (max 3)\n2. Risk assessment\n3. Operational health score (1-10)\n4. Financial health note\n5. Any fraud or security concerns\n\nBe direct. Use ₦. Max 250 words. No markdown.`;
 
-    const response = await callAI(
+    const aiResult = await callAI(
       "You are an invisible Central AI monitoring system for NIF Technical. Generate brief, actionable intelligence for admin eyes only. No markdown.",
-      aiPrompt
+      aiPrompt,
+      { organizationId: organization_id, functionName: "central-ai-monitor", strictSpendCap: isScheduled }
     );
 
-    if (!response.ok) {
-      throw new Error(`AI API error: ${response.status}`);
+    if (!aiResult.ok) {
+      return new Response(
+        JSON.stringify({ success: false, flags: logs.length, error: aiResult.error }),
+        { status: aiResult.status === 402 || aiResult.status === 429 ? aiResult.status : 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
-    const result = await response.json();
-    const aiSummary = result.choices?.[0]?.message?.content ?? "Monitoring complete. No AI summary generated.";
-
-    try {
-      await supabase.from("ai_usage_logs").insert({
-        organization_id,
-        function_name: "central-ai-monitor",
-        success: true,
-        tokens_estimate: Math.ceil(aiSummary.length / 4) + 1000,
-      });
-    } catch { /* non-fatal */ }
+    const aiSummary = aiResult.content;
 
     await supabase.from("ai_summaries").insert({
       organization_id, context: "central_ai", summary: aiSummary,

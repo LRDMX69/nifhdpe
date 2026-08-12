@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { QuotationCard } from "@/components/quotations/QuotationCard";
 import { QuotationSummary } from "@/components/quotations/QuotationSummary";
+import { AuditHistoryDialog } from "@/components/AuditHistoryDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -11,12 +13,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileText, Search, Trash2, Loader2, MoreVertical, Pencil } from "lucide-react";
+import { Plus, FileText, Search, Trash2, Loader2, MoreVertical, Pencil, Download } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
-import { formatCurrency } from "@/lib/constants";
+import { formatCurrency, isFinanceCapable } from "@/lib/constants";
 import { AiInsightPanel } from "@/components/AiInsightPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -24,6 +26,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
+import { exportCsv, csvDate } from "@/lib/exportCsv";
 
 type DbQuotation = Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null, quotation_items?: { count: number }[] };
 type DbQuotationItem = Database["public"]["Tables"]["quotation_items"]["Row"];
@@ -43,8 +46,9 @@ const Quotations = () => {
   const { user, memberships, activeRole, isMaintenance } = useAuth();
   const { toast } = useToast();
   const orgId = memberships[0]?.organization_id;
-  const canEdit = activeRole === "administrator" || activeRole === "reception_sales" || activeRole === "finance" || isMaintenance;
+  const canEdit = activeRole === "administrator" || activeRole === "reception_sales" || isFinanceCapable(activeRole) || isMaintenance;
   const canDelete = activeRole === "administrator" || isMaintenance;
+  const canViewHistory = activeRole === "administrator" || isFinanceCapable(activeRole) || isMaintenance;
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -58,6 +62,8 @@ const Quotations = () => {
   const [lumpSumAmount, setLumpSumAmount] = useState("");
   const [lumpSumDesc, setLumpSumDesc] = useState("");
   const [editingQuotation, setEditingQuotation] = useState<DbQuotation | null>(null);
+  const [historyTarget, setHistoryTarget] = useState<DbQuotation | null>(null);
+  const [revisionReason, setRevisionReason] = useState("");
   const [invoicePrompt, setInvoicePrompt] = useState<DbQuotation | null>(null);
   const listRef = useGsapStagger(".gsap-card", 0.06);
 
@@ -101,7 +107,7 @@ const Quotations = () => {
   const resetForm = () => {
     setItems([]); setClientId(""); setPipeType("hdpe"); setProfitMargin(15);
     setLaborCost(500); setTransportCost(50000); setEditingQuotation(null);
-    setLumpSumAmount(""); setLumpSumDesc("");
+    setLumpSumAmount(""); setLumpSumDesc(""); setRevisionReason("");
   };
 
   /** Load existing quotation for editing */
@@ -143,15 +149,19 @@ const Quotations = () => {
           client_id: clientId || null, pipe_type: pipeType as Database["public"]["Enums"]["pipe_type"],
           profit_margin_percent: profitMargin, labor_cost_per_meter: laborCost,
           transport_cost: transportCost, subtotal, total_amount: grandTotal, status: status as Database["public"]["Enums"]["quotation_status"], is_lump_sum: false,
+          revision_reason: revisionReason || null,
         } as Database["public"]["Tables"]["quotations"]["Update"]).eq("id", editingQuotation.id);
         if (error) throw error;
-        // Replace line items
-        await supabase.from("quotation_items").delete().eq("quotation_id", editingQuotation.id);
+        // Replace line items. Errors here must NOT be swallowed: a header
+        // saved without its items would silently corrupt the quotation.
+        const { error: delItemsError } = await supabase.from("quotation_items").delete().eq("quotation_id", editingQuotation.id);
+        if (delItemsError) throw delItemsError;
         if (items.length > 0) {
-          await supabase.from("quotation_items").insert(items.map(i => ({
+          const { error: insItemsError } = await supabase.from("quotation_items").insert(items.map(i => ({
             quotation_id: editingQuotation.id, description: i.description, item_type: i.type as Database["public"]["Enums"]["quotation_item_type"],
             quantity: i.quantity, unit_price: i.unitPrice, total_price: i.total,
           })));
+          if (insItemsError) throw insItemsError;
         }
         toast({ title: "Quotation updated" });
       } else {
@@ -186,7 +196,7 @@ const Quotations = () => {
         const { error } = await supabase.from("quotations").update({
           client_id: clientId || null, is_lump_sum: true,
           lump_sum_amount: parseFloat(lumpSumAmount), total_amount: parseFloat(lumpSumAmount),
-          notes: lumpSumDesc || null,
+          notes: lumpSumDesc || null, revision_reason: revisionReason || null,
         } as Database["public"]["Tables"]["quotations"]["Update"]).eq("id", editingQuotation.id);
         if (error) throw error;
         toast({ title: "Quotation updated" });
@@ -243,16 +253,18 @@ const Quotations = () => {
 
       if (invError) throw invError;
 
-      // Copy items
+      // Copy items. An invoice without its line items is a silent data bug —
+      // surface the failure so it can be retried.
       const { data: items } = await supabase.from("quotation_items").select("*").eq("quotation_id", q.id);
       if (items && items.length > 0) {
-        await supabase.from("invoice_items").insert(items.map(i => ({
+        const { error: itemsError } = await supabase.from("invoice_items").insert(items.map(i => ({
           invoice_id: invoice.id,
           description: i.description,
           quantity: i.quantity,
           unit_price: i.unit_price,
           total_price: i.total_price
         })));
+        if (itemsError) throw itemsError;
       }
 
       toast({ title: "Invoice generated successfully", description: `Invoice ${invoice.document_number || ''} has been created.` });
@@ -262,6 +274,17 @@ const Quotations = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleExport = () => {
+    exportCsv(`quotations-${new Date().toISOString().slice(0, 10)}`, [
+      { header: "Quotation #", value: (q: DbQuotation) => q.quotation_number },
+      { header: "Client", value: (q: DbQuotation) => q.clients?.name ?? "" },
+      { header: "Status", value: (q: DbQuotation) => q.status },
+      { header: "Pipe Type", value: (q: DbQuotation) => q.pipe_type ?? "" },
+      { header: "Total (₦)", value: (q: DbQuotation) => Number(q.total_amount ?? 0).toLocaleString() },
+      { header: "Date", value: (q: DbQuotation) => csvDate(q.created_at) },
+    ], quotations);
   };
 
   const handleDelete = async () => {
@@ -348,11 +371,20 @@ const Quotations = () => {
         lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
         onRefresh={() => refetch()}
       >
+        <Button size="sm" variant="outline" onClick={handleExport} disabled={quotations.length === 0}>
+          <Download className="h-3.5 w-3.5 mr-1" /> Export CSV
+        </Button>
         {canEdit && (
           <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
             <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Quotation</Button></DialogTrigger>
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editingQuotation ? "Edit" : "Create New"} Quotation</DialogTitle></DialogHeader>
+              {editingQuotation && (
+                <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 space-y-1.5">
+                  <Label className="text-xs text-amber-700 dark:text-amber-400">Reason for change (recorded in history)</Label>
+                  <Textarea rows={2} value={revisionReason} onChange={(e) => setRevisionReason(e.target.value)} placeholder="e.g. Client negotiated a 5% discount after site visit" className="text-sm" />
+                </div>
+              )}
               <Tabs defaultValue={editingQuotation?.is_lump_sum ? "lumpsum" : "itemized"} className="mt-4">
                 <TabsList className="w-full grid grid-cols-2">
                   <TabsTrigger value="itemized">Itemized</TabsTrigger>
@@ -506,6 +538,8 @@ const Quotations = () => {
             allStatuses={allQStatuses}
             onEdit={() => openEditQuotation(q)}
             onPrint={() => handlePrint(q)}
+            onHistory={() => setHistoryTarget(q)}
+            canViewHistory={canViewHistory}
             onDelete={() => setDeleteTarget(q)}
             onStatusChange={(s) => handleStatusChange(q.id, s)}
             onConvertToInvoice={canEdit ? () => convertToInvoice(q) : undefined}
@@ -513,6 +547,15 @@ const Quotations = () => {
         ))}
       </div>
       </AsyncBoundary>
+
+      <AuditHistoryDialog
+        open={!!historyTarget}
+        onOpenChange={(o) => !o && setHistoryTarget(null)}
+        tableName="quotations"
+        recordId={historyTarget?.id ?? ""}
+        orgId={orgId ?? ""}
+        title={historyTarget ? `Revision History — ${historyTarget.quotation_number}` : undefined}
+      />
     </div>
   );
 };

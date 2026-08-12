@@ -50,7 +50,7 @@ export const ProjectPnL = ({ projectId, projectBudget }: ProjectPnLProps) => {
         .from("projects")
         .select("team_member_ids, start_date, end_date")
         .eq("id", projectId)
-        .single();
+        .maybeSingle();
       const teamIds = (project?.team_member_ids as unknown as string[]) || [];
       const projStart = (project as { start_date?: string } | null)?.start_date;
       const projEnd = (project as { end_date?: string } | null)?.end_date;

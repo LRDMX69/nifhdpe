@@ -37,7 +37,10 @@ export const GROUP_ORDER: NavGroup[] = [
 //   reception_sales            → Marketing
 const TECHNICAL = ["engineer", "technician"];
 const LOGISTICS = ["warehouse"];
-const ACCOUNTS  = ["finance"];
+// Accounts module = finance capability. HR is the head of Finance in the
+// current org structure, so HR inherits the finance module (see
+// FINANCE_CAPABLE_ROLES in constants.ts).
+const ACCOUNTS  = ["finance", "hr"];
 const MARKETING = ["reception_sales"];
 const HR_ROLE   = ["hr"];
 const ADMIN     = ["administrator"];

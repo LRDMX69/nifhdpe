@@ -13,6 +13,7 @@ import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Users } from "lucide-react";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { AiInsightPanel } from "@/components/AiInsightPanel";
+import { ClientDetailDialog } from "@/components/clients/ClientDetailDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,6 +32,7 @@ const Clients = () => {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<ClientItem | null>(null);
+  const [viewingClient, setViewingClient] = useState<ClientItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ClientItem | null>(null);
   const [saving, setSaving] = useState(false);
   const listRef = useGsapStagger(".gsap-card", 0.06);
@@ -203,7 +205,7 @@ const Clients = () => {
       >
       <div ref={listRef} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map((client: ClientItem) => (
-          <Card key={client.id} className="gsap-card border-border/50 hover:border-primary/30 transition-all hover:shadow-md group">
+          <Card key={client.id} className="gsap-card border-border/50 hover:border-primary/30 transition-all hover:shadow-md group cursor-pointer" onClick={() => setViewingClient(client)}>
             <CardContent className="pt-5 pb-4 space-y-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3 min-w-0">
@@ -217,14 +219,14 @@ const Clients = () => {
                 </div>
                 {(canEdit || canDelete) && (
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Client actions">
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       {canEdit && <DropdownMenuItem onClick={() => openEdit(client)}><Pencil className="h-3.5 w-3.5 mr-2" />Edit</DropdownMenuItem>}
-                      {canDelete && <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(client)}><Trash2 className="h-3.5 w-3.5 mr-2" />Delete</DropdownMenuItem>}
+                      {canDelete && <DropdownMenuItem onClick={() => setDeleteTarget(client)}><Trash2 className="h-3.5 w-3.5 mr-2" />Delete</DropdownMenuItem>}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
@@ -239,6 +241,15 @@ const Clients = () => {
         ))}
       </div>
       </AsyncBoundary>
+
+      <ClientDetailDialog
+        client={viewingClient}
+        orgId={orgId ?? ""}
+        open={!!viewingClient}
+        onOpenChange={(open) => !open && setViewingClient(null)}
+        onEdit={(client) => { setViewingClient(null); openEdit(client); }}
+        onDelete={(client) => { setViewingClient(null); setDeleteTarget(client); }}
+      />
     </div>
   );
 };

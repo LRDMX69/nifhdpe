@@ -156,6 +156,8 @@ export const NotificationBell = () => {
         size="icon"
         className="relative h-9 w-9 text-sidebar-foreground/60 hover:text-sidebar-foreground"
         onClick={() => setOpen(!open)}
+        aria-label={count > 0 ? `Notifications (${count} unread)` : "Notifications"}
+        title={count > 0 ? `${count} unread notifications` : "Notifications"}
       >
         <Bell className="h-4 w-4" />
         {count > 0 && (

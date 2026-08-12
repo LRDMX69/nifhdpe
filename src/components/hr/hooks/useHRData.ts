@@ -128,7 +128,7 @@ export const useHRData = (orgId: string | undefined, isHrOrAdmin: boolean) => {
     queryKey: ["org-info-hr", orgId],
     queryFn: async () => {
       if (!orgId) return null;
-      const { data } = await supabase.from("organizations").select("name, logo_url").eq("id", orgId).single();
+      const { data } = await supabase.from("organizations").select("name, logo_url").eq("id", orgId).maybeSingle();
       return data;
     },
     enabled: !!orgId && isHrOrAdmin,

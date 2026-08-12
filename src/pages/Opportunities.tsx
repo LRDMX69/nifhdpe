@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Target, Calendar, TrendingUp, Award, RefreshCw, Loader2, Brain, BarChart3, MapPin, Phone, Mail, Link, Printer, DollarSign, Sparkles } from "lucide-react";
+import { Plus, Target, Calendar, TrendingUp, Award, RefreshCw, Loader2, Brain, BarChart3, MapPin, Phone, Mail, Link, Printer, DollarSign, Sparkles, Download } from "lucide-react";
+import { exportCsv, csvDate } from "@/lib/exportCsv";
 import { formatCurrency } from "@/lib/constants";
 import { useGsapAnimation } from "@/hooks/useGsapAnimation";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,6 +63,18 @@ const Opportunities = () => {
     enabled: !!orgId,
   });
 
+  const handleExport = () => {
+    exportCsv(`opportunities-${new Date().toISOString().slice(0, 10)}`, [
+      { header: "Title", value: (o: OpportunityItem) => o.title },
+      { header: "Source", value: (o: OpportunityItem) => o.source ?? "" },
+      { header: "Status", value: (o: OpportunityItem) => o.status },
+      { header: "Est. Value (₦)", value: (o: OpportunityItem) => Number(o.estimated_value ?? 0).toLocaleString() },
+      { header: "Deadline", value: (o: OpportunityItem) => csvDate(o.deadline) },
+      { header: "Relevance", value: (o: OpportunityItem) => o.relevance_score ?? "" },
+      { header: "Success (%)", value: (o: OpportunityItem) => o.success_probability ?? "" },
+    ], opportunities);
+  };
+
   const { data: aiInsights } = useQuery({
     queryKey: ["ai-insights-opportunities", orgId],
     queryFn: async () => {
@@ -99,7 +112,7 @@ const Opportunities = () => {
   const handleAddOpportunity = async () => {
     if (!title.trim() || !user) return;
     try {
-      const { data: profile } = await supabase.from("profiles").select("organization_id").eq("user_id", user.id).single();
+      const { data: profile } = await supabase.from("profiles").select("organization_id").eq("user_id", user.id).maybeSingle();
       if (!profile?.organization_id) throw new Error("No org");
       await supabase.from("opportunities").insert({
         title, source: source || null, estimated_value: value ? parseFloat(value) : null,
@@ -213,6 +226,10 @@ const Opportunities = () => {
         onRefresh={() => refetch()}
       >
         <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={opportunities.length === 0}>
+            <Download className="h-4 w-4 mr-1" />
+            <span className="hidden sm:inline">Export CSV</span>
+          </Button>
           <Button variant="outline" size="sm" onClick={handleRefreshIntelligence} disabled={scanning}>
             {scanning ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
             <span className="hidden sm:inline">Refresh</span>

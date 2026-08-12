@@ -32,6 +32,13 @@ interface CallOptions {
   organizationId?: string;
   /** Optional label written to ai_usage_logs.function_name. */
   functionName?: string;
+  /**
+   * Fail the call if the spend-cap query itself errors. Scheduled (cron)
+   * calls should set this so the budget ceiling can never be silently
+   * disabled by a database hiccup. Interactive calls leave it off so a
+   * transient error cannot disable AI for a waiting user.
+   */
+  strictSpendCap?: boolean;
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
@@ -59,12 +66,14 @@ export async function callAI(
 
   // Enforce per-org monthly token cap before spending any credits.
   if (organizationId) {
-    const cap = await checkSpendCap(organizationId);
+    const cap = await checkSpendCap(organizationId, { failOpen: !opts.strictSpendCap });
     if (!cap.allowed) {
       return {
         ok: false,
         status: 402,
-        error: `Monthly AI spend cap reached (${cap.used}/${cap.cap} tokens).`,
+        error: cap.reason === "spend_cap_unavailable"
+          ? "AI budget could not be verified — automated run skipped."
+          : `Monthly AI spend cap reached (${cap.used}/${cap.cap} tokens).`,
         retryable: false,
       };
     }
@@ -101,6 +110,9 @@ export async function callAI(
         const payload = await res.json().catch(() => null);
         const content = payload?.choices?.[0]?.message?.content;
         if (typeof content === "string" && content.trim().length > 0) {
+          // Count input + output so the monthly spend cap sees the full cost of
+          // the call — this is the accounting the per-function copies forgot.
+          await logUsage(organizationId, functionName, true, estimateTokens(systemPrompt, userMessage, content));
           return { ok: true, content, provider: "lovable" };
         }
         logger.warn("Lovable AI returned empty content, trying fallback");
@@ -152,6 +164,7 @@ export async function callAI(
         const payload = await res.json().catch(() => null);
         const content = payload?.choices?.[0]?.message?.content;
         if (typeof content === "string" && content.trim().length > 0) {
+          await logUsage(organizationId, functionName, true, estimateTokens(systemPrompt, userMessage, content));
           return { ok: true, content, provider: "gemini" };
         }
       } else {

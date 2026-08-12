@@ -53,7 +53,7 @@ export const CheckInWidget = () => {
     queryKey: ["org-coords", orgId],
     queryFn: async () => {
       if (!orgId) return null;
-      const { data } = await supabase.from("organizations").select("office_lat, office_lng").eq("id", orgId).single();
+      const { data } = await supabase.from("organizations").select("office_lat, office_lng").eq("id", orgId).maybeSingle();
       return data;
     },
     enabled: !!orgId,

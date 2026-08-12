@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Loader2, ArrowLeft, FileSpreadsheet } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -15,7 +16,7 @@ const supabase = supa as any;
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatCurrency } from "@/lib/constants";
+import { formatCurrency, FINANCE_CAPABLE_ROLES } from "@/lib/constants";
 import { humanizeError } from "@/lib/humanizeError";
 
 type Boq = {
@@ -37,10 +38,11 @@ const BOQ = () => {
   const { toast } = useToast();
   const qc = useQueryClient();
   const orgId = memberships[0]?.organization_id;
-  const canEdit = isMaintenance || ["administrator", "engineer", "reception_sales", "finance"].includes(activeRole ?? "");
+  const canEdit = isMaintenance || ["administrator", "engineer", "reception_sales", ...FINANCE_CAPABLE_ROLES].includes(activeRole ?? "");
 
   const [selected, setSelected] = useState<Boq | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Boq | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", project_id: "" });
 
@@ -86,16 +88,19 @@ const BOQ = () => {
     } finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this BOQ and all its items?")) return;
-    const { error } = await supabase.from("boqs").delete().eq("id", id);
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    // Defense in depth: scope the delete to the caller's organization as every
+    // other module does — never rely on RLS alone. (Finding H-03.)
+    const { error } = await supabase.from("boqs").delete().eq("id", deleteTarget.id).eq("organization_id", orgId);
+    setDeleteTarget(null);
     if (error) { toast({ title: "Delete failed", description: humanizeError(error), variant: "destructive" }); return; }
     toast({ title: "BOQ deleted" });
     refetch();
   };
 
   if (selected) {
-    return <BoqDetail boq={selected} onBack={() => { setSelected(null); qc.invalidateQueries({ queryKey: ["boqs", orgId] }); }} canEdit={canEdit} />;
+    return <BoqDetail boq={selected} orgId={orgId ?? ""} onBack={() => { setSelected(null); qc.invalidateQueries({ queryKey: ["boqs", orgId] }); }} canEdit={canEdit} />;
   }
 
   return (
@@ -148,7 +153,7 @@ const BOQ = () => {
                 {b.projects?.name && <p className="text-muted-foreground">Project: {b.projects.name}</p>}
                 <p className="font-semibold text-primary">{formatCurrency(Number(b.total_amount) || 0)}</p>
                 {canEdit && (
-                  <Button size="sm" variant="ghost" className="text-destructive h-7 px-2 -ml-2" onClick={(e) => { e.stopPropagation(); handleDelete(b.id); }}>
+                  <Button size="sm" variant="ghost" className="text-destructive h-7 px-2 -ml-2" onClick={(e) => { e.stopPropagation(); setDeleteTarget(b); }}>
                     <Trash2 className="h-3 w-3 mr-1" /> Delete
                   </Button>
                 )}
@@ -157,11 +162,26 @@ const BOQ = () => {
           ))}
         </div>
       </AsyncBoundary>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{deleteTarget?.title}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the BOQ and all of its line items. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
 
-const BoqDetail = ({ boq, onBack, canEdit }: { boq: Boq; onBack: () => void; canEdit: boolean }) => {
+const BoqDetail = ({ boq, orgId, onBack, canEdit }: { boq: Boq; orgId: string; onBack: () => void; canEdit: boolean }) => {
   const { toast } = useToast();
   const [adding, setAdding] = useState(false);
   const [row, setRow] = useState({ item_code: "", description: "", unit: "m", quantity: "1", rate: "0", notes: "" });
@@ -170,7 +190,7 @@ const BoqDetail = ({ boq, onBack, canEdit }: { boq: Boq; onBack: () => void; can
   const { data: items = [], isLoading, error, refetch } = useQuery({
     queryKey: ["boq-items", boq.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("boq_items").select("*").eq("boq_id", boq.id).order("position");
+      const { data, error } = await supabase.from("boq_items").select("*").eq("boq_id", boq.id).eq("organization_id", orgId).order("position");
       if (error) throw error;
       return (data ?? []) as BoqItem[];
     },
@@ -179,7 +199,7 @@ const BoqDetail = ({ boq, onBack, canEdit }: { boq: Boq; onBack: () => void; can
   const total = useMemo(() => items.reduce((s, i) => s + (Number(i.amount) || 0), 0), [items]);
 
   const syncTotal = async (newTotal: number) => {
-    await supabase.from("boqs").update({ total_amount: newTotal }).eq("id", boq.id);
+    await supabase.from("boqs").update({ total_amount: newTotal }).eq("id", boq.id).eq("organization_id", orgId);
   };
 
   const handleAdd = async () => {
@@ -209,7 +229,7 @@ const BoqDetail = ({ boq, onBack, canEdit }: { boq: Boq; onBack: () => void; can
   };
 
   const handleDelete = async (item: BoqItem) => {
-    const { error } = await supabase.from("boq_items").delete().eq("id", item.id);
+    const { error } = await supabase.from("boq_items").delete().eq("id", item.id).eq("organization_id", orgId);
     if (error) { toast({ title: "Delete failed", variant: "destructive" }); return; }
     await syncTotal(total - Number(item.amount));
     refetch();
@@ -217,7 +237,7 @@ const BoqDetail = ({ boq, onBack, canEdit }: { boq: Boq; onBack: () => void; can
 
   const handleStatus = async (newStatus: string) => {
     setStatus(newStatus);
-    const { error } = await supabase.from("boqs").update({ status: newStatus }).eq("id", boq.id);
+    const { error } = await supabase.from("boqs").update({ status: newStatus }).eq("id", boq.id).eq("organization_id", orgId);
     if (error) toast({ title: "Status update failed", variant: "destructive" });
   };
 

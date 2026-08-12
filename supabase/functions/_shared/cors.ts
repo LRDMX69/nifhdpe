@@ -1,42 +1,17 @@
-
-// Allow-list of trusted origins. Override per-environment via ALLOWED_ORIGIN
-// (comma-separated list). Falls back to known production + Lovable preview hosts.
-const DEFAULT_ALLOWED = [
-  "https://nifhdpe.lovable.app",
-  "https://id-preview--94e98d52-289e-425e-aecd-1482a0843ec6.lovable.app",
-];
-
-const envAllowed = (Deno.env.get("ALLOWED_ORIGIN") || "")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
-
-const ALLOWED_ORIGINS = new Set<string>([...DEFAULT_ALLOWED, ...envAllowed]);
-
-export function getCorsHeaders(req?: Request): Record<string, string> {
-  const origin = req?.headers.get("origin") || "";
-  const allowOrigin =
-    ALLOWED_ORIGINS.has(origin) ||
-    /^https:\/\/.*\.lovable\.app$/.test(origin) ||
-    /^https:\/\/.*\.vercel\.app$/.test(origin)
-      ? origin
-      : DEFAULT_ALLOWED[0];
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-    "Vary": "Origin",
-  };
-}
-
-// Backwards-compatible static export.
+// CORS for all edge functions.
+//
 // We intentionally use "*" here so requests from any Lovable preview / Vercel
 // preview / custom domain succeed without per-function wiring. Functions are
-// still protected by JWT validation + rate limiting. Use getCorsHeaders(req)
-// above for stricter, allow-listed origin echoing.
+// still protected by JWT validation + rate limiting (and by isCronOrServiceRequest
+// for cron-invoked functions), so the wildcard is a defence-in-depth gap only.
+//
+// NOTE: an origin allow-list helper existed here and was deliberately removed
+// because it broke preview-origin requests. If an allow-list is ever
+// re-introduced, include the Lovable preview origins and deploy it together
+// with the frontend domain configuration.
 export const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version, x-cron-secret",
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };

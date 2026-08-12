@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { isFinanceCapable } from "@/lib/constants";
 
 interface AttentionItem {
   id: string;
@@ -38,8 +39,8 @@ export function NeedsAttentionPanel() {
         };
       };
 
-      // Reviewer queues
-      if (role === "administrator" || role === "finance") {
+      // Reviewer queues — finance-capable roles include HR (head of Finance)
+      if (role === "administrator" || isFinanceCapable(role)) {
         const { data: claims } = await client
           .from("worker_claims")
           .select("id, category, amount, status")

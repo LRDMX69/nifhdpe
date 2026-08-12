@@ -14,7 +14,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, DollarSign, TrendingUp, TrendingDown, Brain, CreditCard, Loader2, MoreVertical, Pencil, Trash2, FileDown, Receipt, FileText, AlertCircle } from "lucide-react";
+import { Plus, DollarSign, TrendingUp, TrendingDown, Brain, CreditCard, Loader2, MoreVertical, Pencil, Trash2, FileDown, Receipt, FileText, AlertCircle, History } from "lucide-react";
+import { exportCsv } from "@/lib/exportCsv";
+import { isFinanceCapable } from "@/lib/constants";
+import { AuditHistoryDialog } from "@/components/AuditHistoryDialog";
 import { formatCurrency } from "@/lib/constants";
 import { useGsapAnimation } from "@/hooks/useGsapAnimation";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -39,14 +42,16 @@ const PAYMENT_TYPES = ["salary", "overtime", "fuel", "maintenance", "bonus", "tr
 const EXPENSE_CATEGORIES = ["labor", "fuel", "transport", "materials", "equipment", "other"] as const;
 
 const Finance = () => {
-  const { user, memberships } = useAuth();
+  const { user, memberships, activeRole, isMaintenance } = useAuth();
   const { toast } = useToast();
+  const canViewHistory = activeRole === "administrator" || isFinanceCapable(activeRole) || isMaintenance;
   const orgId = memberships[0]?.organization_id;
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") ?? "overview";
   const [activeTab, setActiveTab] = useState(initialTab);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [paymentInvoice, setPaymentInvoice] = useState<InvoiceItem | null>(null);
+  const [historyTarget, setHistoryTarget] = useState<InvoiceItem | null>(null);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -263,7 +268,7 @@ const Finance = () => {
         const { error } = await supabase.from("worker_payments").insert(payload);
         if (error) throw error;
         toast({ title: "Payment logged" });
-        supabase.functions.invoke("anomaly-detection", { body: { organization_id: orgId } }).catch(console.error);
+        supabase.functions.invoke("anomaly-detection", { body: { organization_id: orgId } }).catch((err) => console.error("anomaly-detection invoke failed", err));
       }
       setPaymentOpen(false); resetPaymentForm(); refetchPayments();
     } catch (err: unknown) {
@@ -357,6 +362,15 @@ const Finance = () => {
         onRefresh={() => { refetchInvoices(); refetchPayments(); refetchExpenses(); refetchReceipts(); }}
       >
         <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => exportCsv(`invoices-${new Date().toISOString().slice(0, 10)}`, [
+            { header: "Number", value: (i: InvoiceItem) => i.document_number ?? "" },
+            { header: "Client", value: (i: InvoiceItem) => i.clients?.name ?? "" },
+            { header: "Date", value: (i: InvoiceItem) => i.invoice_date ?? "" },
+            { header: "Status", value: (i: InvoiceItem) => i.status },
+            { header: "Total (NGN)", value: (i: InvoiceItem) => Number(i.total_amount ?? 0).toLocaleString() },
+            { header: "Balance Due (NGN)", value: (i: InvoiceItem) => Number(i.balance_due ?? 0).toLocaleString() },
+            { header: "Due Date", value: (i: InvoiceItem) => i.due_date ?? "" },
+          ], invoices as InvoiceItem[])}><FileDown className="h-4 w-4 mr-1" />CSV</Button>
           <Button variant="outline" size="sm" onClick={handleExportReport}><FileDown className="h-4 w-4 mr-1" />Export PDF</Button>
           <Button size="sm" onClick={() => { setActiveTab("invoices"); const next = new URLSearchParams(searchParams); next.set("tab", "invoices"); setSearchParams(next, { replace: true }); setInvoiceOpen(true); }}>
             <Receipt className="h-4 w-4 mr-1" />New Invoice
@@ -552,6 +566,11 @@ const Finance = () => {
                               <Receipt className="h-3.5 w-3.5 mr-1" />Record
                             </Button>
                           )}
+                          {canViewHistory && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Revision history" onClick={() => setHistoryTarget(inv)}>
+                              <History className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" className="h-7 w-7" title="Download PDF" onClick={async () => {
                             const { generatePdf } = await import("@/lib/generatePdf");
                             const { data: items } = await supabase.from("invoice_items").select("*").eq("invoice_id", inv.id);
@@ -743,6 +762,15 @@ const Finance = () => {
         onOpenChange={(o) => { if (!o) setPaymentInvoice(null); }}
         invoice={paymentInvoice}
         onRecorded={() => { refetchInvoices(); refetchReceipts?.(); }}
+      />
+
+      <AuditHistoryDialog
+        open={!!historyTarget}
+        onOpenChange={(o) => !o && setHistoryTarget(null)}
+        tableName="invoices"
+        recordId={historyTarget?.id ?? ""}
+        orgId={orgId ?? ""}
+        title={historyTarget ? `Revision History — ${historyTarget.document_number ?? "Invoice"}` : undefined}
       />
     </div>
   );

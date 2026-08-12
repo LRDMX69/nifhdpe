@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/constants";
+import { formatCurrency, isFinanceCapable } from "@/lib/constants";
 import type { Database } from "@/integrations/supabase/types";
 import { SenderReceiverTabs } from "@/components/ui/sender-receiver-tabs";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -77,7 +77,7 @@ const WorkerClaims = () => {
   const [open, setOpen] = useState(false);
   const orgId = memberships[0]?.organization_id;
   const isAdmin = activeRole === "administrator" || isMaintenance;
-  const isFinance = activeRole === "finance";
+  const isFinance = isFinanceCapable(activeRole);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [category, setCategory] = useState("");
@@ -91,10 +91,13 @@ const WorkerClaims = () => {
     queryKey: ["worker-claims", orgId],
     queryFn: async () => {
       if (!orgId) return [];
+      // Explicit columns only (never bank/financial rows wholesale) and a cap
+      // so the list stays bounded as the table grows. (Finding H-07.)
       const { data } = await supabase
         .from("worker_claims")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .select("id, organization_id, user_id, claim_type, category, amount, description, status, admin_notes, file_url, uploaded_at, reviewed_by, created_at, project_id, updated_at")
+        .order("created_at", { ascending: false })
+        .limit(200);
       return data ?? [];
     },
     enabled: !!orgId,

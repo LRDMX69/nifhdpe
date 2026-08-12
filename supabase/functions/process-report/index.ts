@@ -1,11 +1,12 @@
 // @ts-expect-error - Deno http module import type mismatch
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 // @ts-expect-error - Deno import type mismatch for supabase-js
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
 import { validateUser } from "../_shared/auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { callAI } from "../_shared/aiProvider.ts";
 
 interface ReportRecord {
   organization_id: string;
@@ -31,42 +32,6 @@ const BANNED_PHRASES = [
 function containsBanned(text: string): boolean {
   const low = text.toLowerCase();
   return BANNED_PHRASES.some((p) => low.includes(p));
-}
-
-async function callAI(systemPrompt: string, userMessage: string) {
-  // @ts-expect-error - Deno.env type mismatch
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  // @ts-expect-error - Deno.env type mismatch
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-  
-  if (LOVABLE_API_KEY) {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "google/gemini-2.5-flash-lite", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }] }),
-    });
-    // Only return if truly successful (2xx status)
-    if (res.ok) return res;
-    // If it's a 502 (gateway error), try fallback
-    if (res.status === 502) {
-      logger.warn("Lovable AI gateway returned 502, trying fallback");
-    } else {
-      logger.error(`Lovable AI gateway error: ${res.status} ${res.statusText}`);
-    }
-  }
-  
-  if (GEMINI_API_KEY) {
-    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "gemini-2.0-flash-lite", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }] }),
-    });
-    // Only return if truly successful
-    if (res.ok) return res;
-    logger.error(`Gemini API error: ${res.status} ${res.statusText}`);
-  }
-  
-  throw new Error("No AI API key configured or all AI services failed (LOVABLE_API_KEY or GEMINI_API_KEY)");
 }
 
 serve(async (req: Request) => {
@@ -154,23 +119,19 @@ serve(async (req: Request) => {
     let cleanedBody = rawNotes; // safe fallback
     if (userInput.trim().length > 0) {
       try {
-        const response = await callAI(editorSystemPrompt, userInput);
-        if (response.ok) {
-          const result = await response.json();
-          const aiText = (result.choices?.[0]?.message?.content ?? "").trim();
-          try {
-            await supabase.from("ai_usage_logs").insert({
-              organization_id: report.organization_id,
-              function_name: "process-report",
-              success: true,
-              tokens_estimate: Math.ceil((editorSystemPrompt.length + userInput.length + aiText.length) / 4),
-            });
-          } catch { /* non-fatal */ }
+        const aiResult = await callAI(editorSystemPrompt, userInput, {
+          organizationId: report.organization_id,
+          functionName: "process-report",
+        });
+        if (aiResult.ok) {
+          const aiText = aiResult.content.trim();
           if (aiText && !containsBanned(aiText)) {
             cleanedBody = aiText;
           } else if (aiText && containsBanned(aiText)) {
             logger.warn("AI output contained banned phrases — using original text", { fieldReportId });
           }
+        } else {
+          logger.warn("AI editor unavailable — using original text", { fieldReportId, reason: aiResult.error });
         }
       } catch (aiErr) {
         logger.warn("AI editor unavailable — using original text", { fieldReportId, err: String(aiErr) });

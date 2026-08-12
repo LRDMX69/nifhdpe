@@ -10,7 +10,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Truck, MapPin, Clock, Loader2, MoreVertical, Pencil, Trash2, CheckCircle2, Navigation, Fuel, Car, FileText } from "lucide-react";
+import { Plus, Search, Truck, MapPin, Clock, Loader2, MoreVertical, Pencil, Trash2, CheckCircle2, Navigation, Fuel, Car, FileText, FileDown } from "lucide-react";
+import { exportCsv } from "@/lib/exportCsv";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -290,9 +291,21 @@ const Logistics = () => {
         lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
         onRefresh={() => refetch()}
       >
-        <Button size="sm" onClick={() => setWaybillOpen(true)}>
-          <FileText className="h-4 w-4 mr-1" />New Waybill
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => exportCsv(`deliveries-${new Date().toISOString().slice(0, 10)}`, [
+            { header: "Date", value: (d: DeliveryRow) => d.delivery_date ?? "" },
+            { header: "Project", value: (d: DeliveryRow) => d.projects?.name ?? "" },
+            { header: "Destination", value: (d: DeliveryRow) => d.destination },
+            { header: "Status", value: (d: DeliveryRow) => d.status },
+            { header: "Vehicle", value: (d: DeliveryRow) => d.vehicle ?? "" },
+            { header: "Driver", value: (d: DeliveryRow) => d.driver ?? "" },
+            { header: "Cost (NGN)", value: (d: DeliveryRow) => Number(d.cost ?? 0).toLocaleString() },
+            { header: "Created", value: (d: DeliveryRow) => new Date(d.created_at).toLocaleString() },
+          ], deliveries as DeliveryRow[])}><FileDown className="h-4 w-4 mr-1" />CSV</Button>
+          <Button size="sm" onClick={() => setWaybillOpen(true)}>
+            <FileText className="h-4 w-4 mr-1" />New Waybill
+          </Button>
+        </div>
       </PageHeader>
       <WaybillDialog open={waybillOpen} onOpenChange={setWaybillOpen} />
 

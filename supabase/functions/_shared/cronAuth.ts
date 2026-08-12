@@ -1,24 +1,34 @@
 // Shared cron auth helper.
-// Accepts either the service role key OR the rotating cron_shared_secret stored in vault.
-// Used by cron-invoked functions whose `verify_jwt = false` is set in config.toml.
+// Accepts either the service role key OR the rotating cron shared secret.
+// Used by cron-invoked functions whose `verify_jwt = false` is set in config.toml,
+// so the platform gateway does not reject the non-JWT credential and this helper
+// is the actual authorization boundary.
 
-// Shared secret used by pg_cron jobs to authenticate to internal edge functions.
-// Stored in DB vault under name 'cron_shared_secret' and ALSO injected as the
-// CRON_SHARED_SECRET edge-function secret. We prefer the env var so rotation
-// is a single secret update, with a hardcoded fallback only to keep already
-// scheduled cron jobs working during the rotation window.
-const CRON_SHARED_SECRET_FALLBACK = "8c53aca960d0620bba1166709891ac2ed8be9ea507d56847e3844a2e7263e507";
+// The cron secret MUST come from the CRON_SHARED_SECRET edge-function secret.
+// There is deliberately NO hardcoded fallback: if the variable is missing the
+// check fails closed so background automation cannot be invoked with a
+// credential that is readable in source control.
 function cronSecret(): string {
-  return Deno.env.get("CRON_SHARED_SECRET") || CRON_SHARED_SECRET_FALLBACK;
+  return Deno.env.get("CRON_SHARED_SECRET") ?? "";
 }
 
-/** Returns true if the request bears either the service role key or the cron shared secret. */
+/**
+ * Returns true if the request bears either:
+ *  - the service role key as a Bearer token (Authorization header), or
+ *  - the cron shared secret, in the Authorization header OR the `x-cron-secret`
+ *    custom header (the latter is what the pg_cron jobs in
+ *    20260812000005_fix_cron_jobs.sql send).
+ */
 export async function isCronOrServiceRequest(req: Request): Promise<boolean> {
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-  if (!token) return false;
+  const expected = cronSecret();
+  const bearer = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  const customHeader = (req.headers.get("x-cron-secret") ?? "").trim();
+
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  if (serviceKey && token === serviceKey) return true;
-  if (token === cronSecret()) return true;
+  if (serviceKey && bearer && bearer === serviceKey) return true;
+
+  if (!expected) return false;
+  if (expected && bearer && bearer === expected) return true;
+  if (expected && customHeader && customHeader === expected) return true;
   return false;
 }

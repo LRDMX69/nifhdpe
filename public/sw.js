@@ -9,7 +9,7 @@ self.addEventListener("activate", (event) => {
 
 // Handle push events
 self.addEventListener("push", (event) => {
-  let data = { title: "Notification", body: "You have a new notification", icon: "/placeholder.svg" };
+  let data = { title: "Notification", body: "You have a new notification", icon: "/nif-logo.png" };
   try {
     if (event.data) data = { ...data, ...event.data.json() };
   } catch (e) {

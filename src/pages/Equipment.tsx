@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Package } from "lucide-react";
+import { exportCsv } from "@/lib/exportCsv";
 import { humanizeError } from "@/lib/humanizeError";
 
 type EquipmentItem = Database["public"]["Tables"]["equipment"]["Row"] & { projects?: { name: string } | null };
@@ -251,6 +252,14 @@ const Equipment = () => {
       >
         <div className="flex gap-2 flex-wrap">
           {canManage && <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add</Button>}
+          <Button variant="outline" size="sm" onClick={() => exportCsv(`equipment-${new Date().toISOString().slice(0, 10)}`, [
+            { header: "Name", value: (e: EquipmentItem) => e.name },
+            { header: "Type", value: (e: EquipmentItem) => e.type ?? "" },
+            { header: "Serial", value: (e: EquipmentItem) => e.serial_number ?? "" },
+            { header: "Status", value: (e: EquipmentItem) => e.status },
+            { header: "Project", value: (e: EquipmentItem) => e.projects?.name ?? "" },
+            { header: "Usage (h)", value: (e: EquipmentItem) => e.usage_hours != null ? String(e.usage_hours) : "" },
+          ], equipment as EquipmentItem[])}><FileDown className="h-4 w-4 mr-1" />CSV</Button>
           <Button variant="outline" size="sm" onClick={handlePrintSheet}><FileDown className="h-4 w-4 mr-1" /><span className="hidden sm:inline">PDF</span></Button>
         </div>
       </PageHeader>

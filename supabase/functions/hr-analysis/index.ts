@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { rateLimitMiddleware, RATE_LIMITS } from "../_shared/rateLimit.ts";
 import { logger } from "../_shared/logger.ts";
@@ -6,41 +6,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { validateServiceOrUser, isUuid } from "../_shared/auth.ts";
 import { isCronOrServiceRequest } from "../_shared/cronAuth.ts";
 import { isAutoModeEnabled, autoModeSkippedResponse } from "../_shared/autoMode.ts";
-
-
-async function callAI(systemPrompt: string, userMessage: string) {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-  
-  if (LOVABLE_API_KEY) {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "google/gemini-2.5-flash-lite", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }] }),
-    });
-    // Only return if truly successful (2xx status)
-    if (res.ok) return res;
-    // If it's a 502 (gateway error), try fallback
-    if (res.status === 502) {
-      logger.warn("Lovable AI gateway returned 502, trying fallback");
-    } else {
-      logger.error(`Lovable AI gateway error: ${res.status} ${res.statusText}`);
-    }
-  }
-  
-  if (GEMINI_API_KEY) {
-    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "gemini-2.0-flash", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }] }),
-    });
-    // Only return if truly successful
-    if (res.ok) return res;
-    logger.error(`Gemini API error: ${res.status} ${res.statusText}`);
-  }
-  
-  throw new Error("No AI API key configured or all AI services failed (LOVABLE_API_KEY or GEMINI_API_KEY)");
-}
+import { callAI } from "../_shared/aiProvider.ts";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -57,7 +23,8 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "invalid organization_id" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     await validateServiceOrUser(req, organization_id);
-    if (await isCronOrServiceRequest(req)) {
+    const isScheduled = await isCronOrServiceRequest(req);
+    if (isScheduled) {
       if (!(await isAutoModeEnabled(organization_id))) {
         return autoModeSkippedResponse(corsHeaders, organization_id);
       }
@@ -66,10 +33,6 @@ serve(async (req: Request) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { checkSpendCap, capExceededResponse } = await import("../_shared/spendCap.ts");
-    const cap = await checkSpendCap(organization_id);
-    if (!cap.allowed) return capExceededResponse(corsHeaders, cap);
-
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
     const { data: attendance } = await supabase.from("attendance").select("*").eq("organization_id", organization_id).gte("date", thirtyDaysAgo);
@@ -77,22 +40,20 @@ serve(async (req: Request) => {
 
     const prompt = `Analyze HR data for the past 30 days:\n\nATTENDANCE:\n\`\`\`json\n${JSON.stringify(attendance ?? [], null, 2)}\n\`\`\`\n\nLEAVE REQUESTS:\n\`\`\`json\n${JSON.stringify(leaves ?? [], null, 2)}\n\`\`\`\n\nProvide:\n1. Absenteeism trends\n2. Irregular check-in patterns\n3. Productivity concerns\n4. Leave pattern analysis\n5. Recommendations\n\nBe concise and actionable.`;
 
-    const response = await callAI("You are an AI HR analyst for NIF Technical.", prompt);
+    const aiResult = await callAI(
+      "You are an AI HR analyst for NIF Technical.",
+      prompt,
+      { organizationId: organization_id, functionName: "hr-analysis", strictSpendCap: isScheduled },
+    );
 
-    if (!response.ok) {
-      throw new Error(`AI API error: ${response.status}`);
+    if (!aiResult.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: aiResult.error }),
+        { status: aiResult.status === 402 || aiResult.status === 429 ? aiResult.status : 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
-    const result = await response.json();
-    const summary = result.choices?.[0]?.message?.content ?? "Analysis failed";
 
-    try {
-      await supabase.from("ai_usage_logs").insert({
-        organization_id,
-        function_name: "hr-analysis",
-        success: true,
-        tokens_estimate: Math.ceil((prompt.length + summary.length) / 4),
-      });
-    } catch { /* non-fatal */ }
+    const summary = aiResult.content;
 
     await supabase.from("ai_summaries").insert({
       organization_id, context: "hr", summary,

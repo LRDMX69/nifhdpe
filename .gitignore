@@ -25,3 +25,7 @@ dist-ssr
 
 # Local env
 .env.local
+.env
+
+# Assistant runtime state (never commit)
+.freebuff/
