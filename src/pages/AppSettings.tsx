@@ -325,8 +325,12 @@ const AppSettings = () => {
       const filePath = `${user.id}/${Date.now()}-${file.name}`;
       const { data: uploadData, error: uploadError } = await supabase.storage.from("avatars").upload(filePath, file);
       if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(uploadData.path);
-      const { error: updateError } = await supabase.from("profiles").update({ avatar_url: urlData.publicUrl }).eq("user_id", user.id);
+      // The avatars bucket is private, so store a long-lived signed URL (1 year).
+      const { data: urlData, error: signError } = await supabase.storage
+        .from("avatars")
+        .createSignedUrl(uploadData.path, 60 * 60 * 24 * 365);
+      if (signError) throw signError;
+      const { error: updateError } = await supabase.from("profiles").update({ avatar_url: urlData.signedUrl }).eq("user_id", user.id);
       if (updateError) throw updateError;
       toast({ title: "Profile photo updated" });
     } catch (err: unknown) {
