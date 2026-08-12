@@ -8,10 +8,34 @@ const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
+// Guard: createClient throws synchronously if SUPABASE_URL is undefined.
+// This module is imported transitively at the top of the bundle (main.tsx ->
+// App.tsx -> AuthContext -> here), so the throw happens before React renders
+// and before the missingEnv guard in main.tsx can run -- producing a white
+// screen with no error. Return a proxy that delays the createClient call
+// until the first real method use, so the app can at least mount and show
+// the "Backend configuration missing" message.
+function createSupabaseClient() {
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    return new Proxy(
+      {},
+      {
+        get() {
+          throw new Error(
+            'Supabase client is not configured. ' +
+              'Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in your environment.'
+          );
+        },
+      }
+    ) as unknown as ReturnType<typeof createClient<Database>>;
   }
-});
+  return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      storage: localStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+    }
+  });
+}
+
+export const supabase = createSupabaseClient();
