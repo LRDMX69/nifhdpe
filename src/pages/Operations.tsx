@@ -1,10 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ClipboardCheck, FileClock, Link2, Loader2, PackageCheck, RefreshCw, Wrench } from "lucide-react";
+import { CheckCircle2, ClipboardCheck, FileClock, FilePlus2, Link2, Loader2, PackageCheck, RefreshCw, Truck, Wrench } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,144 +16,145 @@ import { industrialDb, type IndustrialRow } from "@/lib/industrialDb";
 import { formatCurrency } from "@/lib/constants";
 
 const statusTone: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
-  draft: "secondary", confirmed: "default", accepted: "default", reserved: "outline", pass: "default",
-  open: "outline", in_progress: "outline", resolved: "default", awaiting_configuration: "secondary",
+  draft: "secondary", confirmed: "default", accepted: "default", reserved: "outline", pass: "default", paid: "default",
+  open: "outline", in_progress: "outline", resolved: "default", awaiting_configuration: "secondary", pending: "secondary",
+  fulfilled: "default", delivered: "default", unpaid: "outline", partially_paid: "outline", partially_received: "outline",
 };
 
 const Operations = () => {
-  const { memberships, activeRole, isMaintenance } = useAuth();
+  const { user, memberships, activeRole, isMaintenance } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const orgId = memberships[0]?.organization_id;
-  const canCreateOrder = isMaintenance || ["administrator", "reception_sales", "accountant"].includes(activeRole ?? "");
-  const [creatingOrder, setCreatingOrder] = useState<string | null>(null);
+  const canCommercial = isMaintenance || ["administrator", "reception_sales", "finance"].includes(activeRole ?? "");
+  const canWarehouse = isMaintenance || ["administrator", "warehouse", "reception_sales", "finance"].includes(activeRole ?? "");
+  const canTechnical = isMaintenance || ["administrator", "engineer", "technician"].includes(activeRole ?? "");
+  const canFinance = isMaintenance || ["administrator", "finance"].includes(activeRole ?? "");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [destination, setDestination] = useState("");
+  const [podNotes, setPodNotes] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState<Record<string, string>>({});
+  const [paymentMethod, setPaymentMethod] = useState<Record<string, string>>({});
+  const [selectedPoId, setSelectedPoId] = useState("");
+  const [receiptRows, setReceiptRows] = useState<IndustrialRow[]>([]);
+  const [packageForm, setPackageForm] = useState({ project_id: "", name: "", description: "", planned_start: "", planned_end: "", budget_amount: "" });
+  const [fusionForm, setFusionForm] = useState({ project_id: "", joint_id: "", joint_type: "butt_fusion", location: "", material_lot: "", result: "awaiting_configuration", notes: "" });
+  const [qaForm, setQaForm] = useState({ project_id: "", inspection_type: "", result: "awaiting_configuration", notes: "" });
+  const [serviceForm, setServiceForm] = useState({ client_id: "", subject: "", description: "", priority: "normal" });
+  const [configForm, setConfigForm] = useState({ config_key: "", config_value: "", notes: "" });
+  const [materialForm, setMaterialForm] = useState({ project_id: "", work_package_id: "", inventory_id: "", quantity: "" });
+  const [resolutionByTicket, setResolutionByTicket] = useState<Record<string, string>>({});
+  const [hseForm, setHseForm] = useState({ project_id: "", type: "near_miss", severity: "low", location: "", description: "" });
+  const [trainingForm, setTrainingForm] = useState({ title: "", training_type: "", completed_date: "", score: "" });
+  const [equipmentForm, setEquipmentForm] = useState({ project_id: "", equipment_id: "", hours: "", notes: "" });
+  const [projectNameByOrder, setProjectNameByOrder] = useState<Record<string, string>>({});
 
-  const quotes = useQuery({
-    queryKey: ["operations-accepted-quotes", orgId],
-    enabled: !!orgId,
-    queryFn: async () => {
-      const { data, error } = await industrialDb.from("quotations")
-        .select("id, quotation_number, client_id, total_amount, status, clients(name)")
-        .eq("organization_id", orgId).eq("status", "accepted").order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as IndustrialRow[];
-    },
-  });
-
-  const orders = useQuery({
-    queryKey: ["operations-sales-orders", orgId],
-    enabled: !!orgId,
-    queryFn: async () => {
-      const { data, error } = await industrialDb.from("sales_orders")
-        .select("*, clients(name), quotations(quotation_number)")
-        .eq("organization_id", orgId).order("created_at", { ascending: false }).limit(100);
-      if (error) throw error;
-      return (data ?? []) as IndustrialRow[];
-    },
-  });
-
-  const reservations = useQuery({
-    queryKey: ["operations-reservations", orgId],
-    enabled: !!orgId,
-    queryFn: async () => {
-      const { data, error } = await industrialDb.from("inventory_reservations")
-        .select("*, product_specifications(product_code, product_name), sales_orders(order_number)")
-        .eq("organization_id", orgId).neq("status", "cancelled").order("reserved_at", { ascending: false }).limit(100);
-      if (error) throw error;
-      return (data ?? []) as IndustrialRow[];
-    },
-  });
-
-  const fusion = useQuery({
-    queryKey: ["operations-fusion-joints", orgId],
-    enabled: !!orgId,
-    queryFn: async () => {
-      const { data, error } = await industrialDb.from("fusion_joints")
-        .select("*, projects(name), equipment(name)").eq("organization_id", orgId)
-        .order("created_at", { ascending: false }).limit(100);
-      if (error) throw error;
-      return (data ?? []) as IndustrialRow[];
-    },
-  });
-
-  const service = useQuery({
-    queryKey: ["operations-service-tickets", orgId],
-    enabled: !!orgId,
-    queryFn: async () => {
-      const { data, error } = await industrialDb.from("service_tickets")
-        .select("*, clients(name)").eq("organization_id", orgId)
-        .order("created_at", { ascending: false }).limit(100);
-      if (error) throw error;
-      return (data ?? []) as IndustrialRow[];
-    },
-  });
-
-  const revisions = useQuery({
-    queryKey: ["operations-revisions", orgId],
-    enabled: !!orgId,
-    queryFn: async () => {
-      const { data, error } = await industrialDb.from("document_revisions")
-        .select("*").eq("organization_id", orgId).order("changed_at", { ascending: false }).limit(100);
-      if (error) throw error;
-      return (data ?? []) as IndustrialRow[];
-    },
-  });
-
-  const stats = useMemo(() => ({
-    accepted: quotes.data?.length ?? 0,
-    orders: orders.data?.length ?? 0,
-    reserved: reservations.data?.filter((r) => r.status === "reserved").length ?? 0,
-    openService: service.data?.filter((t) => !["resolved", "closed", "rejected"].includes(t.status)).length ?? 0,
-  }), [quotes.data, orders.data, reservations.data, service.data]);
-
-  const createOrder = async (quote: IndustrialRow) => {
-    if (!orgId) return;
-    setCreatingOrder(quote.id);
-    try {
-      const { error } = await industrialDb.rpc("create_sales_order_from_quotation", {
-        _org_id: orgId, _quotation_id: quote.id,
-        _notes: "Created from accepted quotation in Operations Control",
-      });
-      if (error) throw error;
-      toast({ title: "Sales order created", description: `${quote.quotation_number} is now linked to a sales order.` });
-      await queryClient.invalidateQueries({ queryKey: ["operations-sales-orders", orgId] });
-      await queryClient.invalidateQueries({ queryKey: ["operations-accepted-quotes", orgId] });
-    } catch (error) {
-      toast({ title: "Could not create sales order", description: error instanceof Error ? error.message : "The server rejected the operation.", variant: "destructive" });
-    } finally {
-      setCreatingOrder(null);
-    }
+  const invalidate = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["operations"] });
+    await queryClient.invalidateQueries({ queryKey: ["quotations"] });
+    await queryClient.invalidateQueries({ queryKey: ["inventory"] });
+    await queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+    await queryClient.invalidateQueries({ queryKey: ["invoices"] });
   };
 
-  const isLoading = [quotes, orders, reservations, fusion, service, revisions].some((q) => q.isLoading);
+  const run = async (key: string, action: () => Promise<void>, success: string) => {
+    setBusy(key);
+    try { await action(); toast({ title: success }); await invalidate(); }
+    catch (error) { toast({ title: "Operation failed", description: error instanceof Error ? error.message : "The server rejected the operation.", variant: "destructive" }); }
+    finally { setBusy(null); }
+  };
 
-  return (
-    <div className="space-y-6">
-      <PageHeader title="Operations Control" description="Connected commercial, stock, project-quality, service, and document workflows." />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card><CardContent className="flex items-center gap-3 pt-6"><Link2 className="h-5 w-5 text-primary" /><div><p className="text-2xl font-semibold">{stats.accepted}</p><p className="text-xs text-muted-foreground">Accepted quotations</p></div></CardContent></Card>
-        <Card><CardContent className="flex items-center gap-3 pt-6"><CheckCircle2 className="h-5 w-5 text-primary" /><div><p className="text-2xl font-semibold">{stats.orders}</p><p className="text-xs text-muted-foreground">Sales orders</p></div></CardContent></Card>
-        <Card><CardContent className="flex items-center gap-3 pt-6"><PackageCheck className="h-5 w-5 text-primary" /><div><p className="text-2xl font-semibold">{stats.reserved}</p><p className="text-xs text-muted-foreground">Active reservations</p></div></CardContent></Card>
-        <Card><CardContent className="flex items-center gap-3 pt-6"><Wrench className="h-5 w-5 text-primary" /><div><p className="text-2xl font-semibold">{stats.openService}</p><p className="text-xs text-muted-foreground">Open service tickets</p></div></CardContent></Card>
-      </div>
-      {isLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading linked operational records…</div>}
-      <Tabs defaultValue="commercial" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
-          <TabsTrigger value="commercial">Commercial</TabsTrigger><TabsTrigger value="stock">Stock</TabsTrigger><TabsTrigger value="quality">Fusion QA</TabsTrigger><TabsTrigger value="service">Service</TabsTrigger><TabsTrigger value="history">Revisions</TabsTrigger>
-        </TabsList>
-        <TabsContent value="commercial" className="space-y-4">
-          <Card><CardHeader><CardTitle className="text-base">Accepted quotations awaiting an order</CardTitle></CardHeader><CardContent className="space-y-3">
-            {(quotes.data ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No accepted quotations are waiting for conversion.</p> : (quotes.data ?? []).map((q) => <div key={q.id} className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{q.quotation_number ?? "Quotation"}</p><p className="text-sm text-muted-foreground">{q.clients?.name ?? "Client not linked"} · {formatCurrency(Number(q.total_amount ?? 0))}</p><p className="text-xs text-muted-foreground">Opportunity linkage is not present in the current quotation schema.</p></div>{canCreateOrder && <Button size="sm" onClick={() => createOrder(q)} disabled={creatingOrder === q.id || !orgId}>{creatingOrder === q.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Link2 className="mr-2 h-4 w-4" />}Create sales order</Button>}</div>)}</CardContent></Card>
-          <Card><CardHeader><CardTitle className="text-base">Sales orders</CardTitle></CardHeader><CardContent className="space-y-2">{(orders.data ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No sales orders recorded yet.</p> : (orders.data ?? []).map((o) => <div key={o.id} className="flex items-center justify-between rounded border p-3"><div><p className="font-medium">{o.order_number}</p><p className="text-xs text-muted-foreground">{o.clients?.name ?? "Client"} · from {o.quotations?.quotation_number ?? "quotation"}</p></div><Badge variant={statusTone[o.status] ?? "secondary"}>{o.status}</Badge></div>)}</CardContent></Card>
-        </TabsContent>
-        <TabsContent value="stock"><Card><CardHeader><CardTitle className="text-base">Reservations and stock commitment</CardTitle></CardHeader><CardContent className="space-y-2">{(reservations.data ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No reservations recorded. Stock remains uncommitted.</p> : (reservations.data ?? []).map((r) => <div key={r.id} className="flex items-center justify-between rounded border p-3"><div><p className="font-medium">{r.product_specifications?.product_code ?? "Unmapped product"}</p><p className="text-xs text-muted-foreground">{r.product_specifications?.product_name ?? "Specification pending"} · {r.quantity} · order {r.sales_orders?.order_number ?? "not linked"}</p></div><Badge variant={statusTone[r.status] ?? "secondary"}>{r.status}</Badge></div>)}</CardContent></Card></TabsContent>
-        <TabsContent value="quality"><Card><CardHeader><CardTitle className="text-base">Fusion joint traceability</CardTitle></CardHeader><CardContent className="space-y-2">{(fusion.data ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No fusion joints recorded. Technical acceptance criteria remain awaiting configuration.</p> : (fusion.data ?? []).map((j) => <div key={j.id} className="flex items-center justify-between rounded border p-3"><div><p className="font-medium">{j.joint_id} · {j.joint_type}</p><p className="text-xs text-muted-foreground">Lot: {j.material_lot ?? "not captured"} · {j.projects?.name ?? "project not linked"}</p></div><Badge variant={statusTone[j.result] ?? "secondary"}>{j.result}</Badge></div>)}</CardContent></Card></TabsContent>
-        <TabsContent value="service"><Card><CardHeader><CardTitle className="text-base">After-sales service and warranty</CardTitle></CardHeader><CardContent className="space-y-2">{(service.data ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No service tickets recorded.</p> : (service.data ?? []).map((t) => <div key={t.id} className="flex items-center justify-between rounded border p-3"><div><p className="font-medium">{t.ticket_number} · {t.subject}</p><p className="text-xs text-muted-foreground">{t.clients?.name ?? "Client not linked"} · priority {t.priority}</p></div><Badge variant={statusTone[t.status] ?? "secondary"}>{t.status}</Badge></div>)}</CardContent></Card></TabsContent>
-        <TabsContent value="history"><Card><CardHeader><CardTitle className="text-base">Document revision history</CardTitle></CardHeader><CardContent className="space-y-2">{(revisions.data ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No revisions recorded yet. Finalized documents will appear here when revised through the revision RPC.</p> : (revisions.data ?? []).map((r) => <div key={r.id} className="flex items-center justify-between rounded border p-3"><div><p className="font-medium">{r.entity_type} · revision {r.revision_number}</p><p className="text-xs text-muted-foreground">{r.change_reason}</p></div><Badge variant={r.is_current ? "default" : "secondary"}>{r.is_current ? "current" : "historical"}</Badge></div>)}</CardContent></Card></TabsContent>
-      </Tabs>
-      <div className="flex items-center justify-between text-xs text-muted-foreground"><span>All values come from organization-scoped database records. No demo metrics are generated.</span><Button variant="ghost" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ["operations"] })}><RefreshCw className="mr-2 h-3 w-3" />Refresh</Button></div>
+  const useRows = (key: string, table: string, select = "*") => useQuery({
+    queryKey: ["operations", key, orgId], enabled: !!orgId,
+    queryFn: async () => { const { data, error } = await industrialDb.from(table).select(select).eq("organization_id", orgId).order("created_at", { ascending: false }).limit(200); if (error) throw error; return (data ?? []) as IndustrialRow[]; },
+  });
+  const orders = useRows("orders", "sales_orders", "*, clients(name), quotations(quotation_number)");
+  const reservations = useRows("reservations", "inventory_reservations", "*, product_specifications(product_code, product_name), sales_orders(order_number)");
+  const demands = useRows("demands", "procurement_demands", "*, product_specifications(product_code, product_name), sales_orders(order_number)");
+  const deliveries = useRows("deliveries", "deliveries", "*, clients(name), sales_orders(order_number)");
+  const invoices = useRows("invoices", "invoices", "*, clients(name), sales_orders(order_number)");
+  const fusion = useRows("fusion", "fusion_joints", "*, projects(name), equipment(name)");
+  const service = useRows("service", "service_tickets", "*, clients(name)");
+  const revisions = useRows("revisions", "document_revisions");
+  const handovers = useRows("handovers", "project_handover_records", "*, projects(name), clients(name)");
+  const qa = useRows("qa", "project_qa_records", "*, projects(name)");
+  const projects = useRows("projects", "projects", "id, name, client_id");
+  const clients = useRows("clients", "clients", "id, name");
+  const products = useRows("products", "product_specifications", "id, product_code, product_name");
+  const purchaseOrders = useRows("purchase-orders", "purchase_orders", "*, vendors(name)");
+  const poItems = useQuery({
+    queryKey: ["operations", "po-items", selectedPoId], enabled: !!selectedPoId,
+    queryFn: async () => { const { data, error } = await industrialDb.from("purchase_order_items").select("*").eq("purchase_order_id", selectedPoId).order("created_at"); if (error) throw error; return (data ?? []) as IndustrialRow[]; },
+  });
+  const configuration = useRows("configuration", "management_configuration");
+  const inventory = useRows("inventory", "inventory", "id, item_name, quantity_meters, reserved_quantity, lot_batch, product_specification_id");
+  const equipment = useRows("equipment", "equipment", "id, name, type, status, usage_hours, current_site_project_id");
+  const hseIncidents = useRows("hse", "hse_incidents", "id, document_number, type, severity, status, location, description, incident_date");
+
+  useEffect(() => {
+    if (!poItems.data) return;
+    setReceiptRows(poItems.data.map((item) => ({ ...item, accepted_quantity: "0", rejected_quantity: "0", lot_batch: "", product_specification_id: "" })));
+  }, [poItems.data]);
+
+  const acceptedQuotes = useQuery({
+    queryKey: ["operations", "accepted-quotes", orgId], enabled: !!orgId,
+    queryFn: async () => { const { data, error } = await industrialDb.from("quotations").select("id, quotation_number, client_id, total_amount, status, clients(name)").eq("organization_id", orgId).eq("status", "accepted").order("created_at", { ascending: false }); if (error) throw error; return (data ?? []) as IndustrialRow[]; },
+  });
+
+  const stats = useMemo(() => ({ accepted: acceptedQuotes.data?.length ?? 0, orders: orders.data?.length ?? 0, reserved: reservations.data?.filter((r) => r.status === "reserved").length ?? 0, demands: demands.data?.filter((d) => d.status === "open").length ?? 0, outstanding: invoices.data?.filter((i) => Number(i.balance_due ?? 0) > 0).length ?? 0 }), [acceptedQuotes.data, orders.data, reservations.data, demands.data, invoices.data]);
+
+  const updateReceipt = (id: string, key: string, value: string) => setReceiptRows((rows) => rows.map((row) => row.id === id ? { ...row, [key]: value } : row));
+
+  const createOrder = (quote: IndustrialRow) => run(`order-${quote.id}`, async () => { const { error } = await industrialDb.rpc("create_sales_order_from_quotation", { _org_id: orgId, _quotation_id: quote.id, _notes: "Created from accepted quotation" }); if (error) throw error; }, "Sales order created from accepted quotation");
+  const createProjectFromOrder = (order: IndustrialRow) => run(`project-from-order-${order.id}`, async () => { const name = projectNameByOrder[order.id]?.trim(); if (!name) throw new Error("Enter a project name first."); const { error } = await industrialDb.rpc("create_project_from_sales_order", { _org_id: orgId, _order_id: order.id, _name: name, _description: "Created from sales order" }); if (error) throw error; setProjectNameByOrder((state) => ({ ...state, [order.id]: "" })); }, "Project created and linked to sales order");
+  const confirmOrder = (order: IndustrialRow) => run(`confirm-${order.id}`, async () => { const { error } = await industrialDb.rpc("confirm_sales_order", { _org_id: orgId, _order_id: order.id }); if (error) throw error; }, "Order confirmed; reservations and procurement demands generated");
+  const createDelivery = (order: IndustrialRow) => run(`delivery-${order.id}`, async () => { if (!destination.trim()) throw new Error("Enter a delivery destination first."); const { error } = await industrialDb.rpc("create_delivery_from_sales_order", { _org_id: orgId, _order_id: order.id, _destination: destination.trim(), _site_name: order.clients?.name ?? null, _project_id: order.project_id ?? null }); if (error) throw error; setDestination(""); }, "Delivery created from reserved order stock");
+  const completeDelivery = (delivery: IndustrialRow) => run(`complete-${delivery.id}`, async () => { const { error } = await industrialDb.rpc("complete_delivery", { _org_id: orgId, _delivery_id: delivery.id, _proof_of_delivery: { notes: podNotes.trim(), completed_by: user?.id, completed_at: new Date().toISOString() } }); if (error) throw error; setPodNotes(""); }, "Delivery completed; stock and reservations updated");
+  const createInvoice = (order: IndustrialRow) => run(`invoice-${order.id}`, async () => { const { error } = await industrialDb.rpc("create_invoice_from_sales_order", { _org_id: orgId, _order_id: order.id }); if (error) throw error; }, "Invoice created from sales order");
+  const recordPayment = (invoice: IndustrialRow) => run(`payment-${invoice.id}`, async () => { const amount = Number(paymentAmount[invoice.id] ?? 0); if (!amount) throw new Error("Enter a payment amount."); const { error } = await industrialDb.rpc("record_invoice_payment", { _org_id: orgId, _invoice_id: invoice.id, _amount: amount, _payment_method: paymentMethod[invoice.id] || null, _reference_number: null, _notes: null }); if (error) throw error; setPaymentAmount((state) => ({ ...state, [invoice.id]: "" })); }, "Payment recorded and invoice balance updated");
+  const receivePo = () => run(`receive-${selectedPoId}`, async () => { if (!selectedPoId) throw new Error("Select a purchase order."); const payload = receiptRows.map((row) => ({ purchase_order_item_id: row.id, accepted_quantity: Number(row.accepted_quantity ?? 0), rejected_quantity: Number(row.rejected_quantity ?? 0), lot_batch: row.lot_batch || null, product_specification_id: row.product_specification_id || null })); if (!payload.some((row) => row.accepted_quantity > 0 || row.rejected_quantity > 0)) throw new Error("Enter at least one accepted or rejected quantity."); const { error } = await industrialDb.rpc("receive_purchase_order_partial", { _org_id: orgId, _po_id: selectedPoId, _receipts: payload }); if (error) throw error; setSelectedPoId(""); setReceiptRows([]); }, "Partial receipt posted to stock ledger");
+  const createPackage = () => run("package", async () => { if (!packageForm.project_id || !packageForm.name.trim()) throw new Error("Project and work-package name are required."); const { error } = await industrialDb.from("project_work_packages").insert({ organization_id: orgId, project_id: packageForm.project_id, name: packageForm.name.trim(), description: packageForm.description || null, planned_start: packageForm.planned_start || null, planned_end: packageForm.planned_end || null, budget_amount: Number(packageForm.budget_amount || 0), created_by: user?.id }); if (error) throw error; setPackageForm({ project_id: "", name: "", description: "", planned_start: "", planned_end: "", budget_amount: "" }); }, "Work package created");
+  const createFusion = () => run("fusion", async () => { if (!fusionForm.project_id || !fusionForm.joint_id.trim()) throw new Error("Project and joint ID are required."); const { error } = await industrialDb.from("fusion_joints").insert({ organization_id: orgId, project_id: fusionForm.project_id, joint_id: fusionForm.joint_id.trim(), joint_type: fusionForm.joint_type, location: fusionForm.location || null, material_lot: fusionForm.material_lot || null, result: fusionForm.result, notes: fusionForm.notes || null, operator_user_id: user?.id, created_by: user?.id }); if (error) throw error; setFusionForm({ project_id: "", joint_id: "", joint_type: "butt_fusion", location: "", material_lot: "", result: "awaiting_configuration", notes: "" }); }, "Fusion joint recorded");
+  const createQa = () => run("qa", async () => { if (!qaForm.project_id || !qaForm.inspection_type.trim()) throw new Error("Project and inspection type are required."); const { error } = await industrialDb.from("project_qa_records").insert({ organization_id: orgId, project_id: qaForm.project_id, inspection_type: qaForm.inspection_type.trim(), result: qaForm.result, notes: qaForm.notes || null, inspected_by: user?.id, inspected_at: new Date().toISOString() }); if (error) throw error; setQaForm({ project_id: "", inspection_type: "", result: "awaiting_configuration", notes: "" }); }, "QA inspection recorded");
+  const createHseIncident = () => run("hse", async () => { if (!hseForm.description.trim()) throw new Error("Incident description is required."); const { data: documentNumber } = await industrialDb.rpc("next_doc_number", { _org_id: orgId, _doc_type: "hse_incidents" }); const { error } = await industrialDb.from("hse_incidents").insert({ organization_id: orgId, project_id: hseForm.project_id || null, document_number: documentNumber || `HSE-${Date.now()}`, type: hseForm.type, severity: hseForm.severity, location: hseForm.location || null, description: hseForm.description.trim(), reported_by: user?.id, incident_date: new Date().toISOString().slice(0, 10), status: "open" }); if (error) throw error; setHseForm({ project_id: "", type: "near_miss", severity: "low", location: "", description: "" }); }, "HSE incident recorded");
+  const logTraining = () => run("training", async () => { if (!trainingForm.title.trim() || !user?.id) throw new Error("Training title and signed-in user are required."); const { error } = await industrialDb.from("training_logs").insert({ organization_id: orgId, user_id: user.id, created_by: user.id, training_title: trainingForm.title.trim(), training_type: trainingForm.training_type || null, completed_date: trainingForm.completed_date || null, score: trainingForm.score ? Number(trainingForm.score) : null }); if (error) throw error; setTrainingForm({ title: "", training_type: "", completed_date: "", score: "" }); }, "Training record logged");
+  const assignEquipment = () => run("equipment", async () => { if (!equipmentForm.project_id || !equipmentForm.equipment_id) throw new Error("Project and equipment are required."); const { error } = await industrialDb.rpc("assign_equipment_to_project", { _org_id: orgId, _equipment_id: equipmentForm.equipment_id, _project_id: equipmentForm.project_id, _hours: equipmentForm.hours ? Number(equipmentForm.hours) : null, _notes: equipmentForm.notes || null }); if (error) throw error; setEquipmentForm({ project_id: "", equipment_id: "", hours: "", notes: "" }); }, "Equipment assigned and usage logged");
+  const recordMaterial = () => run("material", async () => { if (!materialForm.project_id || !materialForm.inventory_id || !Number(materialForm.quantity)) throw new Error("Project, inventory, and quantity are required."); const { error } = await industrialDb.rpc("record_project_material_consumption", { _org_id: orgId, _project_id: materialForm.project_id, _work_package_id: materialForm.work_package_id || null, _inventory_id: materialForm.inventory_id, _quantity: Number(materialForm.quantity), _field_report_id: null, _notes: "Recorded from Operations Control" }); if (error) throw error; setMaterialForm({ project_id: "", work_package_id: "", inventory_id: "", quantity: "" }); }, "Material consumed and stock ledger updated");
+  const submitHandover = (project: IndustrialRow) => run(`submit-handover-${project.id}`, async () => { const projectQa = (qa.data ?? []).filter((record) => record.project_id === project.id); const { error } = await industrialDb.rpc("submit_project_handover", { _org_id: orgId, _project_id: project.id, _qa_summary: { records: projectQa.length, results: projectQa.map((record) => record.result) }, _client_signoff: {} }); if (error) throw error; }, "Project handover submitted for client sign-off");
+  const resolveService = (ticket: IndustrialRow) => run(`resolve-${ticket.id}`, async () => { const resolution = resolutionByTicket[ticket.id]?.trim(); if (!resolution) throw new Error("Enter a resolution before closing the ticket."); const { error } = await industrialDb.rpc("resolve_service_ticket", { _org_id: orgId, _ticket_id: ticket.id, _resolution: resolution, _parts: [] }); if (error) throw error; setResolutionByTicket((state) => ({ ...state, [ticket.id]: "" })); }, "Service ticket resolved");
+  const createService = () => run("service", async () => { if (!serviceForm.subject.trim()) throw new Error("Service subject is required."); const { data: number } = await industrialDb.rpc("next_doc_number", { _org_id: orgId, _doc_type: "service_tickets" }); const { error } = await industrialDb.from("service_tickets").insert({ organization_id: orgId, ticket_number: number || `ST-${Date.now()}`, client_id: serviceForm.client_id || null, subject: serviceForm.subject.trim(), description: serviceForm.description || null, priority: serviceForm.priority, created_by: user?.id }); if (error) throw error; setServiceForm({ client_id: "", subject: "", description: "", priority: "normal" }); }, "Service ticket created");
+  const createHandover = (project: IndustrialRow) => run(`handover-${project.id}`, async () => { const { error } = await industrialDb.from("project_handover_records").upsert({ organization_id: orgId, project_id: project.id, client_id: project.client_id || null, status: "draft", created_by: user?.id }, { onConflict: "project_id" }); if (error) throw error; }, "Project handover record opened");
+  const saveConfig = () => run("config", async () => { if (!configForm.config_key.trim()) throw new Error("Configuration key is required."); let parsed: unknown = configForm.config_value; try { parsed = JSON.parse(configForm.config_value); } catch { /* Store plain text as a JSON string; approval remains required. */ } const { error } = await industrialDb.from("management_configuration").upsert({ organization_id: orgId, config_key: configForm.config_key.trim(), config_value: parsed, notes: configForm.notes || null, status: "awaiting_approval" }, { onConflict: "organization_id,config_key" }); if (error) throw error; setConfigForm({ config_key: "", config_value: "", notes: "" }); }, "Configuration saved awaiting approval");
+
+  const isLoading = [orders, reservations, demands, deliveries, invoices, fusion, service, revisions, handovers, qa, projects, clients, products, purchaseOrders, configuration, inventory, equipment, hseIncidents].some((q) => q.isLoading);
+  return <div className="space-y-6">
+    <PageHeader title="Operations Control" description="Executable transaction desk for commercial, supply-chain, project, quality, service, finance, and governance workflows." />
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <Card><CardContent className="flex items-center gap-3 pt-6"><Link2 className="h-5 w-5 text-primary" /><div><p className="text-2xl font-semibold">{stats.accepted}</p><p className="text-xs text-muted-foreground">Accepted quotes</p></div></CardContent></Card>
+      <Card><CardContent className="flex items-center gap-3 pt-6"><CheckCircle2 className="h-5 w-5 text-primary" /><div><p className="text-2xl font-semibold">{stats.orders}</p><p className="text-xs text-muted-foreground">Sales orders</p></div></CardContent></Card>
+      <Card><CardContent className="flex items-center gap-3 pt-6"><PackageCheck className="h-5 w-5 text-primary" /><div><p className="text-2xl font-semibold">{stats.reserved}</p><p className="text-xs text-muted-foreground">Reservations</p></div></CardContent></Card>
+      <Card><CardContent className="flex items-center gap-3 pt-6"><ClipboardCheck className="h-5 w-5 text-primary" /><div><p className="text-2xl font-semibold">{stats.demands}</p><p className="text-xs text-muted-foreground">Open demands</p></div></CardContent></Card>
+      <Card><CardContent className="flex items-center gap-3 pt-6"><FilePlus2 className="h-5 w-5 text-primary" /><div><p className="text-2xl font-semibold">{stats.outstanding}</p><p className="text-xs text-muted-foreground">Open invoices</p></div></CardContent></Card>
     </div>
-  );
+    {isLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading live operational records…</div>}
+    <Tabs defaultValue="commercial" className="space-y-4">
+      <TabsList className="grid w-full grid-cols-2 md:grid-cols-9"><TabsTrigger value="commercial">Quote → Cash</TabsTrigger><TabsTrigger value="supply">Supply</TabsTrigger><TabsTrigger value="delivery">Delivery</TabsTrigger><TabsTrigger value="projects">Projects</TabsTrigger><TabsTrigger value="quality">Fusion / QA</TabsTrigger><TabsTrigger value="service">Service</TabsTrigger><TabsTrigger value="workforce">HSE / Assets</TabsTrigger><TabsTrigger value="history">History</TabsTrigger><TabsTrigger value="config">Config</TabsTrigger></TabsList>
+      <TabsContent value="commercial" className="space-y-4">
+        <Card><CardHeader><CardTitle className="text-base">Accepted quotations → sales orders</CardTitle></CardHeader><CardContent className="space-y-3">{(acceptedQuotes.data ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No accepted quotations are waiting for conversion.</p> : (acceptedQuotes.data ?? []).map((q) => <div key={q.id} className="flex flex-col gap-3 rounded-lg border p-4 lg:flex-row lg:items-center lg:justify-between"><div><p className="font-medium">{q.quotation_number} · {q.clients?.name ?? "Client not linked"}</p><p className="text-sm text-muted-foreground">{formatCurrency(Number(q.total_amount ?? 0))}</p><p className="text-xs text-muted-foreground">Opportunity linkage is available once the accepted quotation is connected to an opportunity record.</p></div>{canCommercial && <Button size="sm" onClick={() => createOrder(q)} disabled={busy === `order-${q.id}`}>{busy === `order-${q.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Link2 className="mr-2 h-4 w-4" />}Create sales order</Button>}</div>)}</CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-base">Sales orders → reservation, delivery, invoice</CardTitle></CardHeader><CardContent className="space-y-3">{(orders.data ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No sales orders recorded.</p> : (orders.data ?? []).map((o) => <div key={o.id} className="space-y-3 rounded-lg border p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-medium">{o.order_number} · {o.clients?.name ?? "Client"}</p><p className="text-sm text-muted-foreground">{formatCurrency(Number(o.total_amount ?? 0))} · from {o.quotations?.quotation_number ?? "quotation"} · {o.project_id ? "project linked" : "no project"}</p></div><Badge variant={statusTone[o.status] ?? "secondary"}>{o.status}</Badge></div>{canTechnical && !o.project_id && <div className="flex gap-2"><Input value={projectNameByOrder[o.id] ?? ""} onChange={(e) => setProjectNameByOrder((state) => ({ ...state, [o.id]: e.target.value }))} placeholder="New project name" /><Button variant="outline" size="sm" onClick={() => createProjectFromOrder(o)} disabled={busy === `project-from-order-${o.id}`}>Create project</Button></div>}{canCommercial && o.status === "draft" && <Button size="sm" onClick={() => confirmOrder(o)} disabled={busy === `confirm-${o.id}`}>{busy === `confirm-${o.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}Confirm order and allocate stock</Button>}{canWarehouse && ["confirmed", "partially_fulfilled"].includes(o.status) && <div className="flex flex-col gap-2 sm:flex-row"><Input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="Delivery destination" /><Button size="sm" onClick={() => createDelivery(o)} disabled={busy === `delivery-${o.id}`}><Truck className="mr-2 h-4 w-4" />Create delivery</Button></div>}{canFinance && ["confirmed", "partially_fulfilled", "fulfilled"].includes(o.status) && <Button variant="outline" size="sm" onClick={() => createInvoice(o)} disabled={busy === `invoice-${o.id}`}><FilePlus2 className="mr-2 h-4 w-4" />Create invoice</Button>}</div>)}</CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-base">Invoices → payment allocation</CardTitle></CardHeader><CardContent className="space-y-3">{(invoices.data ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No invoices recorded.</p> : (invoices.data ?? []).map((i) => <div key={i.id} className="flex flex-col gap-3 rounded border p-3 lg:flex-row lg:items-center lg:justify-between"><div><p className="font-medium">{i.document_number ?? "Invoice"} · {i.clients?.name ?? "Client"}</p><p className="text-xs text-muted-foreground">Order: {i.sales_orders?.order_number ?? "not linked"} · Balance: {formatCurrency(Number(i.balance_due ?? 0))}</p></div>{canFinance && Number(i.balance_due ?? 0) > 0 && <div className="flex gap-2"><Input className="w-32" type="number" min="0" value={paymentAmount[i.id] ?? ""} onChange={(e) => setPaymentAmount((state) => ({ ...state, [i.id]: e.target.value }))} placeholder="Amount" /><Input className="w-32" value={paymentMethod[i.id] ?? ""} onChange={(e) => setPaymentMethod((state) => ({ ...state, [i.id]: e.target.value }))} placeholder="Method" /><Button size="sm" onClick={() => recordPayment(i)} disabled={busy === `payment-${i.id}`}>Record payment</Button></div>}</div>)}</CardContent></Card>
+      </TabsContent>
+      <TabsContent value="supply" className="space-y-4"><Card><CardHeader><CardTitle className="text-base">Partial goods receipt → stock ledger</CardTitle></CardHeader><CardContent className="space-y-4"><Select value={selectedPoId} onValueChange={setSelectedPoId}><SelectTrigger><SelectValue placeholder="Select purchase order" /></SelectTrigger><SelectContent>{(purchaseOrders.data ?? []).map((po) => <SelectItem key={po.id} value={po.id}>{po.document_number ?? po.id.slice(0, 8)} · {po.vendors?.name ?? "Vendor"} · {po.status}</SelectItem>)}</SelectContent></Select>{selectedPoId && <div className="space-y-3">{receiptRows.map((row) => <div key={row.id} className="grid gap-2 rounded border p-3 sm:grid-cols-5"><div className="sm:col-span-2"><p className="font-medium">{row.item_name}</p><p className="text-xs text-muted-foreground">Ordered {row.quantity} · received {row.received_quantity ?? 0}</p></div><Input type="number" min="0" value={row.accepted_quantity} onChange={(e) => updateReceipt(row.id, "accepted_quantity", e.target.value)} placeholder="Accepted" /><Input type="number" min="0" value={row.rejected_quantity} onChange={(e) => updateReceipt(row.id, "rejected_quantity", e.target.value)} placeholder="Rejected" /><Input value={row.lot_batch} onChange={(e) => updateReceipt(row.id, "lot_batch", e.target.value)} placeholder="Lot / batch" /></div>)}<Button onClick={receivePo} disabled={busy === `receive-${selectedPoId}`}><PackageCheck className="mr-2 h-4 w-4" />Post partial receipt</Button></div>}<div className="space-y-2">{(demands.data ?? []).filter((d) => d.status === "open").map((d) => <div key={d.id} className="flex items-center justify-between rounded border p-3"><div><p className="font-medium">{d.description}</p><p className="text-xs text-muted-foreground">Order {d.sales_orders?.order_number ?? "not linked"} · required {d.quantity_required} · sourced {d.quantity_sourced}</p></div><Badge variant="outline">open demand</Badge></div>)}</div></CardContent></Card></TabsContent>
+      <TabsContent value="delivery" className="space-y-4"><Card><CardHeader><CardTitle className="text-base">Dispatch → proof of delivery → stock issue</CardTitle></CardHeader><CardContent className="space-y-3"><Textarea value={podNotes} onChange={(e) => setPodNotes(e.target.value)} placeholder="Proof-of-delivery notes, recipient, document reference, or exception" />{(deliveries.data ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No deliveries recorded.</p> : (deliveries.data ?? []).map((d) => <div key={d.id} className="flex flex-col gap-3 rounded border p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">Delivery {d.document_number ?? d.id.slice(0, 8)} · {d.clients?.name ?? "Client"}</p><p className="text-xs text-muted-foreground">{d.destination} · order {d.sales_orders?.order_number ?? "not linked"}</p></div><div className="flex items-center gap-2"><Badge variant={statusTone[d.status] ?? "secondary"}>{d.status}</Badge>{canWarehouse && d.status !== "delivered" && <Button size="sm" onClick={() => completeDelivery(d)} disabled={busy === `complete-${d.id}`}>Complete delivery</Button>}</div></div>)}</CardContent></Card></TabsContent>
+      <TabsContent value="projects" className="space-y-4"><Card><CardHeader><CardTitle className="text-base">Project work packages and handover</CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3"><Select value={packageForm.project_id} onValueChange={(v) => setPackageForm((f) => ({ ...f, project_id: v }))}><SelectTrigger><SelectValue placeholder="Project" /></SelectTrigger><SelectContent>{(projects.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select><Input value={packageForm.name} onChange={(e) => setPackageForm((f) => ({ ...f, name: e.target.value }))} placeholder="Work package name" /><Input value={packageForm.budget_amount} onChange={(e) => setPackageForm((f) => ({ ...f, budget_amount: e.target.value }))} placeholder="Budget amount" type="number" /></div><Textarea value={packageForm.description} onChange={(e) => setPackageForm((f) => ({ ...f, description: e.target.value }))} placeholder="Work-package description" /><Button onClick={createPackage} disabled={!canTechnical || busy === "package"}>Create work package</Button><div className="grid gap-2 rounded border p-3 sm:grid-cols-4"><Select value={materialForm.project_id} onValueChange={(v) => setMaterialForm((f) => ({ ...f, project_id: v }))}><SelectTrigger><SelectValue placeholder="Consumption project" /></SelectTrigger><SelectContent>{(projects.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select><Select value={materialForm.inventory_id} onValueChange={(v) => setMaterialForm((f) => ({ ...f, inventory_id: v }))}><SelectTrigger><SelectValue placeholder="Inventory item" /></SelectTrigger><SelectContent>{(inventory.data ?? []).map((item) => <SelectItem key={item.id} value={item.id}>{item.item_name} · available {Math.max(0, Number(item.quantity_meters ?? 0) - Number(item.reserved_quantity ?? 0))}</SelectItem>)}</SelectContent></Select><Input type="number" min="0" value={materialForm.quantity} onChange={(e) => setMaterialForm((f) => ({ ...f, quantity: e.target.value }))} placeholder="Quantity" /><Button variant="outline" onClick={recordMaterial} disabled={!canTechnical || busy === "material"}>Record material use</Button></div>{(projects.data ?? []).map((p) => <div key={p.id} className="flex items-center justify-between rounded border p-3"><div><p className="font-medium">{p.name}</p><p className="text-xs text-muted-foreground">Client: {p.client_id ? "linked" : "not linked"}</p></div><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => createHandover(p)} disabled={!canTechnical}>Open handover record</Button><Button variant="outline" size="sm" onClick={() => submitHandover(p)} disabled={!canTechnical || busy === `submit-handover-${p.id}`}>Submit for sign-off</Button></div></div>)}{(handovers.data ?? []).map((h) => <div key={h.id} className="flex items-center justify-between rounded border p-3"><span>{h.projects?.name ?? "Project"} handover</span><Badge variant={statusTone[h.status] ?? "secondary"}>{h.status}</Badge></div>)}</CardContent></Card></TabsContent>
+      <TabsContent value="quality" className="space-y-4"><Card><CardHeader><CardTitle className="text-base">Fusion joint and QA capture</CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"><Select value={fusionForm.project_id} onValueChange={(v) => setFusionForm((f) => ({ ...f, project_id: v }))}><SelectTrigger><SelectValue placeholder="Project" /></SelectTrigger><SelectContent>{(projects.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select><Input value={fusionForm.joint_id} onChange={(e) => setFusionForm((f) => ({ ...f, joint_id: e.target.value }))} placeholder="Joint ID" /><Input value={fusionForm.material_lot} onChange={(e) => setFusionForm((f) => ({ ...f, material_lot: e.target.value }))} placeholder="Material lot" /><Input value={fusionForm.location} onChange={(e) => setFusionForm((f) => ({ ...f, location: e.target.value }))} placeholder="Location" /></div><div className="flex flex-wrap gap-2"><Select value={fusionForm.joint_type} onValueChange={(v) => setFusionForm((f) => ({ ...f, joint_type: v }))}><SelectTrigger className="w-48"><SelectValue /></SelectTrigger><SelectContent>{["butt_fusion", "electrofusion", "socket_fusion", "mechanical", "other"].map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent></Select><Select value={fusionForm.result} onValueChange={(v) => setFusionForm((f) => ({ ...f, result: v }))}><SelectTrigger className="w-56"><SelectValue /></SelectTrigger><SelectContent>{["awaiting_configuration", "pass", "fail", "rework", "rejected"].map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent></Select><Button onClick={createFusion} disabled={!canTechnical || busy === "fusion"}><Wrench className="mr-2 h-4 w-4" />Record fusion joint</Button></div><div className="grid gap-2 sm:grid-cols-3"><Select value={qaForm.project_id} onValueChange={(v) => setQaForm((f) => ({ ...f, project_id: v }))}><SelectTrigger><SelectValue placeholder="QA project" /></SelectTrigger><SelectContent>{(projects.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select><Input value={qaForm.inspection_type} onChange={(e) => setQaForm((f) => ({ ...f, inspection_type: e.target.value }))} placeholder="Inspection type" /><Select value={qaForm.result} onValueChange={(v) => setQaForm((f) => ({ ...f, result: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["awaiting_configuration", "pass", "fail", "rework", "not_applicable"].map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent></Select></div><Button variant="outline" onClick={createQa} disabled={!canTechnical || busy === "qa"}>Record QA inspection</Button>{(fusion.data ?? []).map((j) => <div key={j.id} className="flex items-center justify-between rounded border p-3"><div><p className="font-medium">{j.joint_id} · {j.joint_type}</p><p className="text-xs text-muted-foreground">{j.projects?.name ?? "Project"} · lot {j.material_lot ?? "not captured"}</p></div><Badge variant={statusTone[j.result] ?? "secondary"}>{j.result}</Badge></div>)}{(qa.data ?? []).map((q) => <div key={q.id} className="flex items-center justify-between rounded border p-3"><span>{q.projects?.name ?? "Project"} · {q.inspection_type}</span><Badge variant={statusTone[q.result] ?? "secondary"}>{q.result}</Badge></div>)}</CardContent></Card></TabsContent>
+      <TabsContent value="service" className="space-y-4"><Card><CardHeader><CardTitle className="text-base">After-sales service and warranty-linked tickets</CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid gap-2 sm:grid-cols-2"><Select value={serviceForm.client_id} onValueChange={(v) => setServiceForm((f) => ({ ...f, client_id: v }))}><SelectTrigger><SelectValue placeholder="Client (optional)" /></SelectTrigger><SelectContent>{(clients.data ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select><Input value={serviceForm.subject} onChange={(e) => setServiceForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Service subject" /></div><Textarea value={serviceForm.description} onChange={(e) => setServiceForm((f) => ({ ...f, description: e.target.value }))} placeholder="Issue, requested work, and evidence" /><Button onClick={createService} disabled={!canTechnical || busy === "service"}>Create service ticket</Button>{(service.data ?? []).map((t) => <div key={t.id} className="space-y-2 rounded border p-3"><div className="flex items-center justify-between"><div><p className="font-medium">{t.ticket_number} · {t.subject}</p><p className="text-xs text-muted-foreground">{t.clients?.name ?? "Client not linked"} · {t.priority}</p></div><Badge variant={statusTone[t.status] ?? "secondary"}>{t.status}</Badge></div>{!["resolved", "closed", "rejected"].includes(t.status) && canTechnical && <div className="flex gap-2"><Input value={resolutionByTicket[t.id] ?? ""} onChange={(e) => setResolutionByTicket((state) => ({ ...state, [t.id]: e.target.value }))} placeholder="Resolution / work completed" /><Button size="sm" onClick={() => resolveService(t)} disabled={busy === `resolve-${t.id}`}>Resolve</Button></div>}</div>)}</CardContent></Card></TabsContent>
+      <TabsContent value="workforce" className="space-y-4"><Card><CardHeader><CardTitle className="text-base">HSE, workforce evidence, and equipment assignment</CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"><Select value={hseForm.project_id || "none"} onValueChange={(v) => setHseForm((f) => ({ ...f, project_id: v === "none" ? "" : v }))}><SelectTrigger><SelectValue placeholder="Incident project" /></SelectTrigger><SelectContent><SelectItem value="none">No project link</SelectItem>{(projects.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select><Input value={hseForm.type} onChange={(e) => setHseForm((f) => ({ ...f, type: e.target.value }))} placeholder="Incident type" /><Input value={hseForm.severity} onChange={(e) => setHseForm((f) => ({ ...f, severity: e.target.value }))} placeholder="Severity" /><Input value={hseForm.location} onChange={(e) => setHseForm((f) => ({ ...f, location: e.target.value }))} placeholder="Location" /></div><Textarea value={hseForm.description} onChange={(e) => setHseForm((f) => ({ ...f, description: e.target.value }))} placeholder="Incident or near-miss description" /><Button onClick={createHseIncident} disabled={!canTechnical || busy === "hse"}>Record HSE incident</Button><div className="grid gap-2 rounded border p-3 sm:grid-cols-4"><Input value={trainingForm.title} onChange={(e) => setTrainingForm((f) => ({ ...f, title: e.target.value }))} placeholder="Training title" /><Input value={trainingForm.training_type} onChange={(e) => setTrainingForm((f) => ({ ...f, training_type: e.target.value }))} placeholder="Training type" /><Input type="date" value={trainingForm.completed_date} onChange={(e) => setTrainingForm((f) => ({ ...f, completed_date: e.target.value }))} /><Input type="number" min="0" max="100" value={trainingForm.score} onChange={(e) => setTrainingForm((f) => ({ ...f, score: e.target.value }))} placeholder="Score" /><Button variant="outline" onClick={logTraining} disabled={activeRole !== "hr" && !isMaintenance || busy === "training"}>Log training</Button></div><div className="grid gap-2 rounded border p-3 sm:grid-cols-4"><Select value={equipmentForm.project_id} onValueChange={(v) => setEquipmentForm((f) => ({ ...f, project_id: v }))}><SelectTrigger><SelectValue placeholder="Assignment project" /></SelectTrigger><SelectContent>{(projects.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select><Select value={equipmentForm.equipment_id} onValueChange={(v) => setEquipmentForm((f) => ({ ...f, equipment_id: v }))}><SelectTrigger><SelectValue placeholder="Equipment" /></SelectTrigger><SelectContent>{(equipment.data ?? []).filter((item) => item.status !== "retired").map((item) => <SelectItem key={item.id} value={item.id}>{item.name} · {item.status}</SelectItem>)}</SelectContent></Select><Input type="number" min="0" value={equipmentForm.hours} onChange={(e) => setEquipmentForm((f) => ({ ...f, hours: e.target.value }))} placeholder="Usage hours" /><Button variant="outline" onClick={assignEquipment} disabled={!canTechnical || busy === "equipment"}>Assign equipment</Button></div><div className="space-y-2">{(hseIncidents.data ?? []).map((incident) => <div key={incident.id} className="flex items-center justify-between rounded border p-3"><div><p className="font-medium">{incident.document_number ?? incident.id.slice(0, 8)} · {incident.type}</p><p className="text-xs text-muted-foreground">{incident.location ?? "Location not captured"} · {incident.description}</p></div><Badge variant={incident.severity === "high" || incident.severity === "critical" ? "destructive" : "outline"}>{incident.severity}</Badge></div>)}</div></CardContent></Card></TabsContent>
+      <TabsContent value="history" className="space-y-4"><Card><CardHeader><CardTitle className="text-base">Document and business audit history</CardTitle></CardHeader><CardContent className="space-y-2">{(revisions.data ?? []).map((r) => <div key={r.id} className="flex items-center justify-between rounded border p-3"><div><p className="font-medium">{r.entity_type} · revision {r.revision_number}</p><p className="text-xs text-muted-foreground">{r.change_reason}</p></div><Badge variant={r.is_current ? "default" : "secondary"}>{r.is_current ? "current" : "historical"}</Badge></div>)}{(revisions.data ?? []).length === 0 && <p className="text-sm text-muted-foreground">No document revisions recorded yet.</p>}</CardContent></Card></TabsContent>
+      <TabsContent value="config" className="space-y-4"><Card><CardHeader><CardTitle className="text-base">Management configuration register</CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid gap-2 sm:grid-cols-3"><Input value={configForm.config_key} onChange={(e) => setConfigForm((f) => ({ ...f, config_key: e.target.value }))} placeholder="Key e.g. warranty.duration" /><Input value={configForm.config_value} onChange={(e) => setConfigForm((f) => ({ ...f, config_value: e.target.value }))} placeholder="JSON or text value" /><Input value={configForm.notes} onChange={(e) => setConfigForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Approval context" /></div><Button onClick={saveConfig} disabled={activeRole !== "administrator" && !isMaintenance || busy === "config"}>Save awaiting approval</Button>{(configuration.data ?? []).map((c) => <div key={c.id} className="flex items-center justify-between rounded border p-3"><div><p className="font-medium">{c.config_key}</p><p className="text-xs text-muted-foreground">{JSON.stringify(c.config_value)} · {c.notes ?? "No notes"}</p></div><Badge variant="outline">{c.status}</Badge></div>)}</CardContent></Card></TabsContent>
+    </Tabs>
+    <div className="flex items-center justify-between text-xs text-muted-foreground"><span>All actions write linked records and server-side audit events. No demo metrics are generated.</span><Button variant="ghost" size="sm" onClick={() => invalidate()}><RefreshCw className="mr-2 h-3 w-3" />Refresh</Button></div>
+  </div>;
 };
 
 export default Operations;

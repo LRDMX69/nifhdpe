@@ -35,6 +35,7 @@ type DbClient = { id: string; name: string };
 
 interface QuotationItem {
   id: string; description: string; type: string; quantity: number; unitPrice: number; total: number;
+  productSpecificationId?: string;
   diameterMm?: number; lengthMeters?: number;
 }
 
@@ -60,6 +61,7 @@ const Quotations = () => {
   const [laborCost, setLaborCost] = useState(500);
   const [transportCost, setTransportCost] = useState(50000);
   const [clientId, setClientId] = useState("");
+  const [opportunityId, setOpportunityId] = useState("");
   const [lumpSumAmount, setLumpSumAmount] = useState("");
   const [lumpSumDesc, setLumpSumDesc] = useState("");
   const [editingQuotation, setEditingQuotation] = useState<DbQuotation | null>(null);
@@ -79,6 +81,28 @@ const Quotations = () => {
     enabled: !!orgId,
   });
 
+  const { data: opportunities = [] } = useQuery({
+    queryKey: ["opportunities-for-quotation", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await supabase.from("opportunities").select("id, title").eq("organization_id", orgId).order("title");
+      if (error) throw error;
+      return (data ?? []) as { id: string; title: string }[];
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: productSpecifications = [] } = useQuery({
+    queryKey: ["product-specifications-for-quotation", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await industrialDb.from("product_specifications").select("id, product_code, product_name, category").eq("organization_id", orgId).eq("is_active", true).order("product_code");
+      if (error) throw error;
+      return (data ?? []) as { id: string; product_code: string; product_name: string; category: string }[];
+    },
+    enabled: !!orgId,
+  });
+
   const { data: clients = [] } = useQuery({
     queryKey: ["clients-for-quotation", orgId],
     queryFn: async () => {
@@ -89,7 +113,7 @@ const Quotations = () => {
     enabled: !!orgId,
   });
 
-  const addItem = () => setItems([...items, { id: Date.now().toString(), description: "", type: "pipe", quantity: 1, unitPrice: 0, total: 0 }]);
+  const addItem = () => setItems([...items, { id: Date.now().toString(), description: "", type: "pipe", quantity: 1, unitPrice: 0, total: 0, productSpecificationId: "" }]);
   const updateItem = (id: string, field: string, value: string | number) => {
     setItems(items.map((item) => {
       if (item.id !== id) return item;
@@ -106,7 +130,7 @@ const Quotations = () => {
   const grandTotal = subtotal + laborTotal + transportCost + profitAmount;
 
   const resetForm = () => {
-    setItems([]); setClientId(""); setPipeType("hdpe"); setProfitMargin(15);
+    setItems([]); setClientId(""); setOpportunityId(""); setPipeType("hdpe"); setProfitMargin(15);
     setLaborCost(500); setTransportCost(50000); setEditingQuotation(null);
     setLumpSumAmount(""); setLumpSumDesc(""); setRevisionReason("");
   };
@@ -115,6 +139,7 @@ const Quotations = () => {
   const openEditQuotation = async (q: DbQuotation) => {
     setEditingQuotation(q);
     setClientId(q.client_id ?? "");
+    setOpportunityId((q as DbQuotation & { opportunity_id?: string | null }).opportunity_id ?? "");
     setPipeType(q.pipe_type ?? "hdpe");
     setProfitMargin(q.profit_margin_percent ?? 15);
     setLaborCost(q.labor_cost_per_meter ?? 500);
@@ -134,6 +159,7 @@ const Quotations = () => {
           quantity: li.quantity,
           unitPrice: li.unit_price,
           total: li.total_price,
+          productSpecificationId: (li as DbQuotationItem & { product_specification_id?: string | null }).product_specification_id ?? "",
         })));
       }
     }
@@ -153,8 +179,8 @@ const Quotations = () => {
         });
         if (revisionError) throw revisionError;
         // Update existing after preserving the historical snapshot.
-        const { error } = await supabase.from("quotations").update({
-          client_id: clientId || null, pipe_type: pipeType as Database["public"]["Enums"]["pipe_type"],
+        const { error } = await industrialDb.from("quotations").update({
+          client_id: clientId || null, opportunity_id: opportunityId || null, pipe_type: pipeType as Database["public"]["Enums"]["pipe_type"],
           profit_margin_percent: profitMargin, labor_cost_per_meter: laborCost,
           transport_cost: transportCost, subtotal, total_amount: grandTotal, status: status as Database["public"]["Enums"]["quotation_status"], is_lump_sum: false,
           revision_reason: revisionReason || null,
@@ -167,7 +193,7 @@ const Quotations = () => {
         if (items.length > 0) {
           const { error: insItemsError } = await supabase.from("quotation_items").insert(items.map(i => ({
             quotation_id: editingQuotation.id, description: i.description, item_type: i.type as Database["public"]["Enums"]["quotation_item_type"],
-            quantity: i.quantity, unit_price: i.unitPrice, total_price: i.total,
+            quantity: i.quantity, unit_price: i.unitPrice, total_price: i.total, product_specification_id: i.productSpecificationId || null,
           })));
           if (insItemsError) throw insItemsError;
         }
@@ -175,17 +201,18 @@ const Quotations = () => {
       } else {
         const { data: qNumRpc } = await supabase.rpc("next_doc_number", { _org_id: orgId, _doc_type: "quotations" });
         const qNum = qNumRpc ?? `QT-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
-        const { data: quotation, error } = await supabase.from("quotations").insert({
-          organization_id: orgId, created_by: user.id, client_id: clientId || null, quotation_number: qNum,
+        const { data: quotation, error } = await industrialDb.from("quotations").insert({
+          organization_id: orgId, created_by: user.id, client_id: clientId || null, opportunity_id: opportunityId || null, quotation_number: qNum,
           pipe_type: pipeType as Database["public"]["Enums"]["pipe_type"], profit_margin_percent: profitMargin, labor_cost_per_meter: laborCost,
           transport_cost: transportCost, subtotal, total_amount: grandTotal, status: status as Database["public"]["Enums"]["quotation_status"], is_lump_sum: false,
         } as Database["public"]["Tables"]["quotations"]["Insert"]).select().single();
         if (error) throw error;
         if (items.length > 0 && quotation) {
-          await supabase.from("quotation_items").insert(items.map(i => ({
+          const { error: itemError } = await industrialDb.from("quotation_items").insert(items.map(i => ({
             quotation_id: quotation.id, description: i.description, item_type: i.type as Database["public"]["Enums"]["quotation_item_type"],
-            quantity: i.quantity, unit_price: i.unitPrice, total_price: i.total,
+            quantity: i.quantity, unit_price: i.unitPrice, total_price: i.total, product_specification_id: i.productSpecificationId || null,
           })));
+          if (itemError) throw itemError;
         }
         toast({ title: status === "draft" ? "Saved as draft" : "Quotation sent" });
       }
@@ -208,8 +235,8 @@ const Quotations = () => {
           _snapshot: previousQuotation ?? editingQuotation, _reason: revisionReason.trim(),
         });
         if (revisionError) throw revisionError;
-        const { error } = await supabase.from("quotations").update({
-          client_id: clientId || null, is_lump_sum: true,
+        const { error } = await industrialDb.from("quotations").update({
+          client_id: clientId || null, opportunity_id: opportunityId || null, is_lump_sum: true,
           lump_sum_amount: parseFloat(lumpSumAmount), total_amount: parseFloat(lumpSumAmount),
           notes: lumpSumDesc || null, revision_reason: revisionReason || null,
         } as Database["public"]["Tables"]["quotations"]["Update"]).eq("id", editingQuotation.id);
@@ -412,6 +439,11 @@ const Quotations = () => {
                         <SelectContent>{clients.map((c: DbClient) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
+                    <div className="space-y-2"><Label>Opportunity</Label>
+                      <Select value={opportunityId || "none"} onValueChange={(value) => setOpportunityId(value === "none" ? "" : value)}><SelectTrigger><SelectValue placeholder="Optional opportunity" /></SelectTrigger>
+                        <SelectContent><SelectItem value="none">No opportunity link</SelectItem>{opportunities.map((opportunity) => <SelectItem key={opportunity.id} value={opportunity.id}>{opportunity.title}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
                     <div className="space-y-2"><Label>Pipe Type</Label>
                       <Select value={pipeType} onValueChange={setPipeType}><SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent><SelectItem value="hdpe">HDPE</SelectItem><SelectItem value="pvc">PVC</SelectItem><SelectItem value="custom">Custom</SelectItem></SelectContent>
@@ -426,7 +458,7 @@ const Quotations = () => {
                     {items.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No items added.</p>}
                     {items.map((item) => (
                       <div key={item.id} className="grid grid-cols-12 gap-2 items-end">
-                        <div className="col-span-12 sm:col-span-4 space-y-1"><Label className="text-xs">Description</Label><Input placeholder="HDPE Pipe 110mm" value={item.description} onChange={(e) => updateItem(item.id, "description", e.target.value)} /></div>
+                        <div className="col-span-12 sm:col-span-4 space-y-1"><Label className="text-xs">Product / Description</Label><Select value={item.productSpecificationId || "none"} onValueChange={(value) => { const product = productSpecifications.find((p) => p.id === value); updateItem(item.id, "productSpecificationId", value === "none" ? "" : value); if (product && !item.description) updateItem(item.id, "description", `${product.product_code} — ${product.product_name}`); }}><SelectTrigger><SelectValue placeholder="Optional product master" /></SelectTrigger><SelectContent><SelectItem value="none">Free-text / unlinked</SelectItem>{productSpecifications.map((product) => <SelectItem key={product.id} value={product.id}>{product.product_code} · {product.product_name}</SelectItem>)}</SelectContent></Select><Input placeholder="Description" value={item.description} onChange={(e) => updateItem(item.id, "description", e.target.value)} /></div>
                         <div className="col-span-4 sm:col-span-2 space-y-1"><Label className="text-xs">Type</Label>
                           <Select value={item.type} onValueChange={(v) => updateItem(item.id, "type", v)}><SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent><SelectItem value="pipe">Pipe</SelectItem><SelectItem value="fitting">Fitting</SelectItem><SelectItem value="labor">Labor</SelectItem><SelectItem value="other">Other</SelectItem></SelectContent>

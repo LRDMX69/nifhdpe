@@ -40,6 +40,7 @@ type FieldReportWithRelations = Database["public"]["Tables"]["field_reports"]["R
 
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { useOfflineQueue, MAX_QUEUE_ATTEMPTS } from "@/hooks/useOfflineQueue";
+import { industrialDb } from "@/lib/industrialDb";
 import { isPermanentQueueError } from "@/lib/offlineQueueErrors";
 import { logger } from "@/lib/logger";
 
@@ -49,6 +50,7 @@ type OfflineReportItem = {
   _attempts?: number;
   _error?: string | null;
   project_id?: string;
+  work_package_id?: string;
   tasks_completed: string;
   crew_members: string;
   safety_incidents: string;
@@ -102,6 +104,7 @@ const FieldReports = () => {
   // Form state
   const [rawNotes, setRawNotes] = useState("");
   const [selectedProject, setSelectedProject] = useState("");
+  const [selectedWorkPackage, setSelectedWorkPackage] = useState("");
   const [crewMembers, setCrew] = useState("");
   const [safetyIncidents, setSafety] = useState("");
   const [pressureResult, setPressure] = useState("");
@@ -146,6 +149,7 @@ const FieldReports = () => {
             organization_id: profile.organization_id,
             created_by: user.id,
             project_id: item.project_id || null,
+            work_package_id: item.work_package_id || null,
             tasks_completed: item.tasks_completed,
             crew_members: item.crew_members,
             safety_incidents: item.safety_incidents,
@@ -251,11 +255,22 @@ const FieldReports = () => {
   });
 
   const { data: projects = [] } = useQuery({
-    queryKey: ["projects-list"],
+    queryKey: ["projects-list", memberships[0]?.organization_id],
     queryFn: async () => {
-      const { data } = await supabase.from("projects").select("id, name, status, team_member_ids").order("name");
+      const { data } = await supabase.from("projects").select("id, name, status, team_member_ids").eq("organization_id", memberships[0]?.organization_id ?? "").order("name");
       return data ?? [];
     },
+    enabled: !!memberships[0]?.organization_id,
+  });
+
+  const { data: workPackages = [] } = useQuery({
+    queryKey: ["field-report-work-packages", memberships[0]?.organization_id, selectedProject],
+    queryFn: async () => {
+      const { data, error } = await industrialDb.from("project_work_packages").select("id, name, project_id").eq("organization_id", memberships[0]?.organization_id).eq("project_id", selectedProject).order("sequence_no");
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!memberships[0]?.organization_id && !!selectedProject,
   });
 
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -313,6 +328,7 @@ const FieldReports = () => {
 
     const queueItem = {
       project_id: selectedProject,
+      work_package_id: selectedWorkPackage,
       tasks_completed: tasksWithGeo,
       crew_members: crewMembers,
       safety_incidents: safetyIncidents,
@@ -339,7 +355,8 @@ const FieldReports = () => {
     }
 
     // 2. Clear UI to let user proceed with other tasks
-    setRawNotes(""); setSelectedProject(""); setCrew(""); setSafety(""); setPressure(""); setClientFeedback(""); setPhotos([]);
+    const photosToUpload = [...photos];
+    setRawNotes(""); setSelectedProject(""); setSelectedWorkPackage(""); setCrew(""); setSafety(""); setPressure(""); setClientFeedback(""); setPhotos([]);
     setOpen(false);
 
     if (!navigator.onLine) {
@@ -354,8 +371,8 @@ const FieldReports = () => {
       if (!profile?.organization_id) throw new Error("No organization found");
 
       const photoUrls: string[] = [];
-      for (let i = 0; i < photos.length; i++) {
-        const photo = photos[i];
+      for (let i = 0; i < photosToUpload.length; i++) {
+        const photo = photosToUpload[i];
         const fileName = `${user.id}/${Date.now()}-${photo.name}`;
         const { data: uploadData } = await supabase.storage.from("site-photos").upload(fileName, photo);
         if (uploadData) photoUrls.push(uploadData.path);
@@ -366,7 +383,8 @@ const FieldReports = () => {
         .insert({
           organization_id: profile.organization_id,
           created_by: user.id,
-          project_id: selectedProject || null,
+          project_id: queueItem.project_id || null,
+          work_package_id: queueItem.work_package_id || null,
           tasks_completed: queueItem.tasks_completed,
           crew_members: crewMembers || null,
           safety_incidents: safetyIncidents || null,
@@ -398,6 +416,8 @@ const FieldReports = () => {
       if (!processError) {
         setStructuredReport(processData?.structured_content || null);
         toast({ title: "Report Processed", description: "Successfully uploaded and AI structured." });
+      } else {
+        toast({ title: "Report uploaded; AI processing needs retry", description: processError.message || "The raw report is saved and remains available for review.", variant: "destructive" });
       }
 
       refetch();
@@ -470,6 +490,13 @@ const FieldReports = () => {
                     <Select value={selectedProject} onValueChange={setSelectedProject}>
                       <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
                       <SelectContent>{projects.map((p: { id: string; name: string }) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Work Package</Label>
+                    <Select value={selectedWorkPackage || "none"} onValueChange={(value) => setSelectedWorkPackage(value === "none" ? "" : value)} disabled={!selectedProject}>
+                      <SelectTrigger><SelectValue placeholder={selectedProject ? "Select work package" : "Select project first"} /></SelectTrigger>
+                      <SelectContent><SelectItem value="none">No work package link</SelectItem>{workPackages.map((pkg: { id: string; name: string }) => <SelectItem key={pkg.id} value={pkg.id}>{pkg.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">

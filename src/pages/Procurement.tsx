@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
 import { isFinanceCapable } from "@/lib/constants";
+import { industrialDb } from "@/lib/industrialDb";
 
 type VendorRow = Database["public"]["Tables"]["vendors"]["Row"];
 type PoRow = Database["public"]["Tables"]["purchase_orders"]["Row"] & { vendors?: { name: string } | null };
@@ -152,65 +153,24 @@ const Procurement = () => {
   const receiveGoods = useMutation({
     mutationFn: async (poId: string) => {
       if (!orgId || !activeRole) throw new Error("Unauthorized");
-      const user = (await supabase.auth.getUser()).data.user;
-      if (!user) throw new Error("Not logged in");
-
-      const po = pos.find((p: PoRow) => p.id === poId);
-      if (!po) throw new Error("PO not found");
-
-      // 1. Create GRN as pending
-      const { data: grn, error: grnErr } = await supabase
-        .from("goods_received_notes")
-        .insert({
-          organization_id: orgId,
-          purchase_order_id: poId,
-          vendor_id: po.vendor_id,
-          received_by: user.id,
-          status: "pending",
-        })
-        .select()
-        .single();
-      if (grnErr) throw grnErr;
-
-      // 2. Fetch PO Items
-      const { data: items, error: itemsErr } = await supabase
-        .from("purchase_order_items")
-        .select("*")
-        .eq("purchase_order_id", poId);
+      const { data: items, error: itemsErr } = await supabase.from("purchase_order_items").select("*").eq("purchase_order_id", poId);
       if (itemsErr) throw itemsErr;
-
-      // 3. Create GRN items
-      if (items && items.length > 0) {
-        const grnItems = (items as PoItemRow[]).map((item) => ({
-          grn_id: grn.id,
-          purchase_order_item_id: item.id,
-          item_name: item.item_name,
-          quantity_received: item.quantity,
-          condition: "good",
-        }));
-        const { error: insertErr } = await supabase.from("grn_items").insert(grnItems);
-        if (insertErr) throw insertErr;
-      }
-
-      // 4. Update GRN to accepted to trigger inventory stock update
-      const { error: acceptErr } = await supabase
-        .from("goods_received_notes")
-        .update({ status: "accepted" })
-        .eq("id", grn.id);
-      if (acceptErr) throw acceptErr;
-
-      // 5. Update PO status
-      const { error: poUpdErr } = await supabase
-        .from("purchase_orders")
-        .update({ status: "received" })
-        .eq("id", poId);
-      if (poUpdErr) throw poUpdErr;
+      if (!items?.length) throw new Error("This purchase order has no line items to receive.");
+      const receipts = (items as PoItemRow[]).map((item) => ({
+        purchase_order_item_id: item.id,
+        accepted_quantity: Math.max(0, Number(item.quantity) - Number(item.received_quantity ?? 0)),
+        rejected_quantity: 0,
+        lot_batch: null,
+        product_specification_id: null,
+      })).filter((item) => item.accepted_quantity > 0);
+      const { error } = await industrialDb.rpc("receive_purchase_order_partial", { _org_id: orgId, _po_id: poId, _receipts: receipts });
+      if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "Goods Received", description: "Inventory has been updated automatically." });
+      toast({ title: "Goods received", description: "GRN, inventory, lot, stock movement, remaining quantity, PO status, and audit records were updated." });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
-      // The user wants to update Inventory.tsx on GRN receipt, let's invalidate inventory query if it exists
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["operations"] });
     },
     onError: (err: Error) => toast({ title: "Error receiving goods", description: humanizeError(err), variant: "destructive" }),
   });
