@@ -151,14 +151,16 @@ serve(async (req: Request) => {
 
     const structuredContent = `${headerLines.join("\n")}\n\n${cleanedBody || "(No narrative provided.)"}`;
 
-    await supabase.from("structured_reports").insert({ field_report_id: fieldReportId, structured_content: structuredContent });
+    const { error: structuredError } = await supabase.from("structured_reports").insert({ field_report_id: fieldReportId, structured_content: structuredContent });
+    if (structuredError) throw new Error(`Could not persist structured report: ${structuredError.message}`);
 
     const rData = report as unknown as ReportRecord;
-    await supabase.from("ai_summaries").insert({
+    const { error: summaryError } = await supabase.from("ai_summaries").insert({
       organization_id: rData.organization_id, context: "field_report",
       summary: `New Field Report\n\nProject: ${projectName ?? "—"}\nDate: ${rData.report_date}\nBy: ${authorName}\n\n${cleanedBody.substring(0, 300)}${cleanedBody.length > 300 ? "…" : ""}`,
-      metadata: { field_report_id: fieldReportId, processed_at: new Date().toISOString() },
+      metadata: { field_report_id: fieldReportId, processed_at: new Date().toISOString(), source: "raw_field_report_plus_validated_editor", validation: "banned_phrase_and_fact_preservation_guard" },
     });
+    if (summaryError) logger.warn("Could not persist AI summary", { fieldReportId, reason: summaryError.message });
 
     return new Response(JSON.stringify({ success: true, structured_content: structuredContent }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/constants";
 import type { Database } from "@/integrations/supabase/types";
+import { industrialDb } from "@/lib/industrialDb";
 
 type Invoice = Database["public"]["Tables"]["invoices"]["Row"] & { clients?: { name: string } | null };
 
@@ -52,31 +53,16 @@ export const RecordPaymentDialog = ({ open, onOpenChange, invoice, onRecorded }:
     if (!amt || amt <= 0) { toast({ title: "Enter a valid amount", variant: "destructive" }); return; }
     setBusy(true);
     try {
-      const { data: receipt, error } = await supabase.from("receipts").insert({
-        organization_id: invoice.organization_id,
-        client_id: invoice.client_id,
-        invoice_id: invoice.id,
-        received_by: user.id,
-        amount_received: amt,
-        payment_method: method,
-        payment_date: paymentDate,
-        reference_number: reference || null,
-        notes: notes || null,
-      } as Database["public"]["Tables"]["receipts"]["Insert"]).select("*").single();
+      const { data: receipt, error } = await industrialDb.rpc("record_invoice_payment", {
+        _org_id: invoice.organization_id,
+        _invoice_id: invoice.id,
+        _amount: amt,
+        _payment_method: method,
+        _reference_number: reference || null,
+        _notes: [paymentDate, notes].filter(Boolean).join(" — ") || null,
+      });
       if (error) throw error;
-
-      // Update invoice balance + status. NEVER swallow this error: a receipt
-      // without the matching invoice adjustment would silently corrupt
-      // balance_due and every downstream report.
       const newBalance = Math.max(0, Number(invoice.balance_due ?? invoice.total_amount ?? 0) - amt);
-      const newStatus = newBalance <= 0 ? "paid" : "partial";
-      const { error: invoiceError } = await supabase.from("invoices").update({
-        balance_due: newBalance,
-        status: newStatus,
-      } as Database["public"]["Tables"]["invoices"]["Update"]).eq("id", invoice.id);
-      if (invoiceError) {
-        throw new Error(`Receipt saved but the invoice could not be updated (${invoiceError.message}). Contact an administrator — the balance must be reconciled.`);
-      }
 
       // Generate receipt PDF
       const { generatePdf } = await import("@/lib/generatePdf");

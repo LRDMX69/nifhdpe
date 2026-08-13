@@ -27,6 +27,7 @@ import { generateWaybill } from "@/lib/generateWaybill";
 import { WaybillDialog } from "@/components/logistics/WaybillDialog";
 import { useSearchParams } from "react-router-dom";
 import { humanizeError } from "@/lib/humanizeError";
+import { industrialDb } from "@/lib/industrialDb";
 
 type DeliveryRow = Database["public"]["Tables"]["deliveries"]["Row"] & { projects?: { name: string } | null };
 type VehicleRow = Database["public"]["Tables"]["vehicles"]["Row"];
@@ -79,7 +80,7 @@ const Logistics = () => {
     queryKey: ["deliveries", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data, error } = await supabase.from("deliveries").select("*, projects(name)").eq("organization_id", orgId).order("delivery_date", { ascending: false });
+      const { data, error } = await supabase.from("deliveries").select("*, projects(name), clients(name), sales_orders(order_number)").eq("organization_id", orgId).order("delivery_date", { ascending: false });
       if (error) throw error;
       return (data ?? []) as DeliveryRow[];
     },
@@ -195,6 +196,18 @@ const Logistics = () => {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
 
+  const completeLinkedDelivery = async (id: string, proof: Record<string, unknown>) => {
+    const delivery = (deliveries as DeliveryRow[]).find((d) => d.id === id) as (DeliveryRow & { sales_order_id?: string | null }) | undefined;
+    if (delivery?.sales_order_id) {
+      const { error } = await industrialDb.rpc("complete_delivery", { _org_id: orgId, _delivery_id: id, _proof_of_delivery: proof });
+      if (error) throw error;
+      toast({ title: "Delivery completed; inventory and reservation ledger updated" });
+      refetch();
+      return true;
+    }
+    return false;
+  };
+
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
       const payload: Database["public"]["Tables"]["deliveries"]["Update"] = { status: newStatus as Database["public"]["Tables"]["deliveries"]["Row"]["status"] };
@@ -226,13 +239,13 @@ const Logistics = () => {
                 toast({ title: "Warning", description: "No destination coordinates set — GPS validation skipped." });
               }
 
-              await supabase.from("deliveries").update({
-                ...payload,
-                delivered_lat: userLat,
-                delivered_lng: userLng,
-              }).eq("id", id);
-              toast({ title: "Marked as delivered with GPS ✓" });
-              refetch();
+              const completed = await completeLinkedDelivery(id, { delivered_lat: userLat, delivered_lng: userLng, completed_at: new Date().toISOString(), source: "logistics_gps" });
+              if (!completed) {
+                const { error } = await supabase.from("deliveries").update({ ...payload, delivered_lat: userLat, delivered_lng: userLng }).eq("id", id);
+                if (error) throw error;
+                toast({ title: "Marked as delivered with GPS ✓" });
+                refetch();
+              }
             },
             async () => {
               // No GPS available — block if destination coords exist
@@ -240,9 +253,13 @@ const Logistics = () => {
                 toast({ title: "GPS required", description: "Enable location services to verify delivery proximity.", variant: "destructive" });
                 return;
               }
-              await supabase.from("deliveries").update(payload).eq("id", id);
-              toast({ title: "Marked as delivered (no GPS)" });
-              refetch();
+              const completed = await completeLinkedDelivery(id, { completed_at: new Date().toISOString(), source: "logistics_no_gps" });
+              if (!completed) {
+                const { error } = await supabase.from("deliveries").update(payload).eq("id", id);
+                if (error) throw error;
+                toast({ title: "Marked as delivered (no GPS)" });
+                refetch();
+              }
             }
           );
           return;
@@ -250,6 +267,10 @@ const Logistics = () => {
           toast({ title: "GPS required", description: "Your browser does not support geolocation.", variant: "destructive" });
           return;
         }
+      }
+      if (newStatus === "delivered") {
+        const completed = await completeLinkedDelivery(id, { completed_at: new Date().toISOString(), source: "logistics_status_change" });
+        if (completed) return;
       }
       const { error } = await supabase.from("deliveries").update(payload).eq("id", id);
       if (error) throw error;

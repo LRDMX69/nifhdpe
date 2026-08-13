@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Phone, Mail, MapPin, Copy, Check, Download, Briefcase, Receipt, FileText,
-  FolderKanban, ArrowUpRight, Pencil, Trash2, User,
+  FolderKanban, ArrowUpRight, Pencil, Trash2, User, Truck, Wrench, Link2,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,7 @@ import { formatCurrency } from "@/lib/constants";
 import { getStatusMeta } from "@/lib/statusCopy";
 import { exportCsv } from "@/lib/exportCsv";
 import type { Database } from "@/integrations/supabase/types";
+import { industrialDb } from "@/lib/industrialDb";
 
 type Client = Database["public"]["Tables"]["clients"]["Row"];
 
@@ -43,6 +44,7 @@ interface ProjectRow {
   start_date: string | null;
   end_date: string | null;
 }
+interface LinkedRow { id: string; status?: string | null; [key: string]: unknown; }
 
 const copyToClipboard = async (text: string) => {
   try {
@@ -104,6 +106,36 @@ export const ClientDetailDialog = ({
     enabled: !!clientId && open,
   });
 
+  const { data: salesOrders = [], isLoading: loadingOrders } = useQuery({
+    queryKey: ["client-sales-orders", orgId, clientId],
+    queryFn: async () => { if (!clientId) return []; const { data, error } = await industrialDb.from("sales_orders").select("id, order_number, status, total_amount, order_date").eq("organization_id", orgId).eq("client_id", clientId).order("order_date", { ascending: false }); if (error) throw error; return (data ?? []) as LinkedRow[]; },
+    enabled: !!clientId && open,
+  });
+
+  const { data: deliveries = [], isLoading: loadingDeliveries } = useQuery({
+    queryKey: ["client-deliveries", orgId, clientId],
+    queryFn: async () => { if (!clientId) return []; const { data, error } = await industrialDb.from("deliveries").select("id, status, destination, delivery_date, sales_order_id").eq("organization_id", orgId).eq("client_id", clientId).order("delivery_date", { ascending: false }); if (error) throw error; return (data ?? []) as LinkedRow[]; },
+    enabled: !!clientId && open,
+  });
+
+  const { data: receipts = [], isLoading: loadingReceipts } = useQuery({
+    queryKey: ["client-receipts", orgId, clientId],
+    queryFn: async () => { if (!clientId) return []; const { data, error } = await supabase.from("receipts").select("id, document_number, amount_received, payment_date, invoice_id").eq("organization_id", orgId).eq("client_id", clientId).order("payment_date", { ascending: false }); if (error) throw error; return (data ?? []) as LinkedRow[]; },
+    enabled: !!clientId && open,
+  });
+
+  const { data: serviceTickets = [], isLoading: loadingService } = useQuery({
+    queryKey: ["client-service-tickets", orgId, clientId],
+    queryFn: async () => { if (!clientId) return []; const { data, error } = await industrialDb.from("service_tickets").select("id, ticket_number, subject, status, priority, created_at").eq("organization_id", orgId).eq("client_id", clientId).order("created_at", { ascending: false }); if (error) throw error; return (data ?? []) as LinkedRow[]; },
+    enabled: !!clientId && open,
+  });
+
+  const { data: warrantyAssets = [], isLoading: loadingWarranty } = useQuery({
+    queryKey: ["client-warranty-assets", orgId, clientId],
+    queryFn: async () => { if (!clientId) return []; const { data, error } = await industrialDb.from("warranty_assets").select("id, serial_or_asset_code, status, installed_at, project_id").eq("organization_id", orgId).eq("client_id", clientId).order("created_at", { ascending: false }); if (error) throw error; return (data ?? []) as LinkedRow[]; },
+    enabled: !!clientId && open,
+  });
+
   const { data: projects = [], isLoading: loadingProjects } = useQuery({
     queryKey: ["client-projects", orgId, clientId],
     queryFn: async () => {
@@ -129,8 +161,12 @@ export const ClientDetailDialog = ({
     const outstanding = invoices
       .filter((i) => !["paid", "cancelled"].includes(i.status ?? ""))
       .reduce((s, i) => s + Number(i.balance_due ?? i.total_amount ?? 0), 0);
-    return { openQuoteCount: openQuotes.length, openQuoteValue, acceptedValue, invoicedTotal, outstanding, projectCount: projects.length };
-  }, [quotations, invoices, projects]);
+    const orderValue = salesOrders.reduce((s, order) => s + Number(order.total_amount ?? 0), 0);
+    const receivedTotal = receipts.reduce((s, receipt) => s + Number(receipt.amount_received ?? 0), 0);
+    const openTickets = serviceTickets.filter((ticket) => !["resolved", "closed", "rejected"].includes(String(ticket.status))).length;
+    return { openQuoteCount: openQuotes.length, openQuoteValue, acceptedValue, invoicedTotal, outstanding, projectCount: projects.length, orderValue, receivedTotal, openTickets, deliveryCount: deliveries.length, warrantyCount: warrantyAssets.length };
+
+  }, [quotations, invoices, projects, salesOrders, receipts, serviceTickets, deliveries, warrantyAssets]);
 
   const handleCopy = async (text: string, label: string) => {
     const ok = await copyToClipboard(text);
@@ -148,10 +184,13 @@ export const ClientDetailDialog = ({
       ...quotations.map((q) => ({ kind: "Quotation", reference: q.quotation_number, status: q.status, amount: Number(q.total_amount ?? 0), date: q.created_at })),
       ...invoices.map((i) => ({ kind: "Invoice", reference: i.document_number, status: i.status, amount: Number(i.total_amount ?? 0), date: i.invoice_date })),
       ...projects.map((p) => ({ kind: "Project", reference: p.name, status: p.status, amount: Number(p.budget ?? 0), date: p.start_date })),
+      ...salesOrders.map((o) => ({ kind: "Sales Order", reference: o.order_number, status: o.status, amount: Number(o.total_amount ?? 0), date: o.order_date })),
+      ...receipts.map((r) => ({ kind: "Receipt", reference: r.document_number, status: "received", amount: Number(r.amount_received ?? 0), date: r.payment_date })),
+      ...serviceTickets.map((t) => ({ kind: "Service Ticket", reference: t.ticket_number, status: t.status, amount: 0, date: t.created_at })),
     ]);
   };
 
-  const loading = loadingQuotations || loadingInvoices || loadingProjects;
+  const loading = loadingQuotations || loadingInvoices || loadingProjects || loadingOrders || loadingDeliveries || loadingReceipts || loadingService || loadingWarranty;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -226,6 +265,9 @@ export const ClientDetailDialog = ({
                 <Card className="border-border/50"><CardContent className="p-3"><p className="text-[10px] text-muted-foreground font-medium">Accepted Value</p><p className="text-lg font-bold text-primary truncate">{formatCurrency(stats.acceptedValue)}</p></CardContent></Card>
                 <Card className="border-border/50"><CardContent className="p-3"><p className="text-[10px] text-muted-foreground font-medium">Invoiced</p><p className="text-lg font-bold truncate">{formatCurrency(stats.invoicedTotal)}</p></CardContent></Card>
                 <Card className="border-border/50"><CardContent className="p-3"><p className="text-[10px] text-muted-foreground font-medium">Outstanding</p><p className="text-lg font-bold text-warning truncate">{formatCurrency(stats.outstanding)}</p></CardContent></Card>
+                <Card className="border-border/50"><CardContent className="p-3"><p className="text-[10px] text-muted-foreground font-medium">Orders</p><p className="text-lg font-bold truncate">{salesOrders.length} · {formatCurrency(stats.orderValue)}</p></CardContent></Card>
+                <Card className="border-border/50"><CardContent className="p-3"><p className="text-[10px] text-muted-foreground font-medium">Collected</p><p className="text-lg font-bold text-emerald-600 truncate">{formatCurrency(stats.receivedTotal)}</p></CardContent></Card>
+                <Card className="border-border/50"><CardContent className="p-3"><p className="text-[10px] text-muted-foreground font-medium">Service / Warranty</p><p className="text-lg font-bold truncate">{stats.openTickets} / {stats.warrantyCount}</p></CardContent></Card>
               </div>
             )}
 
@@ -310,6 +352,21 @@ export const ClientDetailDialog = ({
                     })}
                   </div>
                 )}
+              </section>
+
+              <section>
+                <div className="flex items-center justify-between mb-2"><h3 className="text-sm font-semibold flex items-center gap-2"><Link2 className="h-4 w-4 text-primary" /> Sales Orders <Badge variant="outline">{salesOrders.length}</Badge></h3></div>
+                {salesOrders.length === 0 ? <p className="text-xs text-muted-foreground">No sales orders are linked to this client.</p> : <div className="space-y-1.5">{salesOrders.map((o) => <div key={o.id} className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-sm"><span className="font-medium">{String(o.order_number ?? "—")}</span><span className="flex items-center gap-2"><Badge variant="outline" className="text-[10px]">{String(o.status ?? "—")}</Badge><span className="font-semibold">{formatCurrency(Number(o.total_amount ?? 0))}</span></span></div>)}</div>}
+              </section>
+
+              <section>
+                <div className="flex items-center justify-between mb-2"><h3 className="text-sm font-semibold flex items-center gap-2"><Truck className="h-4 w-4 text-primary" /> Deliveries <Badge variant="outline">{deliveries.length}</Badge></h3></div>
+                {deliveries.length === 0 ? <p className="text-xs text-muted-foreground">No deliveries are linked to this client.</p> : <div className="space-y-1.5">{deliveries.map((d) => <div key={d.id} className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-sm"><span className="truncate">{String(d.destination ?? "—")}</span><Badge variant="outline" className="text-[10px]">{String(d.status ?? "—")}</Badge></div>)}</div>}
+              </section>
+
+              <section>
+                <div className="flex items-center justify-between mb-2"><h3 className="text-sm font-semibold flex items-center gap-2"><Wrench className="h-4 w-4 text-primary" /> Service & Warranty <Badge variant="outline">{serviceTickets.length} / {warrantyAssets.length}</Badge></h3></div>
+                {serviceTickets.length === 0 && warrantyAssets.length === 0 ? <p className="text-xs text-muted-foreground">No service tickets or warranty assets are linked to this client.</p> : <div className="space-y-1.5">{serviceTickets.map((t) => <div key={t.id} className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-sm"><span className="truncate">{String(t.ticket_number ?? t.subject ?? "Ticket")}</span><Badge variant="outline" className="text-[10px]">{String(t.status ?? "—")}</Badge></div>)}{warrantyAssets.map((a) => <div key={a.id} className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-sm"><span className="truncate">Asset {String(a.serial_or_asset_code ?? a.id.slice(0, 8))}</span><Badge variant="outline" className="text-[10px]">{String(a.status ?? "—")}</Badge></div>)}</div>}
               </section>
             </div>
           </>

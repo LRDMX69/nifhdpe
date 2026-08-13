@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMemo } from "react";
 import type { Database } from "@/integrations/supabase/types";
+import { industrialDb } from "@/lib/industrialDb";
 
 type QuotationRow = Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null };
 type ExpenseRow = Database["public"]["Tables"]["expenses"]["Row"];
@@ -24,6 +25,18 @@ const Analytics = () => {
   const { memberships } = useAuth();
   const orgId = memberships[0]?.organization_id;
   const statsRef = useGsapStagger(".gsap-card", 0.08);
+
+  const { data: operationalDashboard, isLoading: loadingOperationalDashboard, refetch: refetchOperationalDashboard } = useQuery({
+    queryKey: ["operational-dashboard", orgId],
+    queryFn: async () => {
+      if (!orgId) return null;
+      const { data, error } = await industrialDb.rpc("get_operational_dashboard", { _org_id: orgId });
+      if (error) throw error;
+      return data as Record<string, Record<string, number>>;
+    },
+    enabled: !!orgId,
+    retry: false,
+  });
 
   const { data: payments = [], isLoading: loadingPayments, dataUpdatedAt: paymentsUpdatedAt, refetch: refetchPayments } = useQuery({
     queryKey: ["analytics-payments", orgId],
@@ -164,7 +177,7 @@ const Analytics = () => {
     return { billed, collected, outstanding, totalRevenue, totalExpenses: totalExpenses + totalPayments, netProfit, conversionRate, sentCount, acceptedCount, inventoryValue, revenueData, cashFlowData, pipeUsageData, conversionData, topClients };
   }, [payments, expenses, quotations, inventory, invoices, receipts]);
 
-  const isLoading = loadingPayments || loadingExpenses;
+  const isLoading = loadingPayments || loadingExpenses || loadingOperationalDashboard;
 
   if (isLoading) {
     return <LoadingState variant="page" rows={4} />;
@@ -184,11 +197,13 @@ const Analytics = () => {
         description="Live business insights from your data"
         executiveSummary={`${quotations.filter((q: any) => q.status === "accepted").length} accepted quotes feeding pipeline · ${inventory.length} inventory SKUs in scope`}
         lastUpdated={paymentsUpdatedAt ? new Date(paymentsUpdatedAt) : null}
-        onRefresh={() => refetchPayments()}
+        onRefresh={() => { refetchPayments(); refetchOperationalDashboard(); }}
       />
 
       <div ref={statsRef} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {summaryStats.map((s) => (
+        {operationalDashboard && <Card className="border-primary/20 bg-primary/5"><CardContent className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 lg:grid-cols-8"><div><p className="text-[10px] text-muted-foreground">Open demands</p><p className="text-lg font-semibold">{operationalDashboard.procurement?.open_demands ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Reserved stock</p><p className="text-lg font-semibold">{operationalDashboard.inventory?.reserved_stock_count ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Overdue invoices</p><p className="text-lg font-semibold">{operationalDashboard.receivables?.overdue_count ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Open service</p><p className="text-lg font-semibold">{operationalDashboard.service?.open_tickets ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">QA attention</p><p className="text-lg font-semibold">{operationalDashboard.quality?.qa_open ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Pending delivery</p><p className="text-lg font-semibold">{operationalDashboard.logistics?.pending_deliveries ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Accepted quotes</p><p className="text-lg font-semibold">{operationalDashboard.pipeline?.quotations_accepted ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">In-progress projects</p><p className="text-lg font-semibold">{operationalDashboard.projects?.in_progress ?? 0}</p></div></CardContent></Card>}
+
+      {summaryStats.map((s) => (
           <Card key={s.label} className="gsap-card border-border/50">
             <CardContent className="pt-4 pb-3">
               <div className="flex items-start justify-between">
