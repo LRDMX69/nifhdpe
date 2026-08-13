@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
 import { exportCsv, csvDate } from "@/lib/exportCsv";
+import { industrialDb } from "@/lib/industrialDb";
 
 type DbQuotation = Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null, quotation_items?: { count: number }[] };
 type DbQuotationItem = Database["public"]["Tables"]["quotation_items"]["Row"];
@@ -144,7 +145,14 @@ const Quotations = () => {
     setSaving(true);
     try {
       if (editingQuotation) {
-        // Update existing
+        if (!revisionReason.trim()) throw new Error("A reason is required when editing an existing quotation.");
+        const { data: previousQuotation } = await supabase.from("quotations").select("*, quotation_items(*)").eq("id", editingQuotation.id).single();
+        const { error: revisionError } = await industrialDb.rpc("create_document_revision", {
+          _org_id: orgId, _entity_type: "quotation", _entity_id: editingQuotation.id,
+          _snapshot: previousQuotation ?? editingQuotation, _reason: revisionReason.trim(),
+        });
+        if (revisionError) throw revisionError;
+        // Update existing after preserving the historical snapshot.
         const { error } = await supabase.from("quotations").update({
           client_id: clientId || null, pipe_type: pipeType as Database["public"]["Enums"]["pipe_type"],
           profit_margin_percent: profitMargin, labor_cost_per_meter: laborCost,
@@ -193,6 +201,13 @@ const Quotations = () => {
     setSaving(true);
     try {
       if (editingQuotation) {
+        if (!revisionReason.trim()) throw new Error("A reason is required when editing an existing quotation.");
+        const { data: previousQuotation } = await supabase.from("quotations").select("*, quotation_items(*)").eq("id", editingQuotation.id).single();
+        const { error: revisionError } = await industrialDb.rpc("create_document_revision", {
+          _org_id: orgId, _entity_type: "quotation", _entity_id: editingQuotation.id,
+          _snapshot: previousQuotation ?? editingQuotation, _reason: revisionReason.trim(),
+        });
+        if (revisionError) throw revisionError;
         const { error } = await supabase.from("quotations").update({
           client_id: clientId || null, is_lump_sum: true,
           lump_sum_amount: parseFloat(lumpSumAmount), total_amount: parseFloat(lumpSumAmount),

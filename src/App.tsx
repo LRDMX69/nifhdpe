@@ -32,6 +32,8 @@ const Procurement = lazy(() => import("./pages/Procurement"));
 const HSE = lazy(() => import("./pages/HSE"));
 const DocumentRegistry = lazy(() => import("./pages/DocumentRegistry"));
 const BOQ = lazy(() => import("./pages/BOQ"));
+const Operations = lazy(() => import("./pages/Operations"));
+const ProductSpecifications = lazy(() => import("./pages/ProductSpecifications"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -89,6 +91,8 @@ const App = () => {
                 <Route path="/hse" element={<HSE />} />
                 <Route path="/documents" element={<DocumentRegistry />} />
                 <Route path="/boq" element={<BOQ />} />
+                <Route path="/operations" element={<Operations />} />
+                <Route path="/product-specifications" element={<ProductSpecifications />} />
                 <Route path="/settings" element={<AppSettings />} />
               </Route>
               <Route path="*" element={<NotFound />} />
