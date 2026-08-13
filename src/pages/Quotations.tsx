@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileText, Search, Trash2, Loader2, MoreVertical, Pencil, Download } from "lucide-react";
+import { Plus, FileText, Search, Trash2, Loader2, MoreVertical, Pencil, Download, ShoppingCart, CheckCircle2, ReceiptText } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
@@ -33,6 +33,7 @@ import { industrialDb } from "@/lib/industrialDb";
 type DbQuotation = Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null, quotation_items?: { count: number }[], opportunity_id?: string | null, discount_amount?: number | null, tax_amount?: number | null, overhead_amount?: number | null, payment_terms?: string | null, terms_and_conditions?: string | null, exclusions?: string | null, assumptions?: string | null, site_reference?: string | null, currency?: string | null };
 type DbQuotationItem = Database["public"]["Tables"]["quotation_items"]["Row"];
 type DbClient = { id: string; name: string };
+type QuotationSalesOrder = { id: string; order_number: string; quotation_id: string | null; status: string; total_amount: number | null; project_id: string | null };
 type QuotationProductSpecification = {
   id: string;
   product_code: string;
@@ -173,6 +174,17 @@ const Quotations = () => {
       const { data, error } = await supabase.from("opportunities").select("id, title").eq("organization_id", orgId).order("title");
       if (error) throw error;
       return (data ?? []) as { id: string; title: string }[];
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: salesOrders = [], refetch: refetchSalesOrders } = useQuery({
+    queryKey: ["sales-orders-for-quotations", orgId],
+    queryFn: async () => {
+      if (!orgId) return [] as QuotationSalesOrder[];
+      const { data, error } = await industrialDb.from("sales_orders").select("id, order_number, quotation_id, status, total_amount, project_id").eq("organization_id", orgId).neq("status", "cancelled").order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as QuotationSalesOrder[];
     },
     enabled: !!orgId,
   });
@@ -376,6 +388,44 @@ const Quotations = () => {
     }
   };
 
+  const createSalesOrder = async (q: DbQuotation) => {
+    if (!orgId) return;
+    setSaving(true);
+    try {
+      const { error } = await industrialDb.rpc("create_sales_order_from_quotation", { _org_id: orgId, _quotation_id: q.id, _notes: `Created from accepted quotation ${q.quotation_number}` });
+      if (error) throw error;
+      toast({ title: "Sales order created", description: `${q.quotation_number} is now in the order lifecycle.` });
+      await Promise.all([refetchSalesOrders(), refetch()]);
+    } catch (error) {
+      toast({ title: "Could not create sales order", description: humanizeError(error), variant: "destructive" });
+    } finally { setSaving(false); }
+  };
+
+  const confirmSalesOrder = async (order: QuotationSalesOrder) => {
+    if (!orgId) return;
+    setSaving(true);
+    try {
+      const { error } = await industrialDb.rpc("confirm_sales_order", { _org_id: orgId, _order_id: order.id });
+      if (error) throw error;
+      toast({ title: "Sales order confirmed", description: "Stock reservations and procurement demand were evaluated atomically." });
+      await refetchSalesOrders();
+    } catch (error) {
+      toast({ title: "Could not confirm sales order", description: humanizeError(error), variant: "destructive" });
+    } finally { setSaving(false); }
+  };
+
+  const createInvoiceFromSalesOrder = async (order: QuotationSalesOrder) => {
+    if (!orgId) return;
+    setSaving(true);
+    try {
+      const { error } = await industrialDb.rpc("create_invoice_from_sales_order", { _org_id: orgId, _order_id: order.id });
+      if (error) throw error;
+      toast({ title: "Invoice created", description: `${order.order_number} is now linked to finance.` });
+    } catch (error) {
+      toast({ title: "Could not create invoice", description: humanizeError(error), variant: "destructive" });
+    } finally { setSaving(false); }
+  };
+
   const convertToInvoice = async (q: DbQuotation) => {
     setSaving(true);
     try {
@@ -515,6 +565,9 @@ const Quotations = () => {
   const filtered = quotations.filter(
     (q: DbQuotation) => q.quotation_number.toLowerCase().includes(search.toLowerCase()) || (q.clients?.name ?? "").toLowerCase().includes(search.toLowerCase())
   );
+  const acceptedQuotations = quotations.filter((q) => q.status === "accepted");
+  const canConfirmOrders = isMaintenance || ["administrator", "reception_sales", "finance"].includes(activeRole ?? "");
+  const canCreateOrderInvoices = isMaintenance || ["administrator", "finance"].includes(activeRole ?? "");
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -639,11 +692,11 @@ const Quotations = () => {
 
       <WorkflowBanner
         storageKey="quotations"
-        summary="Quotations are formal price offers to clients. Save as Draft while you fine-tune, Send when ready, then convert the accepted quote into an Invoice with one click."
+        summary="Quotations are formal price offers to clients. Save as Draft while you fine-tune, Send when ready, create a controlled sales order after acceptance, and pass the confirmed order into delivery and finance without re-keying."
         steps={[
           { actor: "Marketing / Admin", action: "select an existing client and build an itemized or lump-sum quotation." },
           { actor: "Client", action: "reviews the quotation PDF; status moves through Sent → Accepted or Rejected." },
-          { actor: "Finance", action: "converts the accepted quotation into an Invoice — line items and totals carry over automatically." },
+          { actor: "Finance", action: "confirms the sales-order state and creates the linked invoice once the order is ready for billing." },
         ]}
       />
 
@@ -685,6 +738,8 @@ const Quotations = () => {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Search quotations..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
+
+      {acceptedQuotations.length > 0 && <Card className="border-primary/20 bg-primary/5"><CardContent className="p-4 space-y-3"><div><p className="text-sm font-semibold">Commercial order lifecycle</p><p className="text-xs text-muted-foreground">Accepted quotations become controlled sales orders. Confirmation evaluates stock reservations and shortages; finance can then create the linked invoice.</p></div><div className="space-y-2">{acceptedQuotations.map((quotation) => { const order = salesOrders.find((candidate) => candidate.quotation_id === quotation.id); return <div key={quotation.id} className="flex flex-col gap-3 rounded-lg border bg-background/70 p-3 lg:flex-row lg:items-center lg:justify-between"><div className="min-w-0"><p className="text-sm font-medium">{quotation.quotation_number} · {quotation.clients?.name ?? "Client"}</p><p className="text-xs text-muted-foreground">{formatCurrency(Number(quotation.total_amount ?? 0))} · {order ? `${order.order_number} · ${order.status.replace("_", " ")}` : "No sales order yet"}</p></div><div className="flex flex-wrap gap-2">{!order && canEdit && <Button size="sm" variant="outline" onClick={() => createSalesOrder(quotation)} disabled={saving}><ShoppingCart className="h-3.5 w-3.5 mr-1" />Create sales order</Button>}{order && order.status === "draft" && canConfirmOrders && <Button size="sm" variant="outline" onClick={() => confirmSalesOrder(order)} disabled={saving}><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Confirm order</Button>}{order && ["confirmed", "partially_fulfilled", "fulfilled"].includes(order.status) && canCreateOrderInvoices && <Button size="sm" onClick={() => createInvoiceFromSalesOrder(order)} disabled={saving}><ReceiptText className="h-3.5 w-3.5 mr-1" />Create linked invoice</Button>}</div></div>; })}</div></CardContent></Card>}
 
       <AsyncBoundary
         loading={isLoading}
