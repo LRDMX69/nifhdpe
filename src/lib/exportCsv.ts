@@ -13,7 +13,11 @@ export interface CsvColumn<T> {
 }
 
 const escapeCell = (raw: string | number | null | undefined): string => {
-  const value = raw === null || raw === undefined ? "" : String(raw);
+  const isString = typeof raw === "string";
+  let value = raw === null || raw === undefined ? "" : String(raw);
+  // Prevent Excel/Sheets formula execution when exported text starts with a formula token.
+  // Numeric values remain numeric; only user-controlled strings receive the neutralizing prefix.
+  if (isString && /^[=+\-@]/.test(value)) value = `'${value}`;
   if (/[",\n\r]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`;
   }

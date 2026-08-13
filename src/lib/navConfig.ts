@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, FileText, Users, Package, FolderKanban, BarChart3, Calculator,
-  Truck, Settings, ClipboardList, DollarSign, Wrench, ShieldCheck, Target, UserCog, AlertCircle, MessageSquare, ShoppingCart, Receipt, FileSpreadsheet, Workflow,
+  Truck, Settings, ClipboardList, DollarSign, Wrench, ShieldCheck, Target, UserCog, AlertCircle, MessageSquare, ShoppingCart, Receipt, FileSpreadsheet,
 } from "lucide-react";
 
 export interface NavItem {
@@ -48,11 +48,8 @@ const ALL_DEPTS = [...ADMIN, ...TECHNICAL, ...LOGISTICS, ...ACCOUNTS, ...MARKETI
 
 export const navItems: NavItem[] = [
   { label: "Dashboard",     icon: LayoutDashboard, path: "/dashboard",     roles: ALL_DEPTS, group: "Overview" },
-  { label: "Operations Control", icon: Workflow,      path: "/operations",    roles: ALL_DEPTS, group: "Overview" },
-
   // Technical Dept.
   { label: "Projects",      icon: FolderKanban,    path: "/projects",      roles: [...ADMIN, ...TECHNICAL], group: "Technical" },
-  { label: "Product Master", icon: Package,         path: "/product-specifications", roles: [...ADMIN, ...TECHNICAL, ...LOGISTICS, ...MARKETING], group: "Technical" },
   { label: "Equipment",     icon: Wrench,          path: "/equipment",     roles: [...ADMIN, ...TECHNICAL, ...LOGISTICS], group: "Technical" },
   { label: "Field Reports", icon: ClipboardList,   path: "/field-reports", roles: [...ADMIN, ...TECHNICAL], group: "Technical" },
   { label: "HSE",           icon: ShieldCheck,     path: "/hse",           roles: [...ADMIN, ...TECHNICAL], group: "Technical" },

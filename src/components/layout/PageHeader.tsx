@@ -54,7 +54,7 @@ export const PageHeader = ({ title, description, children, breadcrumbs, executiv
   }, [lastUpdated]);
   const ts = lastUpdated instanceof Date ? lastUpdated.getTime() : (lastUpdated ?? null);
   return (
-    <div ref={ref} className="space-y-2">
+    <div ref={ref} className="relative space-y-3 border-b border-border/70 pb-4 before:absolute before:left-0 before:top-0 before:h-10 before:w-1 before:rounded-full before:bg-primary before:content-['']">
       {breadcrumbs && breadcrumbs.length > 0 && (
         <Breadcrumb>
           <BreadcrumbList>
@@ -81,16 +81,16 @@ export const PageHeader = ({ title, description, children, breadcrumbs, executiv
         </Breadcrumb>
       )}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
+        <div className="min-w-0 pl-3">
         <div className="flex items-center gap-2">
-          <h1 className="text-xl sm:text-2xl font-bold">{title}</h1>
+          <h1 className="truncate text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={open} aria-label="How do I…?">
             <HelpCircle className="h-4 w-4" />
           </Button>
         </div>
-        <p className="text-muted-foreground text-sm">{description}</p>
+          <p className="mt-1 max-w-3xl text-sm leading-5 text-muted-foreground">{description}</p>
         {executiveSummary && (
-          <p className="text-xs sm:text-sm text-primary/90 italic mt-1">{executiveSummary}</p>
+          <p className="mt-2 inline-flex max-w-3xl rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary sm:text-sm">{executiveSummary}</p>
         )}
         {ts && (
           <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
@@ -103,7 +103,7 @@ export const PageHeader = ({ title, description, children, breadcrumbs, executiv
           </div>
         )}
         </div>
-        {children && <div className="flex items-center gap-2">{children}</div>}
+        {children && <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">{children}</div>}
       </div>
     </div>
   );

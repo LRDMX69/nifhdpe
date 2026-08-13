@@ -26,6 +26,7 @@ import { AsyncBoundary } from "@/components/ui/async-boundary";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
 import { exportCsv, csvDate } from "@/lib/exportCsv";
+import { industrialDb, type IndustrialRow } from "@/lib/industrialDb";
 
 type ProjectItem = Database["public"]["Tables"]["projects"]["Row"] & { clients?: { name: string } | null };
 type ClientItem = { id: string; name: string };
@@ -67,6 +68,7 @@ const Projects = () => {
   const [newProjectLat, setNewProjectLat] = useState("");
   const [newProjectLng, setNewProjectLng] = useState("");
   const [newRadius, setNewRadius] = useState("500");
+  const [projectNameByOrder, setProjectNameByOrder] = useState<Record<string, string>>({});
 
   const { data: projects = [], isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["projects", orgId],
@@ -86,6 +88,37 @@ const Projects = () => {
       return (data as ClientItem[]) ?? [];
     },
     enabled: !!orgId,
+  });
+
+  const { data: salesOrdersReady = [] } = useQuery({
+    queryKey: ["projects-sales-orders-ready", orgId],
+    queryFn: async () => {
+      if (!orgId) return [] as IndustrialRow[];
+      const { data, error } = await industrialDb.from("sales_orders")
+        .select("id, order_number, client_id, total_amount, status, project_id, clients(name), quotations(quotation_number)")
+        .eq("organization_id", orgId)
+        .in("status", ["confirmed", "partially_fulfilled", "fulfilled"])
+        .is("project_id", null)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as IndustrialRow[];
+    },
+    enabled: !!orgId,
+  });
+
+  const createProjectFromOrder = useMutation({
+    mutationFn: async ({ order, name }: { order: IndustrialRow; name: string }) => {
+      if (!orgId || !name.trim()) throw new Error("Enter a project name.");
+      const { error } = await industrialDb.rpc("create_project_from_sales_order", { _org_id: orgId, _order_id: order.id, _name: name.trim(), _description: `Created from sales order ${order.order_number}` });
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      toast({ title: "Project created from sales order", description: `${variables.order.order_number} is now linked to the project.` });
+      setProjectNameByOrder((state) => ({ ...state, [variables.order.id]: "" }));
+      queryClient.invalidateQueries({ queryKey: ["projects", orgId] });
+      queryClient.invalidateQueries({ queryKey: ["projects-sales-orders-ready", orgId] });
+    },
+    onError: (err: Error) => toast({ title: "Could not create project", description: humanizeError(err), variant: "destructive" }),
   });
 
   const { data: members = [] } = useQuery({
@@ -313,6 +346,8 @@ const Projects = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {canEdit && salesOrdersReady.length > 0 && <Card className="border-primary/20 bg-primary/5"><CardContent className="p-4 space-y-3"><div><p className="text-sm font-semibold">Sales orders ready for project planning</p><p className="text-xs text-muted-foreground">Confirmed order records are shown here so the project team can create the linked execution record without re-keying the client, budget, or order reference.</p></div>{salesOrdersReady.map((order) => <div key={order.id} className="flex flex-col gap-2 rounded-lg border bg-background/70 p-3 lg:flex-row lg:items-center lg:justify-between"><div className="min-w-0"><p className="text-sm font-medium">{order.order_number} · {order.clients?.name ?? "Client"}</p><p className="text-xs text-muted-foreground">{formatCurrency(Number(order.total_amount ?? 0))} · {order.quotations?.quotation_number ?? "No quotation reference"}</p></div><div className="flex w-full gap-2 lg:w-auto"><Input value={projectNameByOrder[order.id] ?? ""} onChange={(e) => setProjectNameByOrder((state) => ({ ...state, [order.id]: e.target.value }))} placeholder="Project name" className="min-w-0" /><Button size="sm" onClick={() => createProjectFromOrder.mutate({ order, name: projectNameByOrder[order.id] ?? "" })} disabled={createProjectFromOrder.isPending}>{createProjectFromOrder.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create linked project"}</Button></div></div>)}</CardContent></Card>}
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete "{deleteTarget?.name}"?</AlertDialogTitle>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { QuotationCard } from "@/components/quotations/QuotationCard";
 import { QuotationSummary } from "@/components/quotations/QuotationSummary";
 import { AuditHistoryDialog } from "@/components/AuditHistoryDialog";
@@ -29,9 +30,26 @@ import { humanizeError } from "@/lib/humanizeError";
 import { exportCsv, csvDate } from "@/lib/exportCsv";
 import { industrialDb } from "@/lib/industrialDb";
 
-type DbQuotation = Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null, quotation_items?: { count: number }[] };
+type DbQuotation = Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null, quotation_items?: { count: number }[], opportunity_id?: string | null, discount_amount?: number | null, tax_amount?: number | null, overhead_amount?: number | null, payment_terms?: string | null, terms_and_conditions?: string | null, exclusions?: string | null, assumptions?: string | null, site_reference?: string | null, currency?: string | null };
 type DbQuotationItem = Database["public"]["Tables"]["quotation_items"]["Row"];
 type DbClient = { id: string; name: string };
+type QuotationProductSpecification = {
+  id: string;
+  product_code: string;
+  product_name: string;
+  category: string;
+  material_grade?: string | null;
+  pe_grade?: string | null;
+  sdr?: string | null;
+  pressure_class?: string | null;
+  diameter_mm?: number | null;
+  dimensions?: string | null;
+  unit?: string | null;
+  standard?: string | null;
+  manufacturer?: string | null;
+  application?: string | null;
+  is_active?: boolean | null;
+};
 
 interface QuotationItem {
   id: string; description: string; type: string; quantity: number; unitPrice: number; total: number;
@@ -44,13 +62,72 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive" | "o
 };
 const allQStatuses = ["draft", "sent", "accepted", "rejected"];
 
+const PRODUCT_CATEGORIES = ["hdpe_pipe", "hdpe_fitting", "equipment", "accessory", "service", "other"];
+
+function ProductCataloguePanel({ orgId, canManage, products, onRefresh }: { orgId: string | undefined; canManage: boolean; products: QuotationProductSpecification[]; onRefresh: () => void }) {
+  const { toast } = useToast();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ product_code: "", product_name: "", category: "hdpe_pipe", pe_grade: "", sdr: "", pressure_class: "", diameter_mm: "", dimensions: "", unit: "m", standard: "", manufacturer: "", application: "" });
+  const setField = (field: keyof typeof form, value: string) => setForm((state) => ({ ...state, [field]: value }));
+
+  const save = async () => {
+    if (!orgId || !form.product_code.trim() || !form.product_name.trim()) return;
+    setSaving(true);
+    try {
+      const { error } = await industrialDb.from("product_specifications").insert({
+        organization_id: orgId,
+        product_code: form.product_code.trim(),
+        product_name: form.product_name.trim(),
+        category: form.category,
+        pe_grade: form.pe_grade.trim() || null,
+        sdr: form.sdr.trim() || null,
+        pressure_class: form.pressure_class.trim() || null,
+        diameter_mm: form.diameter_mm ? Number(form.diameter_mm) : null,
+        dimensions: form.dimensions.trim() || null,
+        unit: form.unit.trim() || "m",
+        standard: form.standard.trim() || null,
+        manufacturer: form.manufacturer.trim() || null,
+        application: form.application.trim() || null,
+        is_active: true,
+      });
+      if (error) throw error;
+      toast({ title: "Specification added", description: "The approved catalogue record is now available in quotation line items." });
+      setForm({ product_code: "", product_name: "", category: "hdpe_pipe", pe_grade: "", sdr: "", pressure_class: "", diameter_mm: "", dimensions: "", unit: "m", standard: "", manufacturer: "", application: "" });
+      setDialogOpen(false);
+      onRefresh();
+    } catch (error) {
+      toast({ title: "Could not add specification", description: humanizeError(error), variant: "destructive" });
+    } finally { setSaving(false); }
+  };
+
+  const toggleActive = async (product: QuotationProductSpecification) => {
+    const { error } = await industrialDb.from("product_specifications").update({ is_active: product.is_active === false }).eq("id", product.id).eq("organization_id", orgId);
+    if (error) toast({ title: "Could not update specification", description: humanizeError(error), variant: "destructive" });
+    else { toast({ title: product.is_active === false ? "Specification activated" : "Specification archived" }); onRefresh(); }
+  };
+
+  return <Card className="border-primary/20 bg-primary/5">
+    <CardContent className="p-4 sm:p-5 space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0"><p className="text-sm font-semibold">HDPE Product Catalogue</p><p className="text-xs text-muted-foreground">Controlled specifications used by quotation lines, procurement, inventory, and traceability. Commercial teams select records here; they do not re-key technical attributes.</p></div>
+        {canManage && <Dialog open={dialogOpen} onOpenChange={setDialogOpen}><DialogTrigger asChild><Button size="sm" variant="outline" className="shrink-0"><Plus className="h-3.5 w-3.5 mr-1" /> Add specification</Button></DialogTrigger><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Add HDPE product specification</DialogTitle></DialogHeader><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1"><Label>Product code *</Label><Input value={form.product_code} onChange={(e) => setField("product_code", e.target.value)} placeholder="NIF-PE100-110-SDR11" /></div><div className="space-y-1"><Label>Product name *</Label><Input value={form.product_name} onChange={(e) => setField("product_name", e.target.value)} placeholder="Approved commercial name" /></div><div className="space-y-1"><Label>Category</Label><Select value={form.category} onValueChange={(v) => setField("category", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PRODUCT_CATEGORIES.map((category) => <SelectItem key={category} value={category}>{category.replace("_", " ")}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1"><Label>Unit</Label><Input value={form.unit} onChange={(e) => setField("unit", e.target.value)} placeholder="m, roll, each" /></div><div className="space-y-1"><Label>PE/material grade</Label><Input value={form.pe_grade} onChange={(e) => setField("pe_grade", e.target.value)} /></div><div className="space-y-1"><Label>SDR</Label><Input value={form.sdr} onChange={(e) => setField("sdr", e.target.value)} /></div><div className="space-y-1"><Label>Pressure class</Label><Input value={form.pressure_class} onChange={(e) => setField("pressure_class", e.target.value)} /></div><div className="space-y-1"><Label>Diameter (mm)</Label><Input type="number" min="0" value={form.diameter_mm} onChange={(e) => setField("diameter_mm", e.target.value)} /></div><div className="space-y-1"><Label>Dimensions</Label><Input value={form.dimensions} onChange={(e) => setField("dimensions", e.target.value)} /></div><div className="space-y-1"><Label>Applicable standard</Label><Input value={form.standard} onChange={(e) => setField("standard", e.target.value)} placeholder="Only enter an approved value" /></div><div className="space-y-1"><Label>Manufacturer</Label><Input value={form.manufacturer} onChange={(e) => setField("manufacturer", e.target.value)} /></div><div className="space-y-1"><Label>Application</Label><Input value={form.application} onChange={(e) => setField("application", e.target.value)} /></div></div><Button onClick={save} disabled={saving || !form.product_code.trim() || !form.product_name.trim()}>{saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}Save specification</Button></DialogContent></Dialog>}
+      </div>
+      {products.length === 0 ? <p className="rounded-lg border border-dashed p-4 text-xs text-muted-foreground">No specifications are available yet. Add approved product data before creating itemized quotations.</p> : <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{products.map((product) => <div key={product.id} className="rounded-lg border bg-background/70 p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-xs font-semibold break-words-safe">{product.product_code} · {product.product_name}</p><p className="text-[11px] text-muted-foreground capitalize">{product.category.replace("_", " ")} · {product.pe_grade ?? "grade not configured"}{product.diameter_mm ? ` · ${product.diameter_mm} mm` : ""}</p></div><Badge variant={product.is_active === false ? "secondary" : "default"} className="shrink-0 text-[10px]">{product.is_active === false ? "archived" : "active"}</Badge></div><p className="mt-2 text-[11px] text-muted-foreground break-words-safe">{product.standard ?? "Standard not configured"}{product.sdr ? ` · SDR ${product.sdr}` : ""}{product.pressure_class ? ` · ${product.pressure_class}` : ""}</p>{canManage && <Button size="sm" variant="ghost" className="mt-2 h-7 px-2 text-[11px]" onClick={() => toggleActive(product)}>{product.is_active === false ? "Activate" : "Archive"}</Button>}</div>)}</div>}
+    </CardContent>
+  </Card>;
+}
+
 const Quotations = () => {
   const { user, memberships, activeRole, isMaintenance } = useAuth();
+  const [searchParams] = useSearchParams();
+  const [catalogueOpen, setCatalogueOpen] = useState(() => searchParams.get("section") === "products");
   const { toast } = useToast();
   const orgId = memberships[0]?.organization_id;
   const canEdit = activeRole === "administrator" || activeRole === "reception_sales" || isFinanceCapable(activeRole) || isMaintenance;
   const canDelete = activeRole === "administrator" || isMaintenance;
   const canViewHistory = activeRole === "administrator" || isFinanceCapable(activeRole) || isMaintenance;
+  const canManageProductSpecifications = isMaintenance || ["administrator", "engineer", "reception_sales", "warehouse"].includes(activeRole ?? "");
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -60,6 +137,14 @@ const Quotations = () => {
   const [profitMargin, setProfitMargin] = useState(15);
   const [laborCost, setLaborCost] = useState(500);
   const [transportCost, setTransportCost] = useState(50000);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [overheadAmount, setOverheadAmount] = useState(0);
+  const [taxPct, setTaxPct] = useState(0);
+  const [siteReference, setSiteReference] = useState("");
+  const [paymentTerms, setPaymentTerms] = useState("");
+  const [termsAndConditions, setTermsAndConditions] = useState("");
+  const [exclusions, setExclusions] = useState("");
+  const [assumptions, setAssumptions] = useState("");
   const [clientId, setClientId] = useState("");
   const [opportunityId, setOpportunityId] = useState("");
   const [lumpSumAmount, setLumpSumAmount] = useState("");
@@ -92,13 +177,13 @@ const Quotations = () => {
     enabled: !!orgId,
   });
 
-  const { data: productSpecifications = [] } = useQuery({
+  const { data: productSpecifications = [], refetch: refetchProductSpecifications } = useQuery({
     queryKey: ["product-specifications-for-quotation", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data, error } = await industrialDb.from("product_specifications").select("id, product_code, product_name, category").eq("organization_id", orgId).eq("is_active", true).order("product_code");
+      const { data, error } = await industrialDb.from("product_specifications").select("id, product_code, product_name, category, material_grade, pe_grade, sdr, pressure_class, diameter_mm, dimensions, unit, standard, manufacturer, application, is_active").eq("organization_id", orgId).order("product_code");
       if (error) throw error;
-      return (data ?? []) as { id: string; product_code: string; product_name: string; category: string }[];
+      return (data ?? []) as QuotationProductSpecification[];
     },
     enabled: !!orgId,
   });
@@ -127,11 +212,15 @@ const Quotations = () => {
   const subtotal = items.reduce((sum, i) => sum + i.total, 0);
   const laborTotal = items.filter((i) => i.type === "pipe").reduce((s, i) => s + i.quantity, 0) * laborCost;
   const profitAmount = (subtotal + laborTotal + transportCost) * (profitMargin / 100);
-  const grandTotal = subtotal + laborTotal + transportCost + profitAmount;
+  const baseCommercialTotal = subtotal + laborTotal + transportCost + profitAmount;
+  const discount = Math.min(baseCommercialTotal, Math.max(0, discountAmount));
+  const taxableTotal = Math.max(0, baseCommercialTotal - discount + Math.max(0, overheadAmount));
+  const taxAmount = taxableTotal * (Math.max(0, taxPct) / 100);
+  const grandTotal = taxableTotal + taxAmount;
 
   const resetForm = () => {
     setItems([]); setClientId(""); setOpportunityId(""); setPipeType("hdpe"); setProfitMargin(15);
-    setLaborCost(500); setTransportCost(50000); setEditingQuotation(null);
+    setLaborCost(500); setTransportCost(50000); setDiscountAmount(0); setOverheadAmount(0); setTaxPct(0); setSiteReference(""); setPaymentTerms(""); setTermsAndConditions(""); setExclusions(""); setAssumptions(""); setEditingQuotation(null);
     setLumpSumAmount(""); setLumpSumDesc(""); setRevisionReason("");
   };
 
@@ -144,6 +233,14 @@ const Quotations = () => {
     setProfitMargin(q.profit_margin_percent ?? 15);
     setLaborCost(q.labor_cost_per_meter ?? 500);
     setTransportCost(q.transport_cost ?? 50000);
+    setDiscountAmount(q.discount_amount ?? 0);
+    setOverheadAmount(q.overhead_amount ?? 0);
+    setTaxPct(q.tax_amount && q.total_amount ? (q.tax_amount / Math.max(1, Number(q.total_amount) - Number(q.tax_amount))) * 100 : 0);
+    setSiteReference(q.site_reference ?? "");
+    setPaymentTerms(q.payment_terms ?? "");
+    setTermsAndConditions(q.terms_and_conditions ?? "");
+    setExclusions(q.exclusions ?? "");
+    setAssumptions(q.assumptions ?? "");
 
     if (q.is_lump_sum) {
       setLumpSumAmount(q.lump_sum_amount?.toString() ?? "");
@@ -182,7 +279,7 @@ const Quotations = () => {
         const { error } = await industrialDb.from("quotations").update({
           client_id: clientId || null, opportunity_id: opportunityId || null, pipe_type: pipeType as Database["public"]["Enums"]["pipe_type"],
           profit_margin_percent: profitMargin, labor_cost_per_meter: laborCost,
-          transport_cost: transportCost, subtotal, total_amount: grandTotal, status: status as Database["public"]["Enums"]["quotation_status"], is_lump_sum: false,
+          transport_cost: transportCost, subtotal, discount_amount: discount, overhead_amount: overheadAmount, tax_amount: taxAmount, total_amount: grandTotal, payment_terms: paymentTerms || null, terms_and_conditions: termsAndConditions || null, exclusions: exclusions || null, assumptions: assumptions || null, site_reference: siteReference || null, status: status as Database["public"]["Enums"]["quotation_status"], is_lump_sum: false,
           revision_reason: revisionReason || null,
         } as Database["public"]["Tables"]["quotations"]["Update"]).eq("id", editingQuotation.id);
         if (error) throw error;
@@ -204,7 +301,7 @@ const Quotations = () => {
         const { data: quotation, error } = await industrialDb.from("quotations").insert({
           organization_id: orgId, created_by: user.id, client_id: clientId || null, opportunity_id: opportunityId || null, quotation_number: qNum,
           pipe_type: pipeType as Database["public"]["Enums"]["pipe_type"], profit_margin_percent: profitMargin, labor_cost_per_meter: laborCost,
-          transport_cost: transportCost, subtotal, total_amount: grandTotal, status: status as Database["public"]["Enums"]["quotation_status"], is_lump_sum: false,
+          transport_cost: transportCost, subtotal, discount_amount: discount, overhead_amount: overheadAmount, tax_amount: taxAmount, total_amount: grandTotal, payment_terms: paymentTerms || null, terms_and_conditions: termsAndConditions || null, exclusions: exclusions || null, assumptions: assumptions || null, site_reference: siteReference || null, status: status as Database["public"]["Enums"]["quotation_status"], is_lump_sum: false,
         } as Database["public"]["Tables"]["quotations"]["Insert"]).select().single();
         if (error) throw error;
         if (items.length > 0 && quotation) {
@@ -237,8 +334,8 @@ const Quotations = () => {
         if (revisionError) throw revisionError;
         const { error } = await industrialDb.from("quotations").update({
           client_id: clientId || null, opportunity_id: opportunityId || null, is_lump_sum: true,
-          lump_sum_amount: parseFloat(lumpSumAmount), total_amount: parseFloat(lumpSumAmount),
-          notes: lumpSumDesc || null, revision_reason: revisionReason || null,
+          lump_sum_amount: parseFloat(lumpSumAmount), subtotal: parseFloat(lumpSumAmount), discount_amount: discountAmount, overhead_amount: overheadAmount, tax_amount: taxAmount, total_amount: parseFloat(lumpSumAmount),
+          payment_terms: paymentTerms || null, terms_and_conditions: termsAndConditions || null, exclusions: exclusions || null, assumptions: assumptions || null, site_reference: siteReference || null, notes: lumpSumDesc || null, revision_reason: revisionReason || null,
         } as Database["public"]["Tables"]["quotations"]["Update"]).eq("id", editingQuotation.id);
         if (error) throw error;
         toast({ title: "Quotation updated" });
@@ -247,8 +344,8 @@ const Quotations = () => {
         const qNum = qNumRpc ?? `QT-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
         const { error } = await supabase.from("quotations").insert({
           organization_id: orgId, created_by: user.id, client_id: clientId || null, quotation_number: qNum,
-          is_lump_sum: true, lump_sum_amount: parseFloat(lumpSumAmount), total_amount: parseFloat(lumpSumAmount),
-          notes: lumpSumDesc || null, status: "draft",
+          is_lump_sum: true, lump_sum_amount: parseFloat(lumpSumAmount), subtotal: parseFloat(lumpSumAmount), discount_amount: discountAmount, overhead_amount: overheadAmount, tax_amount: taxAmount, total_amount: parseFloat(lumpSumAmount),
+          opportunity_id: opportunityId || null, payment_terms: paymentTerms || null, terms_and_conditions: termsAndConditions || null, exclusions: exclusions || null, assumptions: assumptions || null, site_reference: siteReference || null, notes: lumpSumDesc || null, status: "draft",
         } as Database["public"]["Tables"]["quotations"]["Insert"]);
         if (error) throw error;
         toast({ title: "Quotation saved" });
@@ -353,11 +450,19 @@ const Quotations = () => {
       generatePdf({
         title: `Quotation ${q.quotation_number}`,
         contentSections: [
-          { heading: "Client", body: q.clients?.name ?? "N/A" },
-          { heading: "Details", bullets: [
-            `Pipe Type: ${q.pipe_type ?? "N/A"}`,
-            `Date: ${new Date(q.created_at).toLocaleDateString()}`,
-            `Status: ${q.status}`,
+          { heading: "Client and project", bullets: [
+            `Client: ${q.clients?.name ?? "N/A"}`,
+            q.site_reference ? `Site / reference: ${q.site_reference}` : "",
+            `Issued: ${new Date(q.created_at).toLocaleDateString()}`,
+            `Status: ${q.status.toUpperCase()}`,
+            q.valid_until ? `Valid until: ${q.valid_until}` : "",
+          ].filter(Boolean) },
+          { heading: "Commercial terms", bullets: [
+            `Pipe type: ${q.pipe_type ?? "N/A"}`,
+            q.payment_terms ? `Payment terms: ${q.payment_terms}` : "",
+            q.assumptions ? `Assumptions: ${q.assumptions}` : "",
+            q.exclusions ? `Exclusions: ${q.exclusions}` : "",
+            q.terms_and_conditions ? `Terms: ${q.terms_and_conditions}` : "",
             q.notes ? `Notes: ${q.notes}` : "",
           ].filter(Boolean) },
         ],
@@ -382,18 +487,25 @@ const Quotations = () => {
             { label: "Subtotal", value: formatCurrency(q.subtotal ?? 0) },
             ...(q.labor_cost_per_meter ? [{ label: "Labor", value: `${formatCurrency(q.labor_cost_per_meter)}/m` }] : []),
             ...(q.transport_cost ? [{ label: "Transport", value: formatCurrency(q.transport_cost) }] : []),
-            ...(q.profit_margin_percent ? [{ label: `Profit (${q.profit_margin_percent}%)`, value: "" }] : []),
+            ...(q.profit_margin_percent ? [{ label: `Profit (${q.profit_margin_percent}%)`, value: "Included" }] : []),
+            ...(q.discount_amount ? [{ label: "Discount", value: `-${formatCurrency(q.discount_amount)}` }] : []),
+            ...(q.overhead_amount ? [{ label: "Overhead / site cost", value: formatCurrency(q.overhead_amount) }] : []),
+            ...(q.tax_amount ? [{ label: "Tax", value: formatCurrency(q.tax_amount) }] : []),
             { label: "Grand Total", value: formatCurrency(q.total_amount ?? 0) },
           ],
         },
         stampType: q.status === "accepted" ? "admin" : null,
+        companyName: "NIF Technical Services",
+        documentId: q.quotation_number,
         watermark: q.status === "accepted" ? "FINAL" : "DRAFT",
       });
     } else {
       // Lump sum or no items
       generatePdf({
         title: `Quotation ${q.quotation_number}`,
-        content: `Client: ${q.clients?.name ?? "N/A"}\nTotal Amount: ${formatCurrency(q.total_amount ?? 0)}\nStatus: ${q.status}\nPipe Type: ${q.pipe_type ?? "N/A"}\nDate: ${new Date(q.created_at).toLocaleDateString()}${q.notes ? `\n\nNotes:\n${q.notes}` : ""}`,
+        contentSections: [{ heading: "Client and project", bullets: [`Client: ${q.clients?.name ?? "N/A"}`, q.site_reference ? `Site / reference: ${q.site_reference}` : "", `Status: ${q.status.toUpperCase()}`, `Issued: ${new Date(q.created_at).toLocaleDateString()}`].filter(Boolean) }, { heading: "Commercial summary", bullets: [`Grand total: ${formatCurrency(q.total_amount ?? 0)}`, q.payment_terms ? `Payment terms: ${q.payment_terms}` : "", q.assumptions ? `Assumptions: ${q.assumptions}` : "", q.exclusions ? `Exclusions: ${q.exclusions}` : "", q.terms_and_conditions ? `Terms: ${q.terms_and_conditions}` : "", q.notes ? `Notes: ${q.notes}` : ""].filter(Boolean) }],
+        documentId: q.quotation_number,
+        companyName: "NIF Technical Services",
         stampType: q.status === "accepted" ? "admin" : null,
         watermark: q.status === "accepted" ? "FINAL" : "DRAFT",
       });
@@ -458,7 +570,7 @@ const Quotations = () => {
                     {items.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No items added.</p>}
                     {items.map((item) => (
                       <div key={item.id} className="grid grid-cols-12 gap-2 items-end">
-                        <div className="col-span-12 sm:col-span-4 space-y-1"><Label className="text-xs">Product / Description</Label><Select value={item.productSpecificationId || "none"} onValueChange={(value) => { const product = productSpecifications.find((p) => p.id === value); updateItem(item.id, "productSpecificationId", value === "none" ? "" : value); if (product && !item.description) updateItem(item.id, "description", `${product.product_code} — ${product.product_name}`); }}><SelectTrigger><SelectValue placeholder="Optional product master" /></SelectTrigger><SelectContent><SelectItem value="none">Free-text / unlinked</SelectItem>{productSpecifications.map((product) => <SelectItem key={product.id} value={product.id}>{product.product_code} · {product.product_name}</SelectItem>)}</SelectContent></Select><Input placeholder="Description" value={item.description} onChange={(e) => updateItem(item.id, "description", e.target.value)} /></div>
+                        <div className="col-span-12 sm:col-span-4 space-y-1"><Label className="text-xs">Product / Description</Label><Select value={item.productSpecificationId || "none"} onValueChange={(value) => { const product = productSpecifications.find((p) => p.id === value); updateItem(item.id, "productSpecificationId", value === "none" ? "" : value); if (product && !item.description) updateItem(item.id, "description", `${product.product_code} — ${product.product_name}`); }}><SelectTrigger><SelectValue placeholder="Optional catalogue specification" /></SelectTrigger><SelectContent><SelectItem value="none">Free-text / unlinked</SelectItem>{productSpecifications.filter((product) => product.is_active !== false).map((product) => <SelectItem key={product.id} value={product.id}>{product.product_code} · {product.product_name}</SelectItem>)}</SelectContent></Select><Input placeholder="Description" value={item.description} onChange={(e) => updateItem(item.id, "description", e.target.value)} /></div>
                         <div className="col-span-4 sm:col-span-2 space-y-1"><Label className="text-xs">Type</Label>
                           <Select value={item.type} onValueChange={(v) => updateItem(item.id, "type", v)}><SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent><SelectItem value="pipe">Pipe</SelectItem><SelectItem value="fitting">Fitting</SelectItem><SelectItem value="labor">Labor</SelectItem><SelectItem value="other">Other</SelectItem></SelectContent>
@@ -470,9 +582,19 @@ const Quotations = () => {
                       </div>
                     ))}
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div className="space-y-2"><Label>Labor (₦/m)</Label><Input type="number" min="0" value={laborCost} onChange={(e) => setLaborCost(Number(e.target.value))} /></div>
+                    <div className="space-y-2"><Label>Transport (₦)</Label><Input type="number" min="0" value={transportCost} onChange={(e) => setTransportCost(Number(e.target.value))} /></div>
+                    <div className="space-y-2"><Label>Discount (₦)</Label><Input type="number" min="0" value={discountAmount} onChange={(e) => setDiscountAmount(Number(e.target.value))} /></div>
+                    <div className="space-y-2"><Label>Overhead / site cost (₦)</Label><Input type="number" min="0" value={overheadAmount} onChange={(e) => setOverheadAmount(Number(e.target.value))} /></div>
+                    <div className="space-y-2"><Label>Tax (%)</Label><Input type="number" min="0" value={taxPct} onChange={(e) => setTaxPct(Number(e.target.value))} /></div>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Labor (₦/m)</Label><Input type="number" value={laborCost} onChange={(e) => setLaborCost(Number(e.target.value))} /></div>
-                    <div className="space-y-2"><Label>Transport (₦)</Label><Input type="number" value={transportCost} onChange={(e) => setTransportCost(Number(e.target.value))} /></div>
+                    <div className="space-y-2"><Label>Site / project reference</Label><Input value={siteReference} onChange={(e) => setSiteReference(e.target.value)} placeholder="Site, BOQ, or client reference" /></div>
+                    <div className="space-y-2"><Label>Payment terms</Label><Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} placeholder="e.g. 30 days from invoice" /></div>
+                    <div className="space-y-2"><Label>Assumptions</Label><Textarea rows={3} value={assumptions} onChange={(e) => setAssumptions(e.target.value)} placeholder="State measurable assumptions, access, quantities, or site conditions" /></div>
+                    <div className="space-y-2"><Label>Exclusions</Label><Textarea rows={3} value={exclusions} onChange={(e) => setExclusions(e.target.value)} placeholder="State work, materials, taxes, or risks excluded" /></div>
+                    <div className="space-y-2 sm:col-span-2"><Label>Terms and conditions</Label><Textarea rows={3} value={termsAndConditions} onChange={(e) => setTermsAndConditions(e.target.value)} placeholder="Acceptance, delivery, warranty, payment, and variation terms" /></div>
                   </div>
                   <QuotationSummary
                     subtotal={subtotal}
@@ -495,11 +617,15 @@ const Quotations = () => {
                         <SelectContent>{clients.map((c: DbClient) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2"><Label>Amount (₦)</Label><Input type="number" placeholder="0" value={lumpSumAmount} onChange={(e) => setLumpSumAmount(e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Amount (₦)</Label><Input type="number" min="0" placeholder="0" value={lumpSumAmount} onChange={(e) => setLumpSumAmount(e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Site / project reference</Label><Input value={siteReference} onChange={(e) => setSiteReference(e.target.value)} placeholder="Site or client reference" /></div>
+                    <div className="space-y-2"><Label>Payment terms</Label><Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} placeholder="e.g. 30 days" /></div>
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4"><div className="space-y-2"><Label>Discount (₦)</Label><Input type="number" min="0" value={discountAmount} onChange={(e) => setDiscountAmount(Number(e.target.value))} /></div><div className="space-y-2"><Label>Overhead / site cost (₦)</Label><Input type="number" min="0" value={overheadAmount} onChange={(e) => setOverheadAmount(Number(e.target.value))} /></div><div className="space-y-2"><Label>Tax (%)</Label><Input type="number" min="0" value={taxPct} onChange={(e) => setTaxPct(Number(e.target.value))} /></div></div>
                   <div className="space-y-2"><Label>Description</Label>
                     <textarea className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[100px]" placeholder="Scope..." value={lumpSumDesc} onChange={(e) => setLumpSumDesc(e.target.value)} />
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div className="space-y-2"><Label>Assumptions</Label><Textarea rows={3} value={assumptions} onChange={(e) => setAssumptions(e.target.value)} placeholder="Scope assumptions" /></div><div className="space-y-2"><Label>Exclusions</Label><Textarea rows={3} value={exclusions} onChange={(e) => setExclusions(e.target.value)} placeholder="Scope exclusions" /></div><div className="space-y-2 sm:col-span-2"><Label>Terms and conditions</Label><Textarea rows={3} value={termsAndConditions} onChange={(e) => setTermsAndConditions(e.target.value)} placeholder="Acceptance, delivery, warranty, and payment terms" /></div></div>
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</Button>
                     <Button onClick={handleSaveLumpSum} disabled={saving}>{saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}Save</Button>
@@ -520,6 +646,12 @@ const Quotations = () => {
           { actor: "Finance", action: "converts the accepted quotation into an Invoice — line items and totals carry over automatically." },
         ]}
       />
+
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-card p-3">
+        <div className="min-w-0"><p className="text-sm font-medium">Technical specifications</p><p className="text-xs text-muted-foreground">Select and maintain approved HDPE catalogue records inside the quotation workflow.</p></div>
+        <Button size="sm" variant="outline" onClick={() => setCatalogueOpen((open) => !open)}>{catalogueOpen ? "Hide catalogue" : "Open catalogue"}</Button>
+      </div>
+      {catalogueOpen && <ProductCataloguePanel orgId={orgId} canManage={canManageProductSpecifications} products={productSpecifications} onRefresh={() => { void refetchProductSpecifications(); }} />}
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete {deleteTarget?.quotation_number}?</AlertDialogTitle>

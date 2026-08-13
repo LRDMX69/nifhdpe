@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAiAssistant } from "@/hooks/useAiAssistant";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
+import { industrialDb, type IndustrialRow } from "@/lib/industrialDb";
 
 type OpportunityItem = Database["public"]["Tables"]["opportunities"]["Row"];
 
@@ -74,6 +75,38 @@ const Opportunities = () => {
       { header: "Success (%)", value: (o: OpportunityItem) => o.success_probability ?? "" },
     ], opportunities);
   };
+
+  const { data: commercialLineage = { quotations: [], orders: [] }, error: lineageError } = useQuery({
+    queryKey: ["opportunity-commercial-lineage", orgId],
+    queryFn: async () => {
+      if (!orgId) return { quotations: [] as IndustrialRow[], orders: [] as IndustrialRow[] };
+      const [quotationResult, orderResult] = await Promise.all([
+        industrialDb.from("quotations").select("id, quotation_number, status, total_amount, opportunity_id").eq("organization_id", orgId).order("created_at", { ascending: false }),
+        industrialDb.from("sales_orders").select("id, order_number, status, total_amount, opportunity_id, quotation_id").eq("organization_id", orgId).order("created_at", { ascending: false }),
+      ]);
+      if (quotationResult.error) throw quotationResult.error;
+      if (orderResult.error) throw orderResult.error;
+      return { quotations: (quotationResult.data ?? []) as IndustrialRow[], orders: (orderResult.data ?? []) as IndustrialRow[] };
+    },
+    enabled: !!orgId,
+  });
+
+  const commercialByOpportunity = useMemo(() => {
+    const quotesById = new Map(commercialLineage.quotations.map((quote) => [quote.id, quote]));
+    const ordersByOpportunity = new Map<string, IndustrialRow>();
+    const ordersByQuotation = new Map<string, IndustrialRow>();
+    commercialLineage.orders.forEach((order) => {
+      if (order.opportunity_id) ordersByOpportunity.set(order.opportunity_id, order);
+      if (order.quotation_id) ordersByQuotation.set(order.quotation_id, order);
+    });
+    const result = new Map<string, { quotation?: IndustrialRow; order?: IndustrialRow }>();
+    opportunities.forEach((opportunity) => {
+      const quotation = commercialLineage.quotations.find((quote) => quote.opportunity_id === opportunity.id);
+      const order = ordersByOpportunity.get(opportunity.id) ?? (quotation?.id ? ordersByQuotation.get(quotation.id) : undefined);
+      result.set(opportunity.id, { quotation: quotation ?? (order?.quotation_id ? quotesById.get(order.quotation_id) : undefined), order });
+    });
+    return result;
+  }, [commercialLineage, opportunities]);
 
   const { data: aiInsights } = useQuery({
     queryKey: ["ai-insights-opportunities", orgId],
@@ -315,6 +348,12 @@ const Opportunities = () => {
         ))}
       </div>
 
+      {lineageError && (
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
+          Commercial conversion status is temporarily unavailable. The opportunity records remain usable; refresh after the industrial migrations are applied.
+        </div>
+      )}
+
       {aiInsights && (
         <Card className="border-primary/20 bg-primary/5">
           <CardHeader className="pb-2">
@@ -355,7 +394,11 @@ const Opportunities = () => {
                 const info = parseContactInfo(viewingOpp.description ?? "");
                 return (
                   <>
-                    <div className="grid grid-cols-2 gap-3 text-xs sm:text-sm">
+                      <div className="grid grid-cols-2 gap-3 text-xs sm:text-sm">
+                        <div className="bg-primary/5 border border-primary/10 rounded-lg p-3 col-span-2">
+                          <p className="text-muted-foreground">Commercial conversion</p>
+                          <p className="font-bold">{commercialByOpportunity.get(viewingOpp.id)?.quotation ? `Quotation ${commercialByOpportunity.get(viewingOpp.id)?.quotation?.quotation_number} · ${commercialByOpportunity.get(viewingOpp.id)?.quotation?.status}` : "No quotation linked"}{commercialByOpportunity.get(viewingOpp.id)?.order ? ` · Sales order ${commercialByOpportunity.get(viewingOpp.id)?.order?.order_number} · ${commercialByOpportunity.get(viewingOpp.id)?.order?.status}` : ""}</p>
+                        </div>
                       <div className="bg-muted/50 rounded-lg p-3">
                         <p className="text-muted-foreground">Source</p>
                         <p className="font-bold truncate">{viewingOpp.source || "—"}</p>
@@ -545,6 +588,9 @@ const Opportunities = () => {
       <div className="print-container grid gap-3 md:grid-cols-2">
         {filtered.map((o) => {
           const info = parseContactInfo(o.description ?? "");
+          const lineage = commercialByOpportunity.get(o.id);
+          const quoteStatus = lineage?.quotation?.status;
+          const orderStatus = lineage?.order?.status;
           return (
             <Card key={o.id} className="hover:border-primary/30 transition-colors cursor-pointer" onClick={() => setViewingOpp(o)}>
               <CardHeader className="pb-2">
@@ -580,6 +626,10 @@ const Opportunities = () => {
                 <div className="flex items-center justify-between text-xs flex-wrap gap-1">
                   <Badge variant="outline" className="text-[10px]">{o.source || "Unknown"}</Badge>
                   <span className="font-bold text-primary text-sm">{o.estimated_value ? formatCurrency(o.estimated_value) : "TBD"}</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                  <Badge variant="outline" className="gap-1"><Link className="h-3 w-3" />{lineage?.quotation ? `${lineage.quotation.quotation_number} · ${quoteStatus}` : "No quotation"}</Badge>
+                  {lineage?.order && <Badge variant="outline" className="text-primary">Order {lineage.order.order_number} · {orderStatus}</Badge>}
                 </div>
                 {o.deadline && (
                   <p className="text-[10px] text-muted-foreground flex items-center gap-1">

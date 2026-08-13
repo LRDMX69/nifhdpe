@@ -64,12 +64,14 @@ const stripMd = (text: string): string =>
 // organization record should pass options.companyName so multi-organization
 // documents carry the right name (see generateWaybill).
 const COMPANY = "NIF Technical Services";
-const GREEN: [number, number, number] = [63, 167, 68];
-const BLUE: [number, number, number] = [10, 22, 40]; // Using DARK as BLUE
-const DARK: [number, number, number] = [10, 22, 40];
+const GREEN: [number, number, number] = [18, 139, 72];
+const BLUE: [number, number, number] = [10, 37, 92];
+const DARK: [number, number, number] = [17, 29, 45];
+const SLATE: [number, number, number] = [91, 103, 115];
+const LIGHT_GREEN: [number, number, number] = [241, 249, 243];
 const STAMP_RED: [number, number, number] = [180, 30, 30];
-const CONTENT_TOP_START = 86;
-const CONTENT_BOTTOM_RESERVE = 32;
+const CONTENT_TOP_START = 88;
+const CONTENT_BOTTOM_RESERVE = 30;
 
 // Cached promise: fetch the bundled letterhead asset once and reuse the data URL.
 let letterheadDataUrlPromise: Promise<string | null> | null = null;
@@ -115,6 +117,11 @@ function checkPageBreak(doc: jsPDF, y: number, needed: number, margin: number): 
 
 function drawPageChrome(doc: jsPDF, letterheadDataUrl: string | null = null) {
   drawLetterheadBackground(doc, letterheadDataUrl);
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  doc.setDrawColor(...GREEN);
+  doc.setLineWidth(0.35);
+  doc.line(18, pageH - 20, pageW - 18, pageH - 20);
 }
 
 function drawCircularStamp(doc: jsPDF, x: number, y: number, stampType: string, companyName?: string) {
@@ -207,7 +214,7 @@ async function loadImageAsBase64(url: string): Promise<string | null> {
 export async function generatePdf(options: PdfOptions): Promise<void> {
   const {
     title, content, contentSections, tableData, stampType,
-    showSignature = true, senderName, senderDepartment, documentId, logoUrl, watermark,
+    showSignature = true, senderName, senderDepartment, documentId, companyName, logoUrl, watermark,
   } = options;
 
   // Client-side generation only — server-side queue table is not configured.
@@ -227,39 +234,51 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   // Content starts below the visible letterhead artwork.
   let y = CONTENT_TOP_START;
 
-  // Doc meta
+  // Structured document header: predictable metadata first, then a strong title hierarchy.
   const docId = documentId || `DOC-${Date.now().toString(36).toUpperCase()}`;
   const printDate = new Date().toLocaleDateString("en-NG", { year: "numeric", month: "long", day: "numeric" });
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.setTextColor(120, 120, 120);
-  doc.text(`Document ID: ${docId}`, margin, y);
-  doc.text(`Date: ${printDate}`, pageW - margin, y, { align: "right" });
-  y += 7;
+  doc.setTextColor(...SLATE);
+  doc.text(`DOCUMENT ID  ${docId}`, margin, y);
+  doc.text(`ISSUED  ${printDate}`, pageW - margin, y, { align: "right" });
+  y += 8;
 
-  // Sender info
-  if (senderName || senderDepartment) {
-    doc.setDrawColor(...GREEN);
-    doc.setLineWidth(0.5);
-    doc.line(margin, y - 1, margin, y + 10);
-    doc.setFillColor(249, 249, 249);
-    doc.rect(margin + 1, y - 1, contentW - 1, 12, "F");
+  doc.setFillColor(...LIGHT_GREEN);
+  doc.roundedRect(margin, y - 4, contentW, 24, 2, 2, "F");
+  doc.setFillColor(...GREEN);
+  doc.roundedRect(margin, y - 4, 3.5, 24, 1.5, 1.5, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(...DARK);
+  doc.text(title.toUpperCase(), margin + 10, y + 6);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...SLATE);
+  doc.text(companyName || COMPANY, margin + 10, y + 14);
+  if (watermark) {
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
-    doc.setTextColor(60, 60, 60);
+    doc.setTextColor(...GREEN);
+    doc.text(String(watermark).toUpperCase(), pageW - margin - 8, y + 7, { align: "right" });
+  }
+  y += 31;
+
+  if (senderName || senderDepartment) {
+    doc.setDrawColor(220, 230, 224);
+    doc.setFillColor(252, 253, 252);
+    doc.roundedRect(margin, y - 3, contentW, 14, 1.5, 1.5, "FD");
+    doc.setFontSize(8);
+    doc.setTextColor(...SLATE);
     let sy = y + 3;
-    if (senderName) { doc.text(`Prepared by: ${senderName}`, margin + 4, sy); sy += 4; }
-    if (senderDepartment) { doc.text(`Department: ${senderDepartment}`, margin + 4, sy); }
-    y += 16;
+    if (senderName) { doc.setFont("helvetica", "bold"); doc.setTextColor(...DARK); doc.text(senderName, margin + 5, sy); sy += 4; }
+    if (senderDepartment) { doc.setFont("helvetica", "normal"); doc.setTextColor(...SLATE); doc.text(senderDepartment, margin + 5, sy); }
+    y += 20;
   }
 
-  // Title
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...DARK);
-  doc.text(title, margin, y);
-  y += 3;
   doc.setDrawColor(...GREEN);
-  doc.setLineWidth(0.4);
-  doc.line(margin, y, margin + 40, y);
+  doc.setLineWidth(0.55);
+  doc.line(margin, y, margin + 30, y);
   y += 8;
 
   // Content sections
@@ -353,9 +372,11 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       head: [tableData.columns.map(c => c.header)],
       body: tableData.rows.map(row => tableData.columns.map(c => String(row[c.dataKey] ?? ""))),
       margin: { top: CONTENT_TOP_START, right: margin, bottom: CONTENT_BOTTOM_RESERVE, left: margin },
-      styles: { fontSize: 8.5, cellPadding: 3, textColor: [30, 30, 30], lineColor: [220, 220, 220], lineWidth: 0.2 },
-      headStyles: { fillColor: BLUE as [number, number, number], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.5 },
-      alternateRowStyles: { fillColor: [248, 248, 248] },
+      styles: { font: "helvetica", fontSize: 8.3, cellPadding: { top: 2.7, right: 3, bottom: 2.7, left: 3 }, textColor: [35, 45, 55], lineColor: [218, 226, 221], lineWidth: 0.18, valign: "middle", overflow: "linebreak" },
+      headStyles: { fillColor: BLUE as [number, number, number], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.2, halign: "left", lineColor: BLUE as [number, number, number] },
+      alternateRowStyles: { fillColor: LIGHT_GREEN as [number, number, number] },
+      bodyStyles: { minCellHeight: 8 },
+      columnStyles: Object.fromEntries(tableData.columns.map((column, index) => [index, { cellWidth: column.width ?? "auto" }])),
       theme: "grid",
       willDrawPage: ({ doc: tableDoc }) => {
         drawPageChrome(tableDoc, letterheadDataUrl);
@@ -366,21 +387,24 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
     y += 4;
 
     if (tableData.summary) {
+      const summaryHeight = Math.max(16, tableData.summary.length * 6 + 8);
+      y = checkPageBreak(doc, y, summaryHeight, margin);
+      const boxX = pageW - margin - 82;
+      doc.setFillColor(248, 251, 249);
+      doc.setDrawColor(220, 230, 224);
+      doc.roundedRect(boxX, y - 4, 82, summaryHeight, 1.5, 1.5, "FD");
+      doc.setFillColor(...GREEN);
+      doc.roundedRect(boxX, y - 4, 2.5, summaryHeight, 1, 1, "F");
+      y += 2;
       for (const item of tableData.summary) {
-        y = checkPageBreak(doc, y, 7, margin);
-        doc.setFontSize(9);
-        doc.setFont("helvetica", item.label.toLowerCase().includes("total") ? "bold" : "normal");
-        doc.setTextColor(50, 50, 50);
-        doc.text(item.label, pageW - margin - 80, y);
-        doc.text(item.value, pageW - margin, y, { align: "right" });
-        if (item.label.toLowerCase().includes("grand") || item.label.toLowerCase().includes("total amount")) {
-          doc.setDrawColor(...GREEN);
-          doc.setLineWidth(0.4);
-          doc.line(pageW - margin - 80, y + 1.5, pageW - margin, y + 1.5);
-        }
-        y += 5.5;
+        doc.setFontSize(item.label.toLowerCase().includes("grand") || item.label.toLowerCase().includes("total amount") ? 9.5 : 8.5);
+        doc.setFont("helvetica", item.label.toLowerCase().includes("grand") || item.label.toLowerCase().includes("total") ? "bold" : "normal");
+        doc.setTextColor(...(item.label.toLowerCase().includes("grand") || item.label.toLowerCase().includes("total amount") ? DARK : SLATE));
+        doc.text(item.label, boxX + 7, y);
+        doc.text(item.value, pageW - margin - 5, y, { align: "right" });
+        y += 6;
       }
-      y += 4;
+      y += 5;
     }
   }
 
@@ -415,15 +439,12 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
 
-    // Compact page count + generation note — placed inside the bottom safe
-    // area, above the image's green/blue corner band.
+    // Quiet footer metadata remains legible in print and does not compete with the document.
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
-    doc.setTextColor(150, 150, 150);
-    doc.text(
-      `Generated ${new Date().toLocaleDateString("en-NG")}  •  Page ${i} of ${pageCount}`,
-      margin,
-      pageH - 24,
-    );
+    doc.setTextColor(...SLATE);
+    doc.text(`${companyName || COMPANY}  •  ${docId}`, margin, pageH - 23);
+    doc.text(`Page ${i} of ${pageCount}`, pageW - margin, pageH - 23, { align: "right" });
 
     // Optional diagonal watermark (DRAFT / FINAL / COPY etc.).
     if (watermark) {
