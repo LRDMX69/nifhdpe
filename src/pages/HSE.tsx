@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
+import { industrialDb } from "@/lib/industrialDb";
 
 type IncidentRow = Database["public"]["Tables"]["hse_incidents"]["Row"];
 type TbtRow = Database["public"]["Tables"]["toolbox_talks"]["Row"];
@@ -70,8 +71,11 @@ const HSE = () => {
     mutationFn: async () => {
       if (!orgId) throw new Error("No organization");
       if (!incidentDescription.trim()) throw new Error("Description is required");
+      const { data: documentNumber, error: numberError } = await industrialDb.rpc("next_doc_number", { _org_id: orgId, _doc_type: "hse_incidents" });
+      if (numberError) throw numberError;
       const { error } = await supabase.from("hse_incidents").insert({
         organization_id: orgId,
+        document_number: documentNumber || `HSE-${Date.now()}`,
         incident_date: incidentDate || new Date().toISOString().split('T')[0],
         type: incidentType,
         severity: incidentSeverity,
@@ -121,7 +125,8 @@ const HSE = () => {
   const { data: incidents = [], isLoading: incidentsLoading, error: incidentsError, refetch: refetchIncidents, dataUpdatedAt: incidentsUpdatedAt } = useQuery({
     queryKey: ["hse-incidents", orgId],
     queryFn: async () => {
-      const { data } = await supabase.from("hse_incidents").select("*").order("incident_date", { ascending: false });
+      const { data, error } = await supabase.from("hse_incidents").select("*").eq("organization_id", orgId).order("incident_date", { ascending: false });
+      if (error) throw error;
       return (data ?? []) as IncidentRow[];
     },
     enabled: !!orgId,
@@ -140,7 +145,7 @@ const HSE = () => {
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
       <PageHeader
         title="Health, Safety & Environment"
-        description="Monitor site safety, report incidents, and manage toolbox talks"
+        description="Single incident register for site safety, project work, and compliance evidence"
         executiveSummary={`${incidents.filter((i: any) => i.status !== "closed").length} open incidents · ${tbts.length} toolbox talks logged`}
         lastUpdated={incidentsUpdatedAt ? new Date(incidentsUpdatedAt) : null}
         onRefresh={() => { refetchIncidents(); refetchTbts(); }}
@@ -236,12 +241,13 @@ const HSE = () => {
                 }}
               >
                 <Table>
-                  <TableHeader><TableRow>
-                    <TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Location</TableHead><TableHead>Severity</TableHead><TableHead>Status</TableHead>
+                    <TableHeader><TableRow>
+                      <TableHead>Reference</TableHead><TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Location</TableHead><TableHead>Severity</TableHead><TableHead>Status</TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
                     {incidents.map((i: IncidentRow) => (
                       <TableRow key={i.id}>
+                        <TableCell className="font-mono text-[10px]">{(i as IncidentRow & { document_number?: string | null }).document_number ?? i.id.slice(0, 8)}</TableCell>
                         <TableCell className="text-xs">{i.incident_date}</TableCell>
                         <TableCell className="text-xs font-medium capitalize">{i.type?.replace("_", " ")}</TableCell>
                         <TableCell className="text-xs">{i.location || "—"}</TableCell>

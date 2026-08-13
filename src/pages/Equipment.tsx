@@ -22,6 +22,7 @@ import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Package } from "lucide-react";
 import { exportCsv } from "@/lib/exportCsv";
 import { humanizeError } from "@/lib/humanizeError";
+import { industrialDb } from "@/lib/industrialDb";
 
 type EquipmentItem = Database["public"]["Tables"]["equipment"]["Row"] & { projects?: { name: string } | null };
 type EquipmentRequest = Database["public"]["Tables"]["equipment_requests"]["Row"] & { equipment?: { name: string } | null };
@@ -187,12 +188,25 @@ const Equipment = () => {
 
   const updateRequest = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from("equipment_requests").update({ status, reviewed_by: user?.id }).eq("id", id);
+      const request = requests.find((candidate: EquipmentRequest) => candidate.id === id);
+      if (!request) throw new Error("Equipment request is no longer available.");
+      if (status === "approved" && request.project_id && orgId) {
+        const { error: assignmentError } = await industrialDb.rpc("assign_equipment_to_project", {
+          _org_id: orgId,
+          _equipment_id: request.equipment_id,
+          _project_id: request.project_id,
+          _hours: null,
+          _notes: `Approved from equipment request ${id}`,
+        });
+        if (assignmentError) throw assignmentError;
+      }
+      const { error } = await supabase.from("equipment_requests").update({ status, reviewed_by: user?.id }).eq("id", id).eq("organization_id", orgId);
       if (error) throw error;
     },
     onSuccess: () => { 
-      toast({ title: "Request updated" }); 
-      queryClient.invalidateQueries({ queryKey: ["equipment-requests"] }); 
+      toast({ title: "Request updated", description: "Project-linked approvals now reflect the equipment assignment." });
+      queryClient.invalidateQueries({ queryKey: ["equipment-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["equipment", orgId] });
       import("@/lib/pushNotifications").then(({ showNotification }) => {
         showNotification("Equipment Request Updated", "The status of your equipment request has been changed.", { type: "equipment_update" });
       });
@@ -270,7 +284,7 @@ const Equipment = () => {
         steps={[
           { actor: "Warehouse / Admin", action: "register the asset with serial number, type and assigned project." },
           { actor: "Technician", action: "raises an equipment request from the field; the system notifies the team and tracks response time." },
-          { actor: "Admin", action: "is auto-escalated if a request remains unanswered, with a direct dialer to the requester." },
+          { actor: "Admin", action: "approves the request; project-linked approvals update the equipment assignment and usage ledger atomically." },
         ]}
       />
 
@@ -461,7 +475,7 @@ const Equipment = () => {
                     </p>
                   </div>
                   <div className="flex gap-1 shrink-0 flex-wrap">
-                    <Button size="sm" variant="outline" className="h-7 text-xs text-primary" onClick={() => updateRequest.mutate({ id: r.id, status: "approved" })}><CheckCircle2 className="h-3 w-3 mr-1" />Approve</Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs text-primary" onClick={() => updateRequest.mutate({ id: r.id, status: "approved" })}><CheckCircle2 className="h-3 w-3 mr-1" />{r.project_id ? "Approve & assign" : "Approve"}</Button>
                     <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => updateRequest.mutate({ id: r.id, status: "denied" })}><XCircle className="h-3 w-3 mr-1" />Deny</Button>
                     {isStale && (
                       <Button size="sm" variant="outline" className="h-7 text-xs text-warning" onClick={() => setEscalateRequest(r)}>

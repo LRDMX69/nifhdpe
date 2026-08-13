@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts";
 import { TrendingUp, DollarSign, Percent, Package } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -8,7 +9,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Database } from "@/integrations/supabase/types";
 import { industrialDb } from "@/lib/industrialDb";
 
@@ -25,6 +26,9 @@ const Analytics = () => {
   const { memberships } = useAuth();
   const orgId = memberships[0]?.organization_id;
   const statsRef = useGsapStagger(".gsap-card", 0.08);
+  const defaultReportFrom = (() => { const d = new Date(); d.setMonth(d.getMonth() - 11, 1); return d.toISOString().slice(0, 10); })();
+  const [reportFrom, setReportFrom] = useState(defaultReportFrom);
+  const [reportTo, setReportTo] = useState(new Date().toISOString().slice(0, 10));
 
   const { data: operationalDashboard, isLoading: loadingOperationalDashboard, refetch: refetchOperationalDashboard } = useQuery({
     queryKey: ["operational-dashboard", orgId],
@@ -34,6 +38,13 @@ const Analytics = () => {
       if (error) throw error;
       return data as Record<string, Record<string, number>>;
     },
+    enabled: !!orgId,
+    retry: false,
+  });
+
+  const { data: financeReport, isLoading: loadingFinanceReport, refetch: refetchFinanceReport } = useQuery({
+    queryKey: ["analytics-finance-period", orgId, reportFrom, reportTo],
+    queryFn: async () => { if (!orgId) return null; const { data, error } = await industrialDb.rpc("get_finance_period_report", { _org_id: orgId, _from: reportFrom, _to: reportTo }); if (error) throw error; return data as unknown as { invoiced: number; collected: number; operating_expenses: number; worker_payments: number; monthly: Array<{ month: string; invoiced: number; collected: number; expenses: number; worker_payments: number }> }; },
     enabled: !!orgId,
     retry: false,
   });
@@ -100,13 +111,13 @@ const Analytics = () => {
 
   const analytics = useMemo(() => {
     // Money actually on the books (invoices/receipts) — not just accepted quotes.
-    const billed = invoices.filter((inv) => inv.status !== "draft").reduce((s: number, inv) => s + Number(inv.total_amount ?? 0), 0);
-    const collected = receipts.reduce((s: number, r) => s + Number(r.amount_received ?? 0), 0);
+    const billed = Number(financeReport?.invoiced ?? invoices.filter((inv) => inv.status !== "draft").reduce((s: number, inv) => s + Number(inv.total_amount ?? 0), 0));
+    const collected = Number(financeReport?.collected ?? receipts.reduce((s: number, r) => s + Number(r.amount_received ?? 0), 0));
     const outstanding = invoices.reduce((s: number, inv) => s + Number(inv.balance_due ?? 0), 0);
 
     const totalRevenue = quotations.filter((q) => q.status === "accepted").reduce((s: number, q) => s + Number(q.total_amount ?? 0), 0);
-    const totalExpenses = expenses.reduce((s: number, e) => s + Number(e.amount ?? 0), 0);
-    const totalPayments = payments.reduce((s: number, p) => s + Number(p.amount ?? 0), 0);
+    const totalExpenses = Number(financeReport?.operating_expenses ?? expenses.reduce((s: number, e) => s + Number(e.amount ?? 0), 0));
+    const totalPayments = Number(financeReport?.worker_payments ?? payments.reduce((s: number, p) => s + Number(p.amount ?? 0), 0));
     const netProfit = billed - totalExpenses - totalPayments;
 
     const sentCount = quotations.filter((q) => ["sent", "accepted", "rejected"].includes(q.status)).length;
@@ -129,7 +140,7 @@ const Analytics = () => {
       entry.expenses += Number(e.amount ?? 0);
       monthlyMap.set(month, entry);
     });
-    const revenueData = Array.from(monthlyMap.entries()).map(([month, data]) => ({ month, ...data })).slice(-6);
+    const revenueData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => ({ month: row.month, revenue: Number(row.invoiced ?? 0), expenses: Number(row.expenses ?? 0) })) : Array.from(monthlyMap.entries()).map(([month, data]) => ({ month, ...data }));
 
     // Cash flow: billed (invoices issued) vs collected (receipts) by month
     const cashMap = new Map<string, { billed: number; collected: number }>();
@@ -145,7 +156,7 @@ const Analytics = () => {
       entry.collected += Number(r.amount_received ?? 0);
       cashMap.set(month, entry);
     });
-    const cashFlowData = Array.from(cashMap.entries()).map(([month, data]) => ({ month, ...data })).slice(-6);
+    const cashFlowData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => ({ month: row.month, billed: Number(row.invoiced ?? 0), collected: Number(row.collected ?? 0) })) : Array.from(cashMap.entries()).map(([month, data]) => ({ month, ...data }));
 
     // Pipe usage by diameter
     const diameterMap = new Map<string, number>();
@@ -175,9 +186,9 @@ const Analytics = () => {
     const topClients = Array.from(clientMap.entries()).map(([name, revenue]) => ({ name, revenue })).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 
     return { billed, collected, outstanding, totalRevenue, totalExpenses: totalExpenses + totalPayments, netProfit, conversionRate, sentCount, acceptedCount, inventoryValue, revenueData, cashFlowData, pipeUsageData, conversionData, topClients };
-  }, [payments, expenses, quotations, inventory, invoices, receipts]);
+  }, [payments, expenses, quotations, inventory, invoices, receipts, financeReport]);
 
-  const isLoading = loadingPayments || loadingExpenses || loadingOperationalDashboard;
+  const isLoading = loadingPayments || loadingExpenses || loadingOperationalDashboard || loadingFinanceReport;
 
   if (isLoading) {
     return <LoadingState variant="page" rows={4} />;
@@ -197,8 +208,10 @@ const Analytics = () => {
         description="Live business insights from your data"
         executiveSummary={`${quotations.filter((q: any) => q.status === "accepted").length} accepted quotes feeding pipeline · ${inventory.length} inventory SKUs in scope`}
         lastUpdated={paymentsUpdatedAt ? new Date(paymentsUpdatedAt) : null}
-        onRefresh={() => { refetchPayments(); refetchOperationalDashboard(); }}
-      />
+        onRefresh={() => { refetchPayments(); refetchOperationalDashboard(); refetchFinanceReport(); }}
+      >
+        <div className="flex flex-wrap items-end gap-2"><div><p className="text-[11px] text-muted-foreground">From</p><Input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="h-8 w-[140px] text-xs" /></div><div><p className="text-[11px] text-muted-foreground">To</p><Input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="h-8 w-[140px] text-xs" /></div></div>
+      </PageHeader>
 
       <div ref={statsRef} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {operationalDashboard && <Card className="border-primary/20 bg-primary/5"><CardContent className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 lg:grid-cols-8"><div><p className="text-[10px] text-muted-foreground">Open demands</p><p className="text-lg font-semibold">{operationalDashboard.procurement?.open_demands ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Reserved stock</p><p className="text-lg font-semibold">{operationalDashboard.inventory?.reserved_stock_count ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Overdue invoices</p><p className="text-lg font-semibold">{operationalDashboard.receivables?.overdue_count ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Open service</p><p className="text-lg font-semibold">{operationalDashboard.service?.open_tickets ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">QA attention</p><p className="text-lg font-semibold">{operationalDashboard.quality?.qa_open ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Pending delivery</p><p className="text-lg font-semibold">{operationalDashboard.logistics?.pending_deliveries ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Accepted quotes</p><p className="text-lg font-semibold">{operationalDashboard.pipeline?.quotations_accepted ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">In-progress projects</p><p className="text-lg font-semibold">{operationalDashboard.projects?.in_progress ?? 0}</p></div></CardContent></Card>}

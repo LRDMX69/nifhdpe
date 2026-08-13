@@ -22,6 +22,7 @@ import { formatCurrency } from "@/lib/constants";
 import { useGsapAnimation } from "@/hooks/useGsapAnimation";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
+import { industrialDb } from "@/lib/industrialDb";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -33,9 +34,9 @@ import { humanizeError } from "@/lib/humanizeError";
 
 type ExpenseItem = Database["public"]["Tables"]["expenses"]["Row"];
 type PaymentItem = Database["public"]["Tables"]["worker_payments"]["Row"];
-type InvoiceItem = Database["public"]["Tables"]["invoices"]["Row"] & { clients?: { name: string } | null };
+type InvoiceItem = Database["public"]["Tables"]["invoices"]["Row"] & { clients?: { name: string } | null; sales_order_id?: string | null; project_id?: string | null; discount_amount?: number | null; overhead_amount?: number | null; tax_rate?: number | null; payment_terms?: string | null; terms_and_conditions?: string | null; currency?: string | null };
 type ReceiptItem = Database["public"]["Tables"]["receipts"]["Row"] & { clients?: { name: string } | null };
-type InvoiceLineItem = Database["public"]["Tables"]["invoice_items"]["Row"];
+type InvoiceLineItem = Database["public"]["Tables"]["invoice_items"]["Row"] & { item_type?: string | null; product_specification_id?: string | null };
 type QuotationItem = { total_amount: number | null; created_at: string };
 
 const PAYMENT_TYPES = ["salary", "overtime", "fuel", "maintenance", "bonus", "transport", "vendor"] as const;
@@ -59,6 +60,9 @@ const Finance = () => {
   const [editingExpense, setEditingExpense] = useState<ExpenseItem | null>(null);
   const [editingPayment, setEditingPayment] = useState<PaymentItem | null>(null);
   const containerRef = useGsapAnimation("slideUp");
+  const defaultReportFrom = (() => { const d = new Date(); d.setMonth(d.getMonth() - 11, 1); return d.toISOString().slice(0, 10); })();
+  const [reportFrom, setReportFrom] = useState(defaultReportFrom);
+  const [reportTo, setReportTo] = useState(new Date().toISOString().slice(0, 10));
 
   // Payment form
   const [payType, setPayType] = useState("");
@@ -150,6 +154,13 @@ const Finance = () => {
     enabled: !!orgId,
   });
 
+  const { data: financeReport, isLoading: financeReportLoading, refetch: refetchFinanceReport } = useQuery({
+    queryKey: ["finance-period-report", orgId, reportFrom, reportTo],
+    queryFn: async () => { if (!orgId) return null; const { data, error } = await industrialDb.rpc("get_finance_period_report", { _org_id: orgId, _from: reportFrom, _to: reportTo }); if (error) throw error; return data as unknown as { invoiced: number; collected: number; operating_expenses: number; worker_payments: number; invoice_count: number; receipt_count: number; aging: Record<string, number>; monthly: Array<{ month: string; invoiced: number; collected: number; expenses: number; worker_payments: number }> }; },
+    enabled: !!orgId,
+    retry: false,
+  });
+
   const { data: financeInsights } = useQuery({
     queryKey: ["ai-insights-finance"],
     queryFn: async () => {
@@ -159,12 +170,12 @@ const Finance = () => {
   });
 
   const financials = useMemo(() => {
-    const totalRevenue = invoices.reduce((s, inv) => s + Number(inv.total_amount || 0), 0);
-    const totalReceived = receipts.reduce((s, r) => s + Number(r.amount_received || 0), 0);
-    const totalExpenses = expenses.reduce((s: number, e: ExpenseItem) => s + Number(e.amount ?? 0), 0);
-    const totalPayments = payments.reduce((s: number, p: PaymentItem) => s + Number(p.amount ?? 0), 0);
+    const totalRevenue = Number(financeReport?.invoiced ?? invoices.reduce((s, inv) => s + Number(inv.total_amount || 0), 0));
+    const totalReceived = Number(financeReport?.collected ?? receipts.reduce((s, r) => s + Number(r.amount_received || 0), 0));
+    const totalExpenses = Number(financeReport?.operating_expenses ?? expenses.reduce((s: number, e: ExpenseItem) => s + Number(e.amount ?? 0), 0));
+    const totalPayments = Number(financeReport?.worker_payments ?? payments.reduce((s: number, p: PaymentItem) => s + Number(p.amount ?? 0), 0));
     const netProfit = totalReceived - totalExpenses - totalPayments;
-    const receivables = totalRevenue - totalReceived;
+    const receivables = Math.max(0, totalRevenue - totalReceived);
 
     const monthlyMap = new Map<string, { revenue: number; expenses: number }>();
     invoices.forEach((inv) => {
@@ -179,10 +190,10 @@ const Finance = () => {
       entry.expenses += Number(e.amount ?? 0);
       monthlyMap.set(month, entry);
     });
-    const chartData = Array.from(monthlyMap.entries()).map(([month, data]) => ({ month, ...data })).slice(-6);
+    const chartData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => ({ month: row.month, revenue: Number(row.invoiced ?? 0), expenses: Number(row.expenses ?? 0) })) : Array.from(monthlyMap.entries()).map(([month, data]) => ({ month, ...data }));
 
     return { totalRevenue, totalReceived, receivables, totalExpenses: totalExpenses + totalPayments, netProfit, totalPayments, chartData };
-  }, [payments, expenses, invoices, receipts]);
+  }, [payments, expenses, invoices, receipts, financeReport]);
 
   const getMemberName = (userId: string) => members.find(m => m.value === userId)?.label ?? "Unknown";
 
@@ -359,7 +370,7 @@ const Finance = () => {
         description="Revenue, expenses, payments, and profit tracking"
         executiveSummary={`${invoices.filter((i: any) => i.status !== "paid").length} unpaid invoices · ${payments.length} recent payments tracked`}
         lastUpdated={Math.max(invoicesUpdatedAt || 0, paymentsUpdatedAt || 0) || null}
-        onRefresh={() => { refetchInvoices(); refetchPayments(); refetchExpenses(); refetchReceipts(); }}
+        onRefresh={() => { refetchInvoices(); refetchPayments(); refetchExpenses(); refetchReceipts(); refetchFinanceReport(); }}
       >
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => exportCsv(`invoices-${new Date().toISOString().slice(0, 10)}`, [
@@ -500,10 +511,10 @@ const Finance = () => {
           <TabsTrigger value="payments" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Payments</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview">
-          <Card><CardHeader><CardTitle className="text-base">Revenue vs Expenses</CardTitle></CardHeader>
+          <TabsContent value="overview" className="space-y-4">
+          <Card><CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle className="text-base">Revenue vs Expenses</CardTitle><div className="flex flex-wrap items-end gap-2"><div><Label className="text-[11px]">From</Label><Input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="h-8 w-[145px] text-xs" /></div><div><Label className="text-[11px]">To</Label><Input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="h-8 w-[145px] text-xs" /></div></div></CardHeader>
             <CardContent>
-              {financials.chartData.length === 0 ? (
+              {financeReportLoading ? <div className="py-16 text-center text-sm text-muted-foreground">Loading selected reporting period…</div> : financials.chartData.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-16">No financial data yet. Accept quotations and log expenses to see trends.</p>
               ) : (
                 <div className="h-[300px]">
@@ -520,6 +531,7 @@ const Finance = () => {
               )}
             </CardContent>
           </Card>
+          {financeReport?.aging && <div className="grid grid-cols-2 gap-3 md:grid-cols-5">{[["Current", financeReport.aging.current], ["1–30 days", financeReport.aging["1_30"]], ["31–60 days", financeReport.aging["31_60"]], ["61–90 days", financeReport.aging["61_90"]], ["90+ days", financeReport.aging["90_plus"]]].map(([label, value]) => <Card key={String(label)}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-semibold">{formatCurrency(Number(value ?? 0))}</p></CardContent></Card>)}</div>}
         </TabsContent>
 
         <TabsContent value="invoices">
@@ -577,23 +589,34 @@ const Finance = () => {
                             generatePdf({
                               title: `Invoice ${inv.document_number}`,
                               senderName: "NIF Technical Services Ltd",
-                              contentSections: [{ heading: "Client", body: inv.clients?.name }],
+                              contentSections: [{ heading: "Billing and project", bullets: [`Client: ${inv.clients?.name ?? "N/A"}`, inv.sales_order_id ? `Sales order: ${inv.sales_order_id}` : "", inv.project_id ? `Project: ${inv.project_id}` : "", `Invoice date: ${inv.invoice_date ?? "N/A"}`, `Due date: ${inv.due_date ?? "Not specified"}`, `Status: ${(inv.status ?? "draft").toUpperCase()}`].filter(Boolean) }, { heading: "Payment terms", bullets: [inv.payment_terms ? `Terms: ${inv.payment_terms}` : "", inv.terms_and_conditions ? `Conditions: ${inv.terms_and_conditions}` : "", `Amount received: ${formatCurrency(Number((inv.total_amount ?? 0) - (inv.balance_due ?? 0)) )}`, `Balance due: ${formatCurrency(inv.balance_due ?? 0)}`].filter(Boolean) }],
                               tableData: items ? {
                                 columns: [
                                   { header: "Description", dataKey: "description" },
+                                  { header: "Type", dataKey: "item_type" },
                                   { header: "Qty", dataKey: "quantity" },
                                   { header: "Price (₦)", dataKey: "unit_price" },
                                   { header: "Total (₦)", dataKey: "total_price" }
                                 ],
                                 rows: (items as InvoiceLineItem[]).map((i) => ({
                                   description: i.description,
+                                  item_type: (i as InvoiceLineItem).item_type ?? "other",
                                   quantity: i.quantity,
                                   unit_price: Number(i.unit_price).toLocaleString(),
                                   total_price: Number(i.total_price).toLocaleString()
                                 })),
-                                summary: [{ label: "Total Amount", value: formatCurrency(inv.total_amount) }]
+                                summary: [
+                                  { label: "Subtotal", value: formatCurrency(inv.subtotal ?? 0) },
+                                  ...((inv.discount_amount ?? 0) > 0 ? [{ label: "Discount", value: `-${formatCurrency(inv.discount_amount ?? 0)}` }] : []),
+                                  ...((inv.overhead_amount ?? 0) > 0 ? [{ label: "Overhead / site cost", value: formatCurrency(inv.overhead_amount ?? 0) }] : []),
+                                  ...((inv.tax_amount ?? 0) > 0 ? [{ label: `Tax (${inv.tax_rate ?? 0}%)`, value: formatCurrency(inv.tax_amount ?? 0) }] : []),
+                                  { label: "Total Amount", value: formatCurrency(inv.total_amount) },
+                                  { label: "Balance Due", value: formatCurrency(inv.balance_due) },
+                                ]
                               } : undefined,
                               stampType: "finance",
+                              companyName: "NIF Technical Services",
+                              documentId: inv.document_number ?? inv.id,
                               showSignature: true,
                               watermark: inv.status === "paid" ? "FINAL" : inv.status === "draft" ? "DRAFT" : null,
                             });

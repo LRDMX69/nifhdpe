@@ -20,6 +20,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { FeedbackInbox } from "@/components/feedback/FeedbackInbox";
 import { humanizeError } from "@/lib/humanizeError";
 import { isPasswordPwned } from "@/lib/hibp";
+import { industrialDb, type IndustrialRow } from "@/lib/industrialDb";
 
 function ChangePasswordCard() {
   const { toast } = useToast();
@@ -137,6 +138,130 @@ function OfficeCoordinatesCard({ org, orgId, onSaved }: { org: { office_lat?: nu
           </Button>
           <Button type="button" onClick={save} disabled={busy}>Save coordinates</Button>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+const POLICY_CONFIGURATION_FIELDS = [
+  { key: "working_days_per_month", label: "Working days per month", unit: "days", description: "Used by project cost allocation. No default is assumed." },
+  { key: "tax_rate", label: "Sales tax rate", unit: "%", description: "Applied only after management approval." },
+  { key: "withholding_tax_rate", label: "Withholding tax rate", unit: "%", description: "Optional statutory withholding configuration." },
+  { key: "warranty_duration_days", label: "Warranty duration", unit: "days", description: "Used when warranty records are created; management must approve the duration." },
+  { key: "credit_limit", label: "Customer credit limit", unit: "NGN", description: "Optional commercial control; blank means no configured limit." },
+  { key: "default_payment_terms", label: "Default payment terms", unit: "text", description: "Suggested terms only; quotations remain the source of truth." },
+] as const;
+
+type ManagementConfigurationRow = IndustrialRow & {
+  id: string;
+  config_key: string;
+  config_value: unknown;
+  status: "awaiting_approval" | "approved" | "disabled";
+  approved_by: string | null;
+  approved_at: string | null;
+  notes: string | null;
+};
+
+function ManagementConfigurationCard({ orgId, isAdmin, userId }: { orgId: string | undefined; isAdmin: boolean; userId: string | undefined }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [configKey, setConfigKey] = useState("");
+  const [configValue, setConfigValue] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const { data: configurations = [], isLoading, error } = useQuery({
+    queryKey: ["management-configuration", orgId],
+    enabled: !!orgId && isAdmin,
+    queryFn: async () => {
+      const { data, error: queryError } = await industrialDb.from("management_configuration")
+        .select("*").eq("organization_id", orgId).order("config_key");
+      if (queryError) throw queryError;
+      return (data ?? []) as ManagementConfigurationRow[];
+    },
+  });
+
+  const parseValue = (raw: string): unknown => {
+    const trimmed = raw.trim();
+    if (!trimmed) throw new Error("A configuration value is required.");
+    if (/^-?\\d+(\\.\\d+)?$/.test(trimmed)) return Number(trimmed);
+    if (trimmed === "true" || trimmed === "false") return trimmed === "true";
+    try { return JSON.parse(trimmed); } catch { return trimmed; }
+  };
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!orgId || !configKey.trim()) throw new Error("Choose or enter a configuration key.");
+      const { error: saveError } = await industrialDb.from("management_configuration").upsert({
+        organization_id: orgId,
+        config_key: configKey.trim(),
+        config_value: parseValue(configValue),
+        notes: notes.trim() || null,
+        status: "awaiting_approval",
+        approved_by: null,
+        approved_at: null,
+      }, { onConflict: "organization_id,config_key" });
+      if (saveError) throw saveError;
+    },
+    onSuccess: () => {
+      toast({ title: "Configuration saved", description: "The value is awaiting administrator approval." });
+      setConfigKey(""); setConfigValue(""); setNotes("");
+      queryClient.invalidateQueries({ queryKey: ["management-configuration", orgId] });
+    },
+    onError: (err: Error) => toast({ title: "Could not save configuration", description: humanizeError(err), variant: "destructive" }),
+  });
+
+  const updateStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "approved" | "disabled" }) => {
+      if (!userId) throw new Error("Signed-in administrator required.");
+      const { error: updateError } = await industrialDb.from("management_configuration").update({
+        status,
+        approved_by: status === "approved" ? userId : null,
+        approved_at: status === "approved" ? new Date().toISOString() : null,
+      }).eq("id", id).eq("organization_id", orgId);
+      if (updateError) throw updateError;
+    },
+    onSuccess: (_, variables) => {
+      toast({ title: variables.status === "approved" ? "Configuration approved" : "Configuration disabled" });
+      queryClient.invalidateQueries({ queryKey: ["management-configuration", orgId] });
+    },
+    onError: (err: Error) => toast({ title: "Could not update configuration", description: humanizeError(err), variant: "destructive" }),
+  });
+
+  if (!isAdmin) return null;
+
+  return (
+    <Card className="border-primary/20">
+      <CardHeader>
+        <CardTitle className="text-base">Management Policy Configuration</CardTitle>
+        <CardDescription>Only management-approved values become operational inputs. The ERP does not assume tax, warranty, credit, or payment policies.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3">
+          <p className="text-xs font-medium text-primary">Suggested configuration keys</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {POLICY_CONFIGURATION_FIELDS.map((field) => (
+              <Button key={field.key} type="button" size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => setConfigKey(field.key)}>{field.key}</Button>
+            ))}
+          </div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="space-y-1"><Label>Configuration key</Label><Input value={configKey} onChange={(e) => setConfigKey(e.target.value)} placeholder="e.g. working_days_per_month" /></div>
+          <div className="space-y-1"><Label>Value</Label><Input value={configValue} onChange={(e) => setConfigValue(e.target.value)} placeholder="Number, text, boolean, or JSON" /></div>
+          <div className="space-y-1"><Label>Approval note</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Decision reference or effective date" /></div>
+        </div>
+        <Button onClick={() => save.mutate()} disabled={save.isPending || !configKey.trim() || !configValue.trim()}>{save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save awaiting approval"}</Button>
+        {error && <p className="text-sm text-destructive">Could not load configuration: {humanizeError(error)}</p>}
+        {isLoading ? <p className="text-sm text-muted-foreground">Loading policy register…</p> : configurations.length === 0 ? <p className="text-sm text-muted-foreground">No management policy values have been configured.</p> : (
+          <div className="space-y-2">
+            {configurations.map((config) => {
+              const field = POLICY_CONFIGURATION_FIELDS.find((candidate) => candidate.key === config.config_key);
+              return <div key={config.id} className="flex flex-col gap-3 rounded-lg border p-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0"><p className="font-medium break-words-safe">{field?.label ?? config.config_key}</p><p className="text-xs text-muted-foreground break-words-safe">{config.config_key} · {JSON.stringify(config.config_value)} · {config.notes ?? "No approval note"}</p>{field?.description && <p className="text-[11px] text-muted-foreground mt-1">{field.description}</p>}</div>
+                <div className="flex items-center gap-2 shrink-0"><Badge variant={config.status === "approved" ? "default" : config.status === "disabled" ? "destructive" : "outline"}>{config.status.replace("_", " ")}</Badge>{config.status !== "approved" && <Button size="sm" variant="outline" onClick={() => updateStatus.mutate({ id: config.id, status: "approved" })} disabled={updateStatus.isPending}>Approve</Button>}{config.status !== "disabled" && <Button size="sm" variant="ghost" onClick={() => updateStatus.mutate({ id: config.id, status: "disabled" })} disabled={updateStatus.isPending}>Disable</Button>}</div>
+              </div>;
+            })}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -366,6 +491,7 @@ const AppSettings = () => {
             <TabsTrigger value="organization" className="gap-1 text-xs sm:text-sm whitespace-nowrap"><Building2 className="h-3 w-3 hidden sm:block" /> Organization</TabsTrigger>
             <TabsTrigger value="team" className="gap-1 text-xs sm:text-sm whitespace-nowrap"><Users className="h-3 w-3 hidden sm:block" /> Team</TabsTrigger>
             <TabsTrigger value="profile" className="gap-1 text-xs sm:text-sm whitespace-nowrap"><Shield className="h-3 w-3 hidden sm:block" /> Profile</TabsTrigger>
+            {isAdmin && <TabsTrigger value="policy" className="gap-1 text-xs sm:text-sm whitespace-nowrap"><Shield className="h-3 w-3 hidden sm:block" /> Policy</TabsTrigger>}
             {isAdmin && (
               <TabsTrigger value="feedback" className="gap-1 text-xs sm:text-sm whitespace-nowrap"><MessageSquare className="h-3 w-3 hidden sm:block" /> User Feedback</TabsTrigger>
             )}
@@ -542,6 +668,12 @@ const AppSettings = () => {
             </Card>
           )}
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="policy" className="space-y-4">
+            <ManagementConfigurationCard orgId={orgId} isAdmin={isAdmin} userId={user?.id} />
+          </TabsContent>
+        )}
 
         <TabsContent value="profile" className="space-y-4">
           <Card className="border-border/50">

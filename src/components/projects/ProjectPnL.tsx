@@ -7,6 +7,7 @@ import { formatCurrency } from "@/lib/constants";
 import { TrendingUp, TrendingDown, DollarSign, Users, Package, CreditCard } from "lucide-react";
 import { LoadingState } from "@/components/ui/loading-state";
 import type { Database } from "@/integrations/supabase/types";
+import { industrialDb } from "@/lib/industrialDb";
 
 type ExpenseRow = Database["public"]["Tables"]["expenses"]["Row"];
 
@@ -48,9 +49,12 @@ export const ProjectPnL = ({ projectId, projectBudget }: ProjectPnLProps) => {
       //    × number of days they were present during the project window. No hardcoded rates.
       const { data: project } = await supabase
         .from("projects")
-        .select("team_member_ids, start_date, end_date")
+        .select("organization_id, team_member_ids, start_date, end_date")
         .eq("id", projectId)
         .maybeSingle();
+      const { data: workingDayConfig } = project?.organization_id ? await industrialDb.from("management_configuration").select("config_value").eq("organization_id", project.organization_id).eq("config_key", "working_days_per_month").maybeSingle() : { data: null };
+      const rawWorkingDays = (workingDayConfig as { config_value?: unknown } | null)?.config_value;
+      const workingDaysPerMonth = typeof rawWorkingDays === "number" ? rawWorkingDays : Number(rawWorkingDays) || 22;
       const teamIds = (project?.team_member_ids as unknown as string[]) || [];
       const projStart = (project as { start_date?: string } | null)?.start_date;
       const projEnd = (project as { end_date?: string } | null)?.end_date;
@@ -68,7 +72,7 @@ export const ProjectPnL = ({ projectId, projectBudget }: ProjectPnLProps) => {
             Number(p.housing_allowance || 0) +
             Number(p.transport_allowance || 0) +
             Number(p.other_allowances || 0);
-          rateByUser.set(p.user_id, monthly / 22); // 22 working days/month
+          rateByUser.set(p.user_id, monthly / workingDaysPerMonth);
         });
 
         let attQuery = supabase
@@ -98,7 +102,8 @@ export const ProjectPnL = ({ projectId, projectBudget }: ProjectPnLProps) => {
         totalCosts,
         profit,
         margin,
-        expenses: expenses || []
+        expenses: expenses || [],
+        workingDaysPerMonth
       };
     }
   });
