@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Calendar, Loader2, MoreVertical, Pencil, Trash2, Users, MapPin, BarChart3, Download } from "lucide-react";
+import { Plus, Search, Calendar, Loader2, MoreVertical, Pencil, Trash2, Users, MapPin, BarChart3, Download, ClipboardCheck } from "lucide-react";
 import { ProjectPnL } from "@/components/projects/ProjectPnL";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
@@ -31,6 +31,30 @@ import { industrialDb, type IndustrialRow } from "@/lib/industrialDb";
 type ProjectItem = Database["public"]["Tables"]["projects"]["Row"] & { clients?: { name: string } | null };
 type ClientItem = { id: string; name: string };
 type MemberItem = { user_id: string; full_name: string | null };
+type ProjectInventoryRow = { id: string; item_name: string; quantity_meters: number | null; lot_batch?: string | null; product_specification_id?: string | null };
+type ProjectWorkPackageRow = { id: string; name: string; status: string };
+
+function ProjectExecutionDialog({ project, orgId, canMaterial, canHandover, open, onOpenChange }: { project: ProjectItem | null; orgId?: string; canMaterial: boolean; canHandover: boolean; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { toast } = useToast();
+  const [inventoryId, setInventoryId] = useState("");
+  const [workPackageId, setWorkPackageId] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [materialNotes, setMaterialNotes] = useState("");
+  const [qaSummary, setQaSummary] = useState("");
+  const [clientSignoff, setClientSignoff] = useState("");
+  const [saving, setSaving] = useState(false);
+  const { data: inventory = [], refetch: refetchInventory } = useQuery({ queryKey: ["project-execution-inventory", orgId], queryFn: async () => { if (!orgId) return [] as ProjectInventoryRow[]; const { data, error } = await industrialDb.from("inventory").select("id, item_name, quantity_meters, lot_batch, product_specification_id").eq("organization_id", orgId).gt("quantity_meters", 0).order("item_name"); if (error) throw error; return (data ?? []) as ProjectInventoryRow[]; }, enabled: !!orgId && open });
+  const { data: workPackages = [] } = useQuery({ queryKey: ["project-work-packages", orgId, project?.id], queryFn: async () => { if (!orgId || !project) return [] as ProjectWorkPackageRow[]; const { data, error } = await industrialDb.from("project_work_packages").select("id, name, status").eq("organization_id", orgId).eq("project_id", project.id).order("sequence_no"); if (error) throw error; return (data ?? []) as ProjectWorkPackageRow[]; }, enabled: !!orgId && !!project && open });
+  const { data: handover } = useQuery({ queryKey: ["project-handover", orgId, project?.id], queryFn: async () => { if (!orgId || !project) return null; const { data, error } = await industrialDb.from("project_handover_records").select("id, status, qa_summary, client_signoff, updated_at").eq("organization_id", orgId).eq("project_id", project.id).maybeSingle(); if (error) throw error; return data as { id: string; status: string; qa_summary?: Record<string, unknown>; client_signoff?: Record<string, unknown>; updated_at?: string } | null; }, enabled: !!orgId && !!project && open });
+
+  const consumeMaterial = async () => { if (!orgId || !project || !inventoryId || !quantity || Number(quantity) <= 0) return; setSaving(true); try { const { error } = await industrialDb.rpc("record_project_material_consumption", { _org_id: orgId, _project_id: project.id, _work_package_id: workPackageId || null, _inventory_id: inventoryId, _quantity: Number(quantity), _field_report_id: null, _notes: materialNotes.trim() || null }); if (error) throw error; toast({ title: "Material consumption recorded", description: "Inventory, project consumption, stock movement, and audit history were updated." }); setInventoryId(""); setWorkPackageId(""); setQuantity(""); setMaterialNotes(""); await refetchInventory(); } catch (error) { toast({ title: "Could not record consumption", description: humanizeError(error), variant: "destructive" }); } finally { setSaving(false); } };
+  const submitHandover = async () => { if (!orgId || !project || !qaSummary.trim() || !clientSignoff.trim()) return; setSaving(true); try { const { error } = await industrialDb.rpc("submit_project_handover", { _org_id: orgId, _project_id: project.id, _qa_summary: { summary: qaSummary.trim() }, _client_signoff: { note: clientSignoff.trim() } }); if (error) throw error; toast({ title: "Handover submitted", description: "The project is now pending client sign-off." }); setQaSummary(""); setClientSignoff(""); } catch (error) { toast({ title: "Could not submit handover", description: humanizeError(error), variant: "destructive" }); } finally { setSaving(false); } };
+
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-h-[90vh] overflow-y-auto max-w-2xl"><DialogHeader><DialogTitle>Project execution · {project?.name ?? "Project"}</DialogTitle></DialogHeader><div className="space-y-5">
+    {canMaterial && <section className="space-y-3 rounded-lg border bg-primary/5 p-4"><div><p className="text-sm font-semibold">Record material consumption</p><p className="text-xs text-muted-foreground">Issue available stock to this project through the atomic consumption ledger. Reserved quantities are protected by the server.</p></div><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1"><Label>Inventory item *</Label><Select value={inventoryId} onValueChange={setInventoryId}><SelectTrigger><SelectValue placeholder="Select available stock" /></SelectTrigger><SelectContent>{inventory.map((item) => <SelectItem key={item.id} value={item.id}>{item.item_name} · {Number(item.quantity_meters ?? 0).toLocaleString()} available{item.lot_batch ? ` · Lot ${item.lot_batch}` : ""}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1"><Label>Work package</Label><Select value={workPackageId || "none"} onValueChange={(value) => setWorkPackageId(value === "none" ? "" : value)}><SelectTrigger><SelectValue placeholder="Optional work package" /></SelectTrigger><SelectContent><SelectItem value="none">Project-level consumption</SelectItem>{workPackages.map((item) => <SelectItem key={item.id} value={item.id}>{item.name} · {item.status}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1"><Label>Quantity *</Label><Input type="number" min="0.01" step="0.01" value={quantity} onChange={(event) => setQuantity(event.target.value)} placeholder="0" /></div><div className="space-y-1"><Label>Reason / notes</Label><Input value={materialNotes} onChange={(event) => setMaterialNotes(event.target.value)} placeholder="Installation issue, field report, or work context" /></div></div><div className="flex justify-end"><Button onClick={() => void consumeMaterial()} disabled={saving || !inventoryId || !quantity}>{saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Record consumption</Button></div></section>}
+    {canHandover && <section className="space-y-3 rounded-lg border p-4"><div><p className="text-sm font-semibold">Project handover</p><p className="text-xs text-muted-foreground">Submit explicit QA evidence and client-sign-off notes. Management-defined acceptance criteria remain configurable.</p></div>{handover && <p className="text-xs text-muted-foreground">Current status: <span className="font-medium capitalize">{handover.status.replace("_", " ")}</span> · updated {handover.updated_at ? new Date(handover.updated_at).toLocaleString() : "—"}</p>}<div className="space-y-2"><Label>QA summary *</Label><Textarea rows={3} value={qaSummary} onChange={(event) => setQaSummary(event.target.value)} placeholder="Summarize inspections, fusion records, test evidence, and open defects." /></div><div className="space-y-2"><Label>Client sign-off note *</Label><Textarea rows={3} value={clientSignoff} onChange={(event) => setClientSignoff(event.target.value)} placeholder="Record the client’s sign-off status, representative, date, or outstanding conditions." /></div><div className="flex justify-end"><Button onClick={() => void submitHandover()} disabled={saving || !qaSummary.trim() || !clientSignoff.trim()}>{saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}<ClipboardCheck className="h-4 w-4 mr-1" />Submit for client sign-off</Button></div></section>}
+  </div></DialogContent></Dialog>;
+}
 
 const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   planning: "outline", in_progress: "default", on_hold: "secondary", completed: "default", cancelled: "destructive",
@@ -46,6 +70,7 @@ const Projects = () => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [pnlProject, setPnlProject] = useState<ProjectItem | null>(null);
+  const [executionProject, setExecutionProject] = useState<ProjectItem | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<ProjectItem | null>(null);
@@ -380,6 +405,8 @@ const Projects = () => {
         </DialogContent>
       </Dialog>
 
+      <ProjectExecutionDialog project={executionProject} orgId={orgId} canMaterial={isMaintenance || ["administrator", "engineer", "technician"].includes(activeRole ?? "")} canHandover={isMaintenance || ["administrator", "engineer", "finance"].includes(activeRole ?? "")} open={!!executionProject} onOpenChange={(isOpen) => !isOpen && setExecutionProject(null)} />
+
       <AsyncBoundary
         loading={isLoading}
         error={error}
@@ -415,6 +442,7 @@ const Projects = () => {
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => setPnlProject(project)}><BarChart3 className="h-3.5 w-3.5 mr-2" />View P&L</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setExecutionProject(project)}><ClipboardCheck className="h-3.5 w-3.5 mr-2" />Execution & handover</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => openEdit(project)}><Pencil className="h-3.5 w-3.5 mr-2" />Edit</DropdownMenuItem>
                           <DropdownMenuSeparator />

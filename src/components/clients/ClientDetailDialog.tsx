@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Phone, Mail, MapPin, Copy, Check, Download, Briefcase, Receipt, FileText,
@@ -73,6 +74,9 @@ export const ClientDetailDialog = ({
   const navigate = useNavigate();
   const { toast } = useToast();
   const clientId = client?.id ?? null;
+  const [resolutionTarget, setResolutionTarget] = useState<LinkedRow | null>(null);
+  const [resolutionText, setResolutionText] = useState("");
+  const [resolving, setResolving] = useState(false);
 
   const { data: quotations = [], isLoading: loadingQuotations } = useQuery({
     queryKey: ["client-quotations", orgId, clientId],
@@ -124,7 +128,7 @@ export const ClientDetailDialog = ({
     enabled: !!clientId && open,
   });
 
-  const { data: serviceTickets = [], isLoading: loadingService } = useQuery({
+  const { data: serviceTickets = [], isLoading: loadingService, refetch: refetchServiceTickets } = useQuery({
     queryKey: ["client-service-tickets", orgId, clientId],
     queryFn: async () => { if (!clientId) return []; const { data, error } = await industrialDb.from("service_tickets").select("id, ticket_number, subject, status, priority, created_at").eq("organization_id", orgId).eq("client_id", clientId).order("created_at", { ascending: false }); if (error) throw error; return (data ?? []) as LinkedRow[]; },
     enabled: !!clientId && open,
@@ -167,6 +171,21 @@ export const ClientDetailDialog = ({
     return { openQuoteCount: openQuotes.length, openQuoteValue, acceptedValue, invoicedTotal, outstanding, projectCount: projects.length, orderValue, receivedTotal, openTickets, deliveryCount: deliveries.length, warrantyCount: warrantyAssets.length };
 
   }, [quotations, invoices, projects, salesOrders, receipts, serviceTickets, deliveries, warrantyAssets]);
+
+  const resolveServiceTicket = async () => {
+    if (!resolutionTarget || !resolutionText.trim()) return;
+    setResolving(true);
+    try {
+      const { error } = await industrialDb.rpc("resolve_service_ticket", { _org_id: orgId, _ticket_id: resolutionTarget.id, _resolution: resolutionText.trim(), _parts: [] });
+      if (error) throw error;
+      toast({ title: "Service ticket resolved", description: "The resolution and audit event were recorded." });
+      setResolutionTarget(null);
+      setResolutionText("");
+      await refetchServiceTickets();
+    } catch (error) {
+      toast({ title: "Could not resolve ticket", description: error instanceof Error ? error.message : "The service ticket could not be resolved.", variant: "destructive" });
+    } finally { setResolving(false); }
+  };
 
   const handleCopy = async (text: string, label: string) => {
     const ok = await copyToClipboard(text);
@@ -366,12 +385,19 @@ export const ClientDetailDialog = ({
 
               <section>
                 <div className="flex items-center justify-between mb-2"><h3 className="text-sm font-semibold flex items-center gap-2"><Wrench className="h-4 w-4 text-primary" /> Service & Warranty <Badge variant="outline">{serviceTickets.length} / {warrantyAssets.length}</Badge></h3></div>
-                {serviceTickets.length === 0 && warrantyAssets.length === 0 ? <p className="text-xs text-muted-foreground">No service tickets or warranty assets are linked to this client.</p> : <div className="space-y-1.5">{serviceTickets.map((t) => <div key={t.id} className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-sm"><span className="truncate">{String(t.ticket_number ?? t.subject ?? "Ticket")}</span><Badge variant="outline" className="text-[10px]">{String(t.status ?? "—")}</Badge></div>)}{warrantyAssets.map((a) => <div key={a.id} className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-sm"><span className="truncate">Asset {String(a.serial_or_asset_code ?? a.id.slice(0, 8))}</span><Badge variant="outline" className="text-[10px]">{String(a.status ?? "—")}</Badge></div>)}</div>}
+                {serviceTickets.length === 0 && warrantyAssets.length === 0 ? <p className="text-xs text-muted-foreground">No service tickets or warranty assets are linked to this client.</p> : <div className="space-y-1.5">{serviceTickets.map((t) => <div key={t.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/50 px-3 py-2 text-sm"><span className="min-w-0 truncate">{String(t.ticket_number ?? t.subject ?? "Ticket")}</span><div className="flex items-center gap-2 shrink-0"><Badge variant="outline" className="text-[10px]">{String(t.status ?? "—")}</Badge>{!['resolved', 'closed', 'rejected'].includes(String(t.status)) && <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => { setResolutionTarget(t); setResolutionText(""); }}>Resolve</Button>}</div></div>)}{warrantyAssets.map((a) => <div key={a.id} className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-sm"><span className="truncate">Asset {String(a.serial_or_asset_code ?? a.id.slice(0, 8))}</span><Badge variant="outline" className="text-[10px]">{String(a.status ?? "—")}</Badge></div>)}</div>}
               </section>
             </div>
           </>
         )}
       </DialogContent>
+      <Dialog open={!!resolutionTarget} onOpenChange={(isOpen) => { if (!isOpen) { setResolutionTarget(null); setResolutionText(""); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Resolve service ticket</DialogTitle><DialogDescription>{resolutionTarget ? `Record the completed work for ${String(resolutionTarget.ticket_number ?? resolutionTarget.subject ?? "this ticket")}.` : ""}</DialogDescription></DialogHeader>
+          <Textarea rows={5} value={resolutionText} onChange={(event) => setResolutionText(event.target.value)} placeholder="Describe diagnosis, work completed, client communication, and any follow-up required." />
+          <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setResolutionTarget(null)}>Cancel</Button><Button onClick={() => void resolveServiceTicket()} disabled={resolving || !resolutionText.trim()}>{resolving ? "Saving…" : "Resolve ticket"}</Button></div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };

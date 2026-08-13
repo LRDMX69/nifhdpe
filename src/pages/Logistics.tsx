@@ -30,6 +30,7 @@ import { humanizeError } from "@/lib/humanizeError";
 import { industrialDb } from "@/lib/industrialDb";
 
 type DeliveryRow = Database["public"]["Tables"]["deliveries"]["Row"] & { projects?: { name: string } | null };
+type DispatchOrder = { id: string; order_number: string; status: string; total_amount: number | null; project_id: string | null; clients?: { name: string } | null };
 type VehicleRow = Database["public"]["Tables"]["vehicles"]["Row"];
 type FuelLogRow = Database["public"]["Tables"]["fuel_logs"]["Row"] & { vehicles?: { plate_number: string } | null };
 
@@ -73,6 +74,8 @@ const Logistics = () => {
   const [cost, setCost] = useState("");
   const [destState, setDestState] = useState("");
   const [siteName, setSiteName] = useState("");
+  const [dispatchDestinationByOrder, setDispatchDestinationByOrder] = useState<Record<string, string>>({});
+  const [dispatchSiteByOrder, setDispatchSiteByOrder] = useState<Record<string, string>>({});
   const [destLat, setDestLat] = useState("");
   const [destLng, setDestLng] = useState("");
 
@@ -83,6 +86,17 @@ const Logistics = () => {
       const { data, error } = await supabase.from("deliveries").select("*, projects(name), clients(name), sales_orders(order_number)").eq("organization_id", orgId).order("delivery_date", { ascending: false });
       if (error) throw error;
       return (data ?? []) as DeliveryRow[];
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: dispatchOrders = [], refetch: refetchDispatchOrders } = useQuery({
+    queryKey: ["dispatch-orders", orgId],
+    queryFn: async () => {
+      if (!orgId) return [] as DispatchOrder[];
+      const { data, error } = await industrialDb.from("sales_orders").select("id, order_number, status, total_amount, project_id, clients(name)").eq("organization_id", orgId).in("status", ["confirmed", "partially_fulfilled"]).order("order_date", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as DispatchOrder[];
     },
     enabled: !!orgId,
   });
@@ -140,6 +154,23 @@ const Logistics = () => {
     setDestState(""); setSiteName("");
     setDestLat(""); setDestLng("");
     setDialogOpen(true);
+  };
+
+  const createDeliveryFromOrder = async (order: DispatchOrder) => {
+    if (!orgId) return;
+    const destination = (dispatchDestinationByOrder[order.id] ?? "").trim();
+    if (!destination) { toast({ title: "Destination required", description: "Enter the delivery destination before creating the dispatch record.", variant: "destructive" }); return; }
+    setSaving(true);
+    try {
+      const { error } = await industrialDb.rpc("create_delivery_from_sales_order", { _org_id: orgId, _order_id: order.id, _destination: destination, _site_name: (dispatchSiteByOrder[order.id] ?? "").trim() || null, _project_id: order.project_id ?? null });
+      if (error) throw error;
+      toast({ title: "Delivery created from sales order", description: `${order.order_number} is now in the delivery queue.` });
+      await Promise.all([refetch(), refetchDispatchOrders()]);
+      setDispatchDestinationByOrder((state) => ({ ...state, [order.id]: "" }));
+      setDispatchSiteByOrder((state) => ({ ...state, [order.id]: "" }));
+    } catch (error) {
+      toast({ title: "Could not create delivery", description: humanizeError(error), variant: "destructive" });
+    } finally { setSaving(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -332,13 +363,15 @@ const Logistics = () => {
 
       <WorkflowBanner
         storageKey="logistics"
-        summary="Schedule deliveries, track fleet movement and log fuel usage. Inventory is auto-deducted and GPS validates on-site delivery."
+        summary="Confirmed orders enter the dispatch queue with their reserved stock and project lineage. Logistics creates the delivery, tracks fleet movement, and uses GPS to validate on-site completion."
         steps={[
           { actor: "Warehouse / Admin", action: "schedule a delivery with project, destination and items." },
           { actor: "Driver", action: "moves the status to In Transit and must be within 300m of the site to mark Delivered." },
           { actor: "Finance", action: "sees fuel cost and delivery cost roll into project P&L automatically." },
         ]}
       />
+
+      {canEdit && dispatchOrders.filter((order) => !(deliveries as Array<DeliveryRow & { sales_order_id?: string | null }>).some((delivery) => delivery.sales_order_id === order.id)).length > 0 && <Card className="border-primary/20 bg-primary/5"><CardContent className="p-4 space-y-3"><div><p className="text-sm font-semibold">Confirmed orders ready for dispatch</p><p className="text-xs text-muted-foreground">Create the delivery record from the confirmed order so reserved stock, project, client, and order lineage remain connected.</p></div><div className="space-y-2">{dispatchOrders.filter((order) => !(deliveries as Array<DeliveryRow & { sales_order_id?: string | null }>).some((delivery) => delivery.sales_order_id === order.id)).map((order) => <div key={order.id} className="flex flex-col gap-2 rounded-lg border bg-background/70 p-3 lg:flex-row lg:items-center lg:justify-between"><div className="min-w-0"><p className="text-sm font-medium">{order.order_number} · {order.clients?.name ?? "Client"}</p><p className="text-xs text-muted-foreground">{order.status.replace("_", " ")} · {formatCurrency(Number(order.total_amount ?? 0))}</p></div><div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto"><Input value={dispatchDestinationByOrder[order.id] ?? ""} onChange={(e) => setDispatchDestinationByOrder((state) => ({ ...state, [order.id]: e.target.value }))} placeholder="Delivery destination" className="min-w-0 sm:w-56" /><Input value={dispatchSiteByOrder[order.id] ?? ""} onChange={(e) => setDispatchSiteByOrder((state) => ({ ...state, [order.id]: e.target.value }))} placeholder="Site name (optional)" className="min-w-0 sm:w-48" /><Button size="sm" onClick={() => createDeliveryFromOrder(order)} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-3.5 w-3.5 mr-1" />}Create delivery</Button></div></div>)}</div></CardContent></Card>}
 
       <Tabs defaultValue="deliveries" className="space-y-4">
         <TabsList className="w-full justify-start overflow-x-auto bg-transparent p-0 gap-1 h-auto scrollbar-hide">
