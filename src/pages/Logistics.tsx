@@ -29,10 +29,11 @@ import { useSearchParams } from "react-router-dom";
 import { humanizeError } from "@/lib/humanizeError";
 import { industrialDb } from "@/lib/industrialDb";
 
-type DeliveryRow = Database["public"]["Tables"]["deliveries"]["Row"] & { projects?: { name: string } | null };
+type DeliveryRow = Database["public"]["Tables"]["deliveries"]["Row"] & { projects?: { name: string } | null; manual_dispatch_reason?: string | null };
 type DispatchOrder = { id: string; order_number: string; status: string; total_amount: number | null; project_id: string | null; clients?: { name: string } | null };
-type VehicleRow = Database["public"]["Tables"]["vehicles"]["Row"];
-type FuelLogRow = Database["public"]["Tables"]["fuel_logs"]["Row"] & { vehicles?: { plate_number: string } | null };
+type VehicleRow = Database["public"]["Tables"]["vehicles"]["Row"] & { name?: string | null };
+type FuelLogRow = Database["public"]["Tables"]["fuel_logs"]["Row"] & { vehicles?: { plate_number: string; name?: string | null } | null };
+type DeliveryItemRow = { id: string; delivery_id: string; quantity: number; lot_batch?: string | null; inventory?: { item_name: string } | null; product_specifications?: { product_code: string; product_name: string } | null; sales_order_items?: { description: string } | null };
 
 const statusBadge: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   pending: "outline", in_transit: "secondary", delivered: "default", cancelled: "destructive",
@@ -52,6 +53,22 @@ const Logistics = () => {
   const [editingDelivery, setEditingDelivery] = useState<Database["public"]["Tables"]["deliveries"]["Row"] | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Database["public"]["Tables"]["deliveries"]["Row"] | null>(null);
   const [saving, setSaving] = useState(false);
+  const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<VehicleRow | null>(null);
+  const [vehicleDeleteTarget, setVehicleDeleteTarget] = useState<VehicleRow | null>(null);
+  const [fuelDialogOpen, setFuelDialogOpen] = useState(false);
+  const [vehicleName, setVehicleName] = useState("");
+  const [vehiclePlate, setVehiclePlate] = useState("");
+  const [vehicleMake, setVehicleMake] = useState("");
+  const [vehicleModel, setVehicleModel] = useState("");
+  const [vehicleYear, setVehicleYear] = useState("");
+  const [vehicleStatus, setVehicleStatus] = useState("active");
+  const [fuelVehicleId, setFuelVehicleId] = useState("");
+  const [fuelDate, setFuelDate] = useState(new Date().toISOString().slice(0, 10));
+  const [fuelLiters, setFuelLiters] = useState("");
+  const [fuelCost, setFuelCost] = useState("");
+  const [fuelOdometer, setFuelOdometer] = useState("");
+  const [fuelNotes, setFuelNotes] = useState("");
   const listRef = useGsapStagger(".gsap-card", 0.06);
 
   // Deep-link: /logistics?new=waybill opens the Waybill dialog
@@ -78,6 +95,7 @@ const Logistics = () => {
   const [dispatchSiteByOrder, setDispatchSiteByOrder] = useState<Record<string, string>>({});
   const [destLat, setDestLat] = useState("");
   const [destLng, setDestLng] = useState("");
+  const [manualDispatchReason, setManualDispatchReason] = useState("");
 
   const { data: deliveries = [], isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["deliveries", orgId],
@@ -111,7 +129,18 @@ const Logistics = () => {
     enabled: !!orgId,
   });
 
-  const { data: vehicles = [] } = useQuery({
+  const { data: deliveryItems = [] } = useQuery({
+    queryKey: ["delivery-items", orgId],
+    queryFn: async () => {
+      if (!orgId) return [] as DeliveryItemRow[];
+      const { data, error } = await industrialDb.from("delivery_items").select("id, delivery_id, quantity, lot_batch, inventory(item_name), product_specifications(product_code, product_name), sales_order_items(description), deliveries!inner(organization_id)").eq("deliveries.organization_id", orgId);
+      if (error) throw error;
+      return (data ?? []) as DeliveryItemRow[];
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: vehicles = [], refetch: refetchVehicles } = useQuery({
     queryKey: ["vehicles", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -121,11 +150,11 @@ const Logistics = () => {
     enabled: !!orgId,
   });
 
-  const { data: fuelLogs = [] } = useQuery({
+  const { data: fuelLogs = [], refetch: refetchFuelLogs } = useQuery({
     queryKey: ["fuel-logs", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("fuel_logs").select("*, vehicles(plate_number)").eq("organization_id", orgId).order("log_date", { ascending: false });
+      const { data } = await supabase.from("fuel_logs").select("*, vehicles(plate_number, name)").eq("organization_id", orgId).order("log_date", { ascending: false });
       return (data ?? []) as unknown as FuelLogRow[];
     },
     enabled: !!orgId,
@@ -144,6 +173,7 @@ const Logistics = () => {
     setSiteName(d.site_name ?? "");
     setDestLat(d.destination_lat?.toString() ?? "");
     setDestLng(d.destination_lng?.toString() ?? "");
+    setManualDispatchReason((d as DeliveryRow).manual_dispatch_reason ?? "");
     setDialogOpen(true);
   };
 
@@ -152,9 +182,15 @@ const Logistics = () => {
     setProjectId(""); setDestination(""); setVehicle(""); setDriver(""); setDistance(""); setCost("");
     setDeliveryDate(new Date().toISOString().split("T")[0]);
     setDestState(""); setSiteName("");
-    setDestLat(""); setDestLng("");
+    setDestLat(""); setDestLng(""); setManualDispatchReason("");
     setDialogOpen(true);
   };
+  const resetVehicleForm = () => { setEditingVehicle(null); setVehicleName(""); setVehiclePlate(""); setVehicleMake(""); setVehicleModel(""); setVehicleYear(""); setVehicleStatus("active"); };
+  const openVehicleEditor = (vehicleRecord?: VehicleRow) => { if (vehicleRecord) { setEditingVehicle(vehicleRecord); setVehicleName(vehicleRecord.name ?? ""); setVehiclePlate(vehicleRecord.plate_number ?? ""); setVehicleMake(vehicleRecord.make ?? ""); setVehicleModel(vehicleRecord.model ?? ""); setVehicleYear(vehicleRecord.year?.toString() ?? ""); setVehicleStatus(vehicleRecord.status ?? "active"); } else resetVehicleForm(); setVehicleDialogOpen(true); };
+  const saveVehicle = async () => { if (!orgId || !vehicleName.trim() || !vehiclePlate.trim()) return; setSaving(true); try { const payload = { organization_id: orgId, name: vehicleName.trim(), plate_number: vehiclePlate.trim().toUpperCase(), make: vehicleMake.trim() || null, model: vehicleModel.trim() || null, year: vehicleYear ? Number(vehicleYear) : null, status: vehicleStatus }; const { error } = editingVehicle ? await industrialDb.from("vehicles").update(payload).eq("id", editingVehicle.id).eq("organization_id", orgId) : await industrialDb.from("vehicles").insert(payload); if (error) throw error; toast({ title: editingVehicle ? "Vehicle updated" : "Vehicle added" }); setVehicleDialogOpen(false); resetVehicleForm(); await refetchVehicles(); } catch (error) { toast({ title: "Could not save vehicle", description: humanizeError(error), variant: "destructive" }); } finally { setSaving(false); } };
+  const deleteVehicle = async () => { if (!orgId || !vehicleDeleteTarget) return; setSaving(true); try { const { error } = await industrialDb.from("vehicles").delete().eq("id", vehicleDeleteTarget.id).eq("organization_id", orgId); if (error) throw error; toast({ title: "Vehicle removed" }); setVehicleDeleteTarget(null); await refetchVehicles(); } catch (error) { toast({ title: "Could not remove vehicle", description: humanizeError(error), variant: "destructive" }); } finally { setSaving(false); } };
+  const openFuelLog = () => { setFuelVehicleId(""); setFuelDate(new Date().toISOString().slice(0, 10)); setFuelLiters(""); setFuelCost(""); setFuelOdometer(""); setFuelNotes(""); setFuelDialogOpen(true); };
+  const saveFuelLog = async () => { if (!orgId || !user || !fuelVehicleId || Number(fuelLiters) <= 0 || Number(fuelCost) < 0) return; setSaving(true); try { const { error } = await industrialDb.from("fuel_logs").insert({ organization_id: orgId, vehicle_id: fuelVehicleId, log_date: fuelDate, liters: Number(fuelLiters), cost: Number(fuelCost), odometer: fuelOdometer ? Number(fuelOdometer) : null, notes: fuelNotes.trim() || null, logged_by: user.id }); if (error) throw error; toast({ title: "Fuel log recorded" }); setFuelDialogOpen(false); await Promise.all([refetchFuelLogs(), refetchVehicles()]); } catch (error) { toast({ title: "Could not record fuel log", description: humanizeError(error), variant: "destructive" }); } finally { setSaving(false); } };
 
   const createDeliveryFromOrder = async (order: DispatchOrder) => {
     if (!orgId) return;
@@ -176,6 +212,7 @@ const Logistics = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!orgId || !user || !destination.trim()) return;
+    if (!editingDelivery && !manualDispatchReason.trim()) { toast({ title: "Exception reason required", description: "Use a confirmed sales order for standard dispatch. Manual scheduling requires an operational exception reason.", variant: "destructive" }); return; }
     if (!destLat || !destLng) {
       toast({ title: "Coordinates required", description: "Enter destination latitude and longitude for GPS delivery verification.", variant: "destructive" });
       return;
@@ -197,7 +234,8 @@ const Logistics = () => {
         site_name: siteName || null,
         destination_lat: destLat ? parseFloat(destLat) : null,
         destination_lng: destLng ? parseFloat(destLng) : null,
-      };
+        manual_dispatch_reason: manualDispatchReason.trim() || null,
+      } as Database["public"]["Tables"]["deliveries"]["Insert"] & { manual_dispatch_reason?: string | null };
       if (editingDelivery) {
         const { error } = await supabase.from("deliveries").update(payload as Database["public"]["Tables"]["deliveries"]["Update"]).eq("id", editingDelivery.id);
         if (error) throw error;
@@ -341,7 +379,7 @@ const Logistics = () => {
         description="Delivery scheduling, vehicle tracking, and fuel logs"
         executiveSummary={`${deliveries.filter((d: any) => d.status === "in_transit").length} in transit · ${deliveries.filter((d: any) => d.status === "delivered").length} delivered · ${vehicles.length} vehicles`}
         lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
-        onRefresh={() => refetch()}
+        onRefresh={() => { void Promise.all([refetch(), refetchDispatchOrders(), refetchVehicles(), refetchFuelLogs()]); }}
       >
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => exportCsv(`deliveries-${new Date().toISOString().slice(0, 10)}`, [
@@ -440,6 +478,8 @@ const Logistics = () => {
                         <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {d.delivery_date}</span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">{d.vehicle ?? "—"} · {d.driver ?? "—"} · {d.distance_km ?? 0}km{d.site_name ? ` · ${d.site_name}` : ""}</p>
+                      {(d as DeliveryRow).manual_dispatch_reason && <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">Manual dispatch exception: {(d as DeliveryRow).manual_dispatch_reason}</p>}
+                      {deliveryItems.filter((item) => item.delivery_id === d.id).length > 0 && <details className="mt-2 text-xs"><summary className="cursor-pointer text-primary hover:underline">View dispatched items ({deliveryItems.filter((item) => item.delivery_id === d.id).length})</summary><div className="mt-1 space-y-1 rounded border bg-muted/30 p-2">{deliveryItems.filter((item) => item.delivery_id === d.id).map((item) => <div key={item.id} className="flex flex-wrap justify-between gap-x-3"><span>{item.product_specifications ? `${item.product_specifications.product_code} · ${item.product_specifications.product_name}` : item.inventory?.item_name ?? item.sales_order_items?.description ?? "Dispatch item"}{item.lot_batch ? ` · Lot ${item.lot_batch}` : ""}</span><span className="font-medium">{Number(item.quantity).toLocaleString()}</span></div>)}</div></details>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -487,7 +527,8 @@ const Logistics = () => {
           </AsyncBoundary>
         </TabsContent>
 
-        <TabsContent value="vehicles">
+        <TabsContent value="vehicles" className="space-y-4">
+          <div className="flex justify-end">{canEdit && <Button size="sm" onClick={() => openVehicleEditor()}><Plus className="h-4 w-4 mr-1" />Add vehicle</Button>}</div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {vehicles.length === 0 ? (
               <div className="col-span-full">
@@ -506,8 +547,8 @@ const Logistics = () => {
                       <div className="flex items-center gap-2">
                         <Car className="h-5 w-5 text-primary" />
                         <div>
-                          <h3 className="font-bold text-sm">{v.plate_number}</h3>
-                          <p className="text-xs text-muted-foreground">{v.make} {v.model} ({v.year})</p>
+                          <h3 className="font-bold text-sm">{v.name || v.plate_number}</h3>
+                          <p className="text-xs text-muted-foreground">{v.plate_number} · {v.make} {v.model} ({v.year ?? "—"})</p>
                         </div>
                       </div>
                       <Badge variant={v.status === 'active' ? 'default' : 'outline'}>{v.status}</Badge>
@@ -516,6 +557,7 @@ const Logistics = () => {
                       <div>Current KM: <span className="text-foreground">{(v as Record<string, unknown>).current_km != null ? Number((v as Record<string, unknown>).current_km).toLocaleString() : "—"}</span></div>
                       <div>Last Service: <span className="text-foreground">{(v as Record<string, unknown>).last_maintenance_date as string || "—"}</span></div>
                     </div>
+                    {canEdit && <div className="flex justify-end gap-2"><Button size="sm" variant="outline" onClick={() => openVehicleEditor(v)}><Pencil className="h-3.5 w-3.5 mr-1" />Edit</Button>{canDelete && <Button size="sm" variant="outline" className="text-destructive" onClick={() => setVehicleDeleteTarget(v)}><Trash2 className="h-3.5 w-3.5 mr-1" />Remove</Button>}</div>}
                   </CardContent>
                 </Card>
               ))
@@ -523,7 +565,8 @@ const Logistics = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="fuel">
+        <TabsContent value="fuel" className="space-y-4">
+          <div className="flex justify-end">{canEdit && <Button size="sm" onClick={openFuelLog}><Plus className="h-4 w-4 mr-1" />Record fuel</Button>}</div>
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -539,7 +582,7 @@ const Logistics = () => {
                     fuelLogs.map((log: FuelLogRow) => (
                       <TableRow key={log.id}>
                         <TableCell className="text-xs">{log.log_date}</TableCell>
-                        <TableCell className="text-xs font-bold">{log.vehicles?.plate_number}</TableCell>
+                        <TableCell className="text-xs font-bold">{log.vehicles?.name ? `${log.vehicles.name} · ${log.vehicles.plate_number}` : log.vehicles?.plate_number}</TableCell>
                         <TableCell className="text-xs">{log.liters} L</TableCell>
                         <TableCell className="text-right text-xs font-bold">{formatCurrency(log.cost)}</TableCell>
                         <TableCell className="text-right text-xs">{log.odometer?.toLocaleString()} km</TableCell>
@@ -568,11 +611,12 @@ const Logistics = () => {
               <div className="space-y-2"><Label>Site Name</Label><Input placeholder="Site / Company name" value={siteName} onChange={(e) => setSiteName(e.target.value)} /></div>
               <div className="space-y-2"><Label>Latitude *</Label><Input type="number" step="any" placeholder="6.5244" value={destLat} onChange={(e) => setDestLat(e.target.value)} required /></div>
               <div className="space-y-2"><Label>Longitude *</Label><Input type="number" step="any" placeholder="3.3792" value={destLng} onChange={(e) => setDestLng(e.target.value)} required /></div>
-              <div className="space-y-2"><Label>Vehicle</Label><Input placeholder="Vehicle & plate" value={vehicle} onChange={(e) => setVehicle(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Fleet vehicle</Label><Select value={vehicle || "unassigned"} onValueChange={(value) => setVehicle(value === "unassigned" ? "" : value)}><SelectTrigger><SelectValue placeholder="Select fleet vehicle" /></SelectTrigger><SelectContent><SelectItem value="unassigned">No vehicle assigned</SelectItem>{vehicles.filter((vehicleRecord) => vehicleRecord.status === "active").map((vehicleRecord) => { const label = vehicleRecord.name ? `${vehicleRecord.name} · ${vehicleRecord.plate_number}` : vehicleRecord.plate_number; return <SelectItem key={vehicleRecord.id} value={label}>{label}</SelectItem>; })}</SelectContent></Select></div>
               <div className="space-y-2"><Label>Driver</Label><Input placeholder="Driver name" value={driver} onChange={(e) => setDriver(e.target.value)} /></div>
               <div className="space-y-2"><Label>Delivery Date</Label><Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} /></div>
               <div className="space-y-2"><Label>Distance (km)</Label><Input type="number" placeholder="0" value={distance} onChange={(e) => setDistance(e.target.value)} /></div>
               <div className="space-y-2"><Label>Cost (₦)</Label><Input type="number" placeholder="0" value={cost} onChange={(e) => setCost(e.target.value)} /></div>
+              <div className="space-y-2 sm:col-span-2"><Label>Manual dispatch exception reason {!editingDelivery && "*"}</Label><Input value={manualDispatchReason} onChange={(e) => setManualDispatchReason(e.target.value)} placeholder="Why cannot this delivery be created from a confirmed sales order?" required={!editingDelivery} /><p className="text-xs text-muted-foreground">For standard dispatch, create the delivery from the confirmed-order queue above so item reservations and order lineage remain intact.</p></div>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" type="button" onClick={() => setDialogOpen(false)}>Cancel</Button>
@@ -581,6 +625,26 @@ const Logistics = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={vehicleDialogOpen} onOpenChange={(isOpen) => { setVehicleDialogOpen(isOpen); if (!isOpen) resetVehicleForm(); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{editingVehicle ? "Edit vehicle" : "Add vehicle"}</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Vehicle name *</Label><Input value={vehicleName} onChange={(event) => setVehicleName(event.target.value)} placeholder="e.g. Delivery Truck 01" /></div><div className="space-y-2"><Label>Plate number *</Label><Input value={vehiclePlate} onChange={(event) => setVehiclePlate(event.target.value)} placeholder="ABC-123-XY" /></div><div className="space-y-2"><Label>Make</Label><Input value={vehicleMake} onChange={(event) => setVehicleMake(event.target.value)} placeholder="e.g. Isuzu" /></div><div className="space-y-2"><Label>Model</Label><Input value={vehicleModel} onChange={(event) => setVehicleModel(event.target.value)} placeholder="e.g. NQR" /></div><div className="space-y-2"><Label>Year</Label><Input type="number" min="1900" max="2100" value={vehicleYear} onChange={(event) => setVehicleYear(event.target.value)} placeholder="2024" /></div><div className="space-y-2"><Label>Status</Label><Select value={vehicleStatus} onValueChange={setVehicleStatus}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="active">Active</SelectItem><SelectItem value="maintenance">Maintenance</SelectItem><SelectItem value="inactive">Inactive</SelectItem><SelectItem value="retired">Retired</SelectItem></SelectContent></Select></div></div>
+          <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setVehicleDialogOpen(false)}>Cancel</Button><Button onClick={() => void saveVehicle()} disabled={saving || !vehicleName.trim() || !vehiclePlate.trim()}>{saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}{editingVehicle ? "Save vehicle" : "Add vehicle"}</Button></div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={fuelDialogOpen} onOpenChange={setFuelDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Record fuel issue</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div className="space-y-2 sm:col-span-2"><Label>Vehicle *</Label><Select value={fuelVehicleId} onValueChange={setFuelVehicleId}><SelectTrigger><SelectValue placeholder="Select fleet vehicle" /></SelectTrigger><SelectContent>{vehicles.filter((vehicleRecord) => vehicleRecord.status === "active").map((vehicleRecord) => <SelectItem key={vehicleRecord.id} value={vehicleRecord.id}>{vehicleRecord.name ? `${vehicleRecord.name} · ${vehicleRecord.plate_number}` : vehicleRecord.plate_number}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Date *</Label><Input type="date" value={fuelDate} onChange={(event) => setFuelDate(event.target.value)} /></div><div className="space-y-2"><Label>Litres *</Label><Input type="number" min="0.01" step="0.01" value={fuelLiters} onChange={(event) => setFuelLiters(event.target.value)} placeholder="0.00" /></div><div className="space-y-2"><Label>Total cost (₦) *</Label><Input type="number" min="0" step="0.01" value={fuelCost} onChange={(event) => setFuelCost(event.target.value)} placeholder="0.00" /></div><div className="space-y-2"><Label>Odometer</Label><Input type="number" min="0" step="1" value={fuelOdometer} onChange={(event) => setFuelOdometer(event.target.value)} placeholder="Optional" /></div><div className="space-y-2 sm:col-span-2"><Label>Notes</Label><Input value={fuelNotes} onChange={(event) => setFuelNotes(event.target.value)} placeholder="Supplier, trip reference, or supporting note" /></div></div>
+          <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setFuelDialogOpen(false)}>Cancel</Button><Button onClick={() => void saveFuelLog()} disabled={saving || !fuelVehicleId || Number(fuelLiters) <= 0 || !fuelCost}>{saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Record fuel</Button></div>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!vehicleDeleteTarget} onOpenChange={(isOpen) => !isOpen && setVehicleDeleteTarget(null)}>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Remove {vehicleDeleteTarget?.name || vehicleDeleteTarget?.plate_number}?</AlertDialogTitle><AlertDialogDescription>This removes the fleet master record. A vehicle with dependent fuel logs may be protected by the database.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => void deleteVehicle()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Remove vehicle</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>

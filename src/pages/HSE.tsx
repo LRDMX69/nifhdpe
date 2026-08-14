@@ -28,6 +28,7 @@ type TbtRow = Database["public"]["Tables"]["toolbox_talks"]["Row"];
 const HSE = () => {
   const { user, activeRole, memberships } = useAuth();
   const orgId = memberships[0]?.organization_id;
+  const canReportIncident = activeRole === "administrator" || activeRole === "hr" || activeRole === "engineer";
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -135,7 +136,7 @@ const HSE = () => {
   const { data: tbts = [], isLoading: tbtsLoading, error: tbtsError, refetch: refetchTbts } = useQuery({
     queryKey: ["toolbox-talks", orgId],
     queryFn: async () => {
-      const { data } = await supabase.from("toolbox_talks").select("*").order("conducted_at", { ascending: false });
+      const { data } = await supabase.from("toolbox_talks").select("*").eq("organization_id", orgId).order("conducted_at", { ascending: false });
       return (data ?? []) as TbtRow[];
     },
     enabled: !!orgId,
@@ -166,9 +167,9 @@ const HSE = () => {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Incident Register</CardTitle>
               <Dialog open={incidentOpen} onOpenChange={setIncidentOpen}>
-                <DialogTrigger asChild>
+                {canReportIncident && <DialogTrigger asChild>
                   <Button size="sm"><Plus className="h-4 w-4 mr-1" />Report Incident</Button>
-                </DialogTrigger>
+                </DialogTrigger>}
                 <DialogContent>
                   <DialogHeader><DialogTitle>Report HSE Incident</DialogTitle></DialogHeader>
                   <div className="space-y-4 py-4">

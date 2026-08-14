@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -24,6 +24,9 @@ type VendorRow = Database["public"]["Tables"]["vendors"]["Row"];
 type PoRow = Database["public"]["Tables"]["purchase_orders"]["Row"] & { vendors?: { name: string } | null };
 type MrRow = Database["public"]["Tables"]["material_requisitions"]["Row"];
 type PoItemRow = Database["public"]["Tables"]["purchase_order_items"]["Row"];
+type DraftPoItem = { id: string; itemName: string; description: string; quantity: string; unit: string; unitPrice: string };
+type DraftMrItem = { id: string; itemName: string; quantity: string; unit: string; inventoryId: string };
+type GrnDraftItem = { id: string; itemName: string; remaining: number; accepted: string; rejected: string; lotBatch: string };
 
 const Procurement = () => {
   const { user, activeRole, memberships } = useAuth();
@@ -43,14 +46,21 @@ const Procurement = () => {
   
   // PO state
   const [poVendorId, setPoVendorId] = useState("");
-  const [poAmount, setPoAmount] = useState("");
+  const [poItems, setPoItems] = useState<DraftPoItem[]>([{ id: "po-item-1", itemName: "", description: "", quantity: "1", unit: "", unitPrice: "0" }]);
   
   // GRN state
   const [grnPoId, setGrnPoId] = useState("");
+  const [grnLineItems, setGrnLineItems] = useState<GrnDraftItem[]>([]);
   
   // MR state
   const [mrProjectId, setMrProjectId] = useState("");
   const [mrRequiredDate, setMrRequiredDate] = useState("");
+  const [mrItems, setMrItems] = useState<DraftMrItem[]>([{ id: "mr-item-1", itemName: "", quantity: "1", unit: "", inventoryId: "" }]);
+
+  const poTotal = poItems.reduce((sum, item) => sum + Math.max(0, Number(item.quantity) || 0) * Math.max(0, Number(item.unitPrice) || 0), 0);
+  const updatePoItem = (id: string, field: keyof Omit<DraftPoItem, "id">, value: string) => setPoItems((current) => current.map((item) => item.id === id ? { ...item, [field]: value } : item));
+  const updateMrItem = (id: string, field: keyof Omit<DraftMrItem, "id">, value: string) => setMrItems((current) => current.map((item) => item.id === id ? { ...item, [field]: value } : item));
+  const updateGrnLine = (id: string, field: keyof Omit<GrnDraftItem, "id" | "remaining" | "itemName">, value: string) => setGrnLineItems((current) => current.map((item) => item.id === id ? { ...item, [field]: value } : item));
 
   const { data: vendors = [], isLoading: vendorsLoading, error: vendorsError, refetch: refetchVendors } = useQuery({
     queryKey: ["vendors", orgId],
@@ -84,6 +94,24 @@ const Procurement = () => {
     enabled: !!orgId,
   });
 
+  const { data: grnPoItems = [], isLoading: grnItemsLoading } = useQuery({
+    queryKey: ["grn-po-items", orgId, grnPoId],
+    queryFn: async () => {
+      if (!grnPoId) return [] as PoItemRow[];
+      const { data, error } = await supabase.from("purchase_order_items").select("*").eq("purchase_order_id", grnPoId).order("created_at");
+      if (error) throw error;
+      return (data ?? []) as PoItemRow[];
+    },
+    enabled: !!orgId && !!grnPoId && grnOpen,
+  });
+
+  useEffect(() => {
+    setGrnLineItems(grnPoItems.map((item) => {
+      const remaining = Math.max(0, Number(item.quantity) - Number(item.received_quantity ?? 0));
+      return { id: item.id, itemName: item.item_name, remaining, accepted: String(remaining), rejected: "0", lotBatch: "" };
+    }));
+  }, [grnPoItems]);
+
   const createVendor = useMutation({
     mutationFn: async () => {
       if (!orgId) throw new Error("No organization");
@@ -101,25 +129,32 @@ const Procurement = () => {
 
   const createPo = useMutation({
     mutationFn: async () => {
-      if (!orgId) throw new Error("No organization");
-      const currentUser = user ?? (await supabase.auth.getUser()).data.user;
-      if (!currentUser) throw new Error("Not logged in");
-      const { error } = await supabase.from("purchase_orders").insert({
-        organization_id: orgId,
-        vendor_id: poVendorId,
-        total_amount: parseFloat(poAmount) || 0,
-        currency: "NGN",
-        status: "draft",
-        document_number: `PO-${Date.now().toString().slice(-6)}`,
-        created_by: currentUser.id,
+      if (!orgId || !poVendorId) throw new Error("Vendor is required");
+      const items = poItems.map((item) => ({
+        item_name: item.itemName.trim(),
+        description: item.description.trim() || null,
+        quantity: Number(item.quantity),
+        unit: item.unit.trim() || null,
+        unit_price: Number(item.unitPrice),
+      }));
+      if (items.some((item) => !item.item_name || !Number.isFinite(item.quantity) || item.quantity <= 0 || !Number.isFinite(item.unit_price) || item.unit_price < 0)) {
+        throw new Error("Every purchase-order line needs an item name, positive quantity, and non-negative unit price.");
+      }
+      const { error } = await industrialDb.rpc("create_purchase_order_with_items", {
+        _org_id: orgId,
+        _vendor_id: poVendorId,
+        _project_id: null,
+        _delivery_date: null,
+        _notes: null,
+        _items: items,
       });
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "Purchase Order created" });
+      toast({ title: "Purchase Order created", description: `${poItems.length} line item${poItems.length === 1 ? "" : "s"} added.` });
       setPoOpen(false);
       setPoVendorId("");
-      setPoAmount("");
+      setPoItems([{ id: `po-item-${Date.now()}`, itemName: "", description: "", quantity: "1", unit: "", unitPrice: "0" }]);
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
     },
     onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
@@ -128,23 +163,30 @@ const Procurement = () => {
   const createMr = useMutation({
     mutationFn: async () => {
       if (!orgId) throw new Error("No organization");
-      const currentUser = user ?? (await supabase.auth.getUser()).data.user;
-      if (!currentUser) throw new Error("Not logged in");
-      const { error } = await supabase.from("material_requisitions").insert({
-        organization_id: orgId,
-        project_id: mrProjectId || null,
-        required_date: mrRequiredDate || null,
-        status: "draft",
-        document_number: `MR-${Date.now().toString().slice(-6)}`,
-        requested_by: currentUser.id,
+      const items = mrItems.map((item) => ({
+        inventory_id: item.inventoryId || null,
+        item_name: item.itemName.trim(),
+        quantity: Number(item.quantity),
+        unit: item.unit.trim() || null,
+      }));
+      if (items.some((item) => !item.item_name || !Number.isFinite(item.quantity) || item.quantity <= 0)) {
+        throw new Error("Every requisition line needs an item name and positive quantity.");
+      }
+      const { error } = await industrialDb.rpc("create_material_requisition_with_items", {
+        _org_id: orgId,
+        _project_id: mrProjectId || null,
+        _required_date: mrRequiredDate || null,
+        _notes: null,
+        _items: items,
       });
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "Material Requisition created" });
+      toast({ title: "Material Requisition created", description: `${mrItems.length} requested line item${mrItems.length === 1 ? "" : "s"} added.` });
       setMrOpen(false);
       setMrProjectId("");
       setMrRequiredDate("");
+      setMrItems([{ id: `mr-item-${Date.now()}`, itemName: "", quantity: "1", unit: "", inventoryId: "" }]);
       queryClient.invalidateQueries({ queryKey: ["material-requisitions"] });
     },
     onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
@@ -153,16 +195,20 @@ const Procurement = () => {
   const receiveGoods = useMutation({
     mutationFn: async (poId: string) => {
       if (!orgId || !activeRole) throw new Error("Unauthorized");
-      const { data: items, error: itemsErr } = await supabase.from("purchase_order_items").select("*").eq("purchase_order_id", poId);
-      if (itemsErr) throw itemsErr;
-      if (!items?.length) throw new Error("This purchase order has no line items to receive.");
-      const receipts = (items as PoItemRow[]).map((item) => ({
-        purchase_order_item_id: item.id,
-        accepted_quantity: Math.max(0, Number(item.quantity) - Number(item.received_quantity ?? 0)),
-        rejected_quantity: 0,
-        lot_batch: null,
-        product_specification_id: null,
-      })).filter((item) => item.accepted_quantity > 0);
+      if (!grnLineItems.length) throw new Error("This purchase order has no outstanding line items to receive.");
+      const receipts = grnLineItems.map((item) => {
+        const accepted = Math.max(0, Number(item.accepted) || 0);
+        const rejected = Math.max(0, Number(item.rejected) || 0);
+        if (accepted + rejected > item.remaining) throw new Error(`${item.itemName}: accepted plus rejected quantity exceeds the outstanding quantity.`);
+        return {
+          purchase_order_item_id: item.id,
+          accepted_quantity: accepted,
+          rejected_quantity: rejected,
+          lot_batch: item.lotBatch.trim() || null,
+          product_specification_id: null,
+        };
+      }).filter((item) => item.accepted_quantity > 0 || item.rejected_quantity > 0);
+      if (!receipts.length) throw new Error("Enter an accepted or rejected quantity for at least one line.");
       const { error } = await industrialDb.rpc("receive_purchase_order_partial", { _org_id: orgId, _po_id: poId, _receipts: receipts });
       if (error) throw error;
     },
@@ -171,6 +217,8 @@ const Procurement = () => {
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       queryClient.invalidateQueries({ queryKey: ["operations"] });
+      setGrnPoId("");
+      setGrnLineItems([]);
     },
     onError: (err: Error) => toast({ title: "Error receiving goods", description: humanizeError(err), variant: "destructive" }),
   });
@@ -319,11 +367,15 @@ const Procurement = () => {
                           {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
                         </select>
                       </div>
-                      <div className="space-y-2">
-                        <Label>Total Amount (₦)</Label>
-                        <Input type="number" value={poAmount} onChange={e => setPoAmount(e.target.value)} placeholder="0" />
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-2"><Label>Order lines *</Label><Button type="button" size="sm" variant="outline" onClick={() => setPoItems((current) => [...current, { id: `po-item-${Date.now()}`, itemName: "", description: "", quantity: "1", unit: "", unitPrice: "0" }])}><Plus className="h-3.5 w-3.5 mr-1" />Add line</Button></div>
+                        {poItems.map((item, index) => <div key={item.id} className="rounded-lg border p-3 space-y-2">
+                          <div className="flex items-center justify-between gap-2"><p className="text-xs font-semibold">Line {index + 1}</p>{poItems.length > 1 && <Button type="button" size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => setPoItems((current) => current.filter((candidate) => candidate.id !== item.id))}>Remove</Button>}</div>
+                          <div className="grid gap-2 sm:grid-cols-2"><Input value={item.itemName} onChange={(e) => updatePoItem(item.id, "itemName", e.target.value)} placeholder="Item name *" /><Input value={item.description} onChange={(e) => updatePoItem(item.id, "description", e.target.value)} placeholder="Description / specification" /><Input type="number" min="0.01" step="0.01" value={item.quantity} onChange={(e) => updatePoItem(item.id, "quantity", e.target.value)} placeholder="Quantity *" /><Input value={item.unit} onChange={(e) => updatePoItem(item.id, "unit", e.target.value)} placeholder="Unit (m, pcs, kg)" /><Input type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updatePoItem(item.id, "unitPrice", e.target.value)} placeholder="Unit price (₦) *" /><p className="flex items-center justify-end text-sm font-semibold sm:col-span-1">Line total: ₦{(Math.max(0, Number(item.quantity) || 0) * Math.max(0, Number(item.unitPrice) || 0)).toLocaleString()}</p></div>
+                        </div>)}
+                        <div className="flex justify-end border-t pt-3 text-sm font-semibold">PO total: ₦{poTotal.toLocaleString()}</div>
                       </div>
-                      <Button className="w-full" onClick={() => createPo.mutate()} disabled={!poVendorId || createPo.isPending}>
+                      <Button className="w-full" onClick={() => createPo.mutate()} disabled={!poVendorId || createPo.isPending || poItems.length === 0}>
                         {createPo.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                         Create PO
                       </Button>
@@ -453,7 +505,8 @@ const Procurement = () => {
                           {pos.filter((p: PoRow) => p.status !== 'received').map((p: PoRow) => <option key={p.id} value={p.id}>{p.document_number} - {p.vendors?.name}</option>)}
                         </select>
                       </div>
-                      <Button className="w-full" onClick={() => { receiveGoods.mutate(grnPoId); setGrnOpen(false); }} disabled={!grnPoId || receiveGoods.isPending}>
+                      {grnPoId && (grnItemsLoading ? <p className="text-sm text-muted-foreground">Loading outstanding PO lines…</p> : grnLineItems.length === 0 ? <p className="text-sm text-muted-foreground rounded-lg border border-dashed p-3">No outstanding line items remain on this purchase order.</p> : <div className="space-y-3"><p className="text-xs text-muted-foreground">Enter the accepted and rejected quantities for this receipt. The combined quantity cannot exceed each line’s outstanding balance.</p>{grnLineItems.map((item) => <div key={item.id} className="rounded-lg border p-3 space-y-2"><p className="text-sm font-medium">{item.itemName} <span className="text-xs text-muted-foreground">· {item.remaining.toLocaleString()} outstanding</span></p><div className="grid gap-2 sm:grid-cols-3"><Input type="number" min="0" max={item.remaining} step="0.01" value={item.accepted} onChange={(e) => updateGrnLine(item.id, "accepted", e.target.value)} placeholder="Accepted" /><Input type="number" min="0" max={item.remaining} step="0.01" value={item.rejected} onChange={(e) => updateGrnLine(item.id, "rejected", e.target.value)} placeholder="Rejected" /><Input value={item.lotBatch} onChange={(e) => updateGrnLine(item.id, "lotBatch", e.target.value)} placeholder="Lot / batch (optional)" /></div></div>)}</div>)}
+                      <Button className="w-full" onClick={() => { receiveGoods.mutate(grnPoId); setGrnOpen(false); }} disabled={!grnPoId || !grnLineItems.length || receiveGoods.isPending}>
                         {receiveGoods.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                         Receive GRN
                       </Button>
@@ -484,12 +537,20 @@ const Procurement = () => {
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader><DialogTitle>New Material Requisition</DialogTitle></DialogHeader>
-                  <div className="space-y-4 py-4">
+                                      <div className="space-y-4 py-4">
                     <div className="space-y-2">
                       <Label>Required Date</Label>
                       <Input type="date" value={mrRequiredDate} onChange={e => setMrRequiredDate(e.target.value)} />
                     </div>
-                    <Button className="w-full" onClick={() => createMr.mutate()} disabled={createMr.isPending}>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2"><Label>Requested materials *</Label><Button type="button" size="sm" variant="outline" onClick={() => setMrItems((current) => [...current, { id: `mr-item-${Date.now()}`, itemName: "", quantity: "1", unit: "", inventoryId: "" }])}><Plus className="h-3.5 w-3.5 mr-1" />Add line</Button></div>
+                      {mrItems.map((item, index) => <div key={item.id} className="rounded-lg border p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2"><p className="text-xs font-semibold">Line {index + 1}</p>{mrItems.length > 1 && <Button type="button" size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => setMrItems((current) => current.filter((candidate) => candidate.id !== item.id))}>Remove</Button>}</div>
+                        <div className="grid gap-2 sm:grid-cols-3"><Input className="sm:col-span-2" value={item.itemName} onChange={(e) => updateMrItem(item.id, "itemName", e.target.value)} placeholder="Material / item name *" /><Input type="number" min="0.01" step="0.01" value={item.quantity} onChange={(e) => updateMrItem(item.id, "quantity", e.target.value)} placeholder="Quantity *" /><Input value={item.unit} onChange={(e) => updateMrItem(item.id, "unit", e.target.value)} placeholder="Unit (m, pcs, kg)" /></div>
+                      </div>)}
+                    </div>
+                    <Button className="w-full" onClick={() => createMr.mutate()} disabled={createMr.isPending || mrItems.length === 0}>
+
                       {createMr.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                       Create Requisition
                     </Button>

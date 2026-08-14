@@ -59,7 +59,8 @@ export const RecordPaymentDialog = ({ open, onOpenChange, invoice, onRecorded }:
         _amount: amt,
         _payment_method: method,
         _reference_number: reference || null,
-        _notes: [paymentDate, notes].filter(Boolean).join(" — ") || null,
+        _notes: notes || null,
+        _payment_date: paymentDate,
       });
       if (error) throw error;
       const newBalance = Math.max(0, Number(invoice.balance_due ?? invoice.total_amount ?? 0) - amt);
