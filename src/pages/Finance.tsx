@@ -164,7 +164,7 @@ const Finance = () => {
   const { data: financeInsights } = useQuery({
     queryKey: ["ai-insights-finance"],
     queryFn: async () => {
-      const { data } = await supabase.from("ai_summaries").select("*").eq("context", "finance").order("created_at", { ascending: false }).limit(1);
+      const { data } = await supabase.from("ai_summaries").select("*").eq("organization_id", orgId).eq("context", "finance").order("created_at", { ascending: false }).limit(1);
       return data?.[0] ?? null;
     },
   });
@@ -177,20 +177,29 @@ const Finance = () => {
     const netProfit = totalReceived - totalExpenses - totalPayments;
     const receivables = Math.max(0, totalRevenue - totalReceived);
 
+    const monthKey = (value: string | null | undefined) => {
+      if (!value) return "unknown";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? "unknown" : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    };
+    const monthLabel = (key: string) => {
+      if (key === "unknown") return "Unknown";
+      return new Date(`${key}-01T00:00:00`).toLocaleString("en", { month: "short", year: "2-digit" });
+    };
     const monthlyMap = new Map<string, { revenue: number; expenses: number }>();
     invoices.forEach((inv) => {
-      const month = new Date(inv.created_at).toLocaleString("en", { month: "short" });
+      const month = monthKey(inv.created_at);
       const entry = monthlyMap.get(month) ?? { revenue: 0, expenses: 0 };
       entry.revenue += Number(inv.total_amount ?? 0);
       monthlyMap.set(month, entry);
     });
     expenses.forEach((e: ExpenseItem) => {
-      const month = new Date(e.date).toLocaleString("en", { month: "short" });
+      const month = monthKey(e.date);
       const entry = monthlyMap.get(month) ?? { revenue: 0, expenses: 0 };
       entry.expenses += Number(e.amount ?? 0);
       monthlyMap.set(month, entry);
     });
-    const chartData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => ({ month: row.month, revenue: Number(row.invoiced ?? 0), expenses: Number(row.expenses ?? 0) })) : Array.from(monthlyMap.entries()).map(([month, data]) => ({ month, ...data }));
+    const chartData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => ({ month: row.month, revenue: Number(row.invoiced ?? 0), expenses: Number(row.expenses ?? 0) })) : Array.from(monthlyMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([month, data]) => ({ month: monthLabel(month), ...data }));
 
     return { totalRevenue, totalReceived, receivables, totalExpenses: totalExpenses + totalPayments, netProfit, totalPayments, chartData };
   }, [payments, expenses, invoices, receipts, financeReport]);
@@ -272,7 +281,7 @@ const Finance = () => {
         vendor_name: payType === "vendor" ? (payVendorName.trim() || null) : null,
       };
       if (editingPayment) {
-        const { error } = await supabase.from("worker_payments").update(payload as Database["public"]["Tables"]["worker_payments"]["Update"]).eq("id", editingPayment.id);
+        const { error } = await supabase.from("worker_payments").update(payload as Database["public"]["Tables"]["worker_payments"]["Update"]).eq("id", editingPayment.id).eq("organization_id", orgId);
         if (error) throw error;
         toast({ title: "Payment updated" });
       } else {
@@ -298,7 +307,7 @@ const Finance = () => {
         description: expDesc || null, date: expDate,
       };
       if (editingExpense) {
-        const { error } = await supabase.from("expenses").update(payload as Database["public"]["Tables"]["expenses"]["Update"]).eq("id", editingExpense.id);
+        const { error } = await supabase.from("expenses").update(payload as Database["public"]["Tables"]["expenses"]["Update"]).eq("id", editingExpense.id).eq("organization_id", orgId);
         if (error) throw error;
         toast({ title: "Expense updated" });
       } else {
@@ -317,7 +326,7 @@ const Finance = () => {
     if (!deleteTarget) return;
     try {
       const table = deleteTarget.type === "expense" ? "expenses" : "worker_payments";
-      const { error } = await supabase.from(table).delete().eq("id", deleteTarget.id);
+      const { error } = await supabase.from(table).delete().eq("id", deleteTarget.id).eq("organization_id", orgId);
       if (error) throw error;
       toast({ title: `${deleteTarget.type === "expense" ? "Expense" : "Payment"} deleted` });
       setDeleteTarget(null);

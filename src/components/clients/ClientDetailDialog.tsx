@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Phone, Mail, MapPin, Copy, Check, Download, Briefcase, Receipt, FileText,
@@ -46,6 +48,7 @@ interface ProjectRow {
   end_date: string | null;
 }
 interface LinkedRow { id: string; status?: string | null; [key: string]: unknown; }
+interface ServicePartDraft { id: string; inventoryId: string; quantity: string; unitCost: string; }
 
 const copyToClipboard = async (text: string) => {
   try {
@@ -76,7 +79,22 @@ export const ClientDetailDialog = ({
   const clientId = client?.id ?? null;
   const [resolutionTarget, setResolutionTarget] = useState<LinkedRow | null>(null);
   const [resolutionText, setResolutionText] = useState("");
+  const [resolutionParts, setResolutionParts] = useState<ServicePartDraft[]>([]);
   const [resolving, setResolving] = useState(false);
+
+  const { data: serviceInventory = [] } = useQuery({
+    queryKey: ["client-service-inventory", orgId],
+    queryFn: async () => {
+      const { data, error } = await industrialDb.from("inventory")
+        .select("id, item_name, quantity_meters, unit_cost, product_specification_id")
+        .eq("organization_id", orgId)
+        .gt("quantity_meters", 0)
+        .order("item_name");
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; item_name: string; quantity_meters: number | null; unit_cost: number | null; product_specification_id?: string | null }>;
+    },
+    enabled: open && !!resolutionTarget,
+  });
 
   const { data: quotations = [], isLoading: loadingQuotations } = useQuery({
     queryKey: ["client-quotations", orgId, clientId],
@@ -176,11 +194,20 @@ export const ClientDetailDialog = ({
     if (!resolutionTarget || !resolutionText.trim()) return;
     setResolving(true);
     try {
-      const { error } = await industrialDb.rpc("resolve_service_ticket", { _org_id: orgId, _ticket_id: resolutionTarget.id, _resolution: resolutionText.trim(), _parts: [] });
+      const parts = resolutionParts.map((part) => {
+        const inventoryItem = serviceInventory.find((item) => item.id === part.inventoryId);
+        const quantity = Number(part.quantity);
+        const unitCost = Number(part.unitCost);
+        if (!inventoryItem || !Number.isFinite(quantity) || quantity <= 0 || quantity > Number(inventoryItem.quantity_meters ?? 0)) throw new Error("Each service part needs valid stock, quantity, and available balance.");
+        if (!Number.isFinite(unitCost) || unitCost < 0) throw new Error("Service part unit cost cannot be negative.");
+        return { inventory_id: inventoryItem.id, product_specification_id: inventoryItem.product_specification_id ?? null, quantity, unit_cost: unitCost };
+      });
+      const { error } = await industrialDb.rpc("resolve_service_ticket", { _org_id: orgId, _ticket_id: resolutionTarget.id, _resolution: resolutionText.trim(), _parts: parts });
       if (error) throw error;
       toast({ title: "Service ticket resolved", description: "The resolution and audit event were recorded." });
       setResolutionTarget(null);
       setResolutionText("");
+      setResolutionParts([]);
       await refetchServiceTickets();
     } catch (error) {
       toast({ title: "Could not resolve ticket", description: error instanceof Error ? error.message : "The service ticket could not be resolved.", variant: "destructive" });
@@ -391,10 +418,11 @@ export const ClientDetailDialog = ({
           </>
         )}
       </DialogContent>
-      <Dialog open={!!resolutionTarget} onOpenChange={(isOpen) => { if (!isOpen) { setResolutionTarget(null); setResolutionText(""); } }}>
+      <Dialog open={!!resolutionTarget} onOpenChange={(isOpen) => { if (!isOpen) { setResolutionTarget(null); setResolutionText(""); setResolutionParts([]); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Resolve service ticket</DialogTitle><DialogDescription>{resolutionTarget ? `Record the completed work for ${String(resolutionTarget.ticket_number ?? resolutionTarget.subject ?? "this ticket")}.` : ""}</DialogDescription></DialogHeader>
           <Textarea rows={5} value={resolutionText} onChange={(event) => setResolutionText(event.target.value)} placeholder="Describe diagnosis, work completed, client communication, and any follow-up required." />
+          <div className="space-y-2 rounded-lg border p-3"><div className="flex items-center justify-between gap-2"><div><p className="text-sm font-medium">Parts used</p><p className="text-xs text-muted-foreground">Optional, but select stock so aftercare cost and traceability remain auditable.</p></div><Button type="button" size="sm" variant="outline" onClick={() => setResolutionParts((current) => [...current, { id: `service-part-${Date.now()}`, inventoryId: "", quantity: "1", unitCost: "0" }])}>Add part</Button></div>{resolutionParts.map((part) => { const selected = serviceInventory.find((item) => item.id === part.inventoryId); return <div key={part.id} className="grid gap-2 sm:grid-cols-[1fr_100px_120px]"><Select value={part.inventoryId} onValueChange={(value) => setResolutionParts((current) => current.map((candidate) => candidate.id === part.id ? { ...candidate, inventoryId: value, unitCost: String(serviceInventory.find((item) => item.id === value)?.unit_cost ?? candidate.unitCost) } : candidate))}><SelectTrigger><SelectValue placeholder="Select stock item" /></SelectTrigger><SelectContent>{serviceInventory.map((item) => <SelectItem key={item.id} value={item.id}>{item.item_name} · {Number(item.quantity_meters ?? 0).toLocaleString()} available</SelectItem>)}</SelectContent></Select><Input type="number" min="0.01" step="0.01" value={part.quantity} onChange={(event) => setResolutionParts((current) => current.map((candidate) => candidate.id === part.id ? { ...candidate, quantity: event.target.value } : candidate))} placeholder="Qty" /><div className="flex gap-1"><Input type="number" min="0" step="0.01" value={part.unitCost} onChange={(event) => setResolutionParts((current) => current.map((candidate) => candidate.id === part.id ? { ...candidate, unitCost: event.target.value } : candidate))} placeholder="Unit cost" /><Button type="button" size="sm" variant="ghost" className="text-destructive" onClick={() => setResolutionParts((current) => current.filter((candidate) => candidate.id !== part.id))}>×</Button></div>{selected && <p className="text-[11px] text-muted-foreground sm:col-span-3">Selected stock: {selected.item_name}; remaining balance {Number(selected.quantity_meters ?? 0).toLocaleString()}.</p>}</div>; })}</div>
           <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setResolutionTarget(null)}>Cancel</Button><Button onClick={() => void resolveServiceTicket()} disabled={resolving || !resolutionText.trim()}>{resolving ? "Saving…" : "Resolve ticket"}</Button></div>
         </DialogContent>
       </Dialog>

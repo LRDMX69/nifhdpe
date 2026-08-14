@@ -1,51 +1,63 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { industrialDb } from "@/lib/industrialDb";
+
+type FinancePeriodReport = {
+  invoiced?: number | null;
+  collected?: number | null;
+  operating_expenses?: number | null;
+  worker_payments?: number | null;
+  monthly?: Array<{
+    month: string;
+    invoiced?: number | null;
+    collected?: number | null;
+    expenses?: number | null;
+    worker_payments?: number | null;
+  }>;
+};
+
+const getDefaultPeriod = () => {
+  const to = new Date();
+  const from = new Date(to);
+  from.setMonth(from.getMonth() - 11, 1);
+  return {
+    from: from.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10),
+  };
+};
 
 export const useExecutiveFinancials = (orgId: string | null | undefined) => {
   return useQuery({
     queryKey: ["executive-financials", orgId],
     queryFn: async () => {
       if (!orgId) return null;
-      
-      const [invoices, receipts, expenses, payments] = await Promise.all([
-        supabase.from("invoices").select("total_amount, balance_due, status, invoice_date").eq("organization_id", orgId),
-        supabase.from("receipts").select("amount_received, payment_date").eq("organization_id", orgId),
-        supabase.from("expenses").select("amount, date").eq("organization_id", orgId),
-        supabase.from("worker_payments").select("amount, date").eq("organization_id", orgId)
-      ]);
 
-      const totalRevenue = invoices.data?.reduce((s, i) => s + Number(i.total_amount || 0), 0) || 0;
-      const totalReceived = receipts.data?.reduce((s, r) => s + Number(r.amount_received || 0), 0) || 0;
-      const receivables = invoices.data?.reduce((s, i) => s + Number(i.balance_due || 0), 0) || 0;
-      const totalExpenses = (expenses.data?.reduce((s, e) => s + Number(e.amount || 0), 0) || 0) + 
-                           (payments.data?.reduce((s, p) => s + Number(p.amount || 0), 0) || 0);
-      
-      const netCash = totalReceived - totalExpenses;
+      const period = getDefaultPeriod();
+      const { data, error } = await industrialDb.rpc("get_finance_period_report", {
+        _org_id: orgId,
+        _from: period.from,
+        _to: period.to,
+      });
+      if (error) throw error;
 
-      // Group by month for chart
-      const monthlyMap = new Map();
-      invoices.data?.forEach(i => {
-        const month = new Date(i.invoice_date).toLocaleString('default', { month: 'short' });
-        const entry = monthlyMap.get(month) || { month, revenue: 0, expenses: 0 };
-        entry.revenue += Number(i.total_amount || 0);
-        monthlyMap.set(month, entry);
-      });
-      expenses.data?.forEach(e => {
-        const month = new Date(e.date).toLocaleString('default', { month: 'short' });
-        const entry = monthlyMap.get(month) || { month, revenue: 0, expenses: 0 };
-        entry.expenses += Number(e.amount || 0);
-        monthlyMap.set(month, entry);
-      });
+      const report = (data ?? {}) as FinancePeriodReport;
+      const totalRevenue = Number(report.invoiced ?? 0);
+      const totalReceived = Number(report.collected ?? 0);
+      const totalExpenses = Number(report.operating_expenses ?? 0) + Number(report.worker_payments ?? 0);
 
       return {
         totalRevenue,
         totalReceived,
-        receivables,
+        receivables: Math.max(0, totalRevenue - totalReceived),
         totalExpenses,
-        netCash,
-        chartData: Array.from(monthlyMap.values()).slice(-6)
+        netCash: totalReceived - totalExpenses,
+        chartData: (report.monthly ?? []).map((row) => ({
+          month: row.month,
+          revenue: Number(row.invoiced ?? 0),
+          expenses: Number(row.expenses ?? 0) + Number(row.worker_payments ?? 0),
+        })),
       };
     },
-    enabled: !!orgId
+    enabled: !!orgId,
+    retry: false,
   });
 };

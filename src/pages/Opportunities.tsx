@@ -585,51 +585,51 @@ const Opportunities = () => {
           secondaryAction: { label: scanning ? "Scanning…" : "Refresh intelligence", onClick: handleRefreshIntelligence },
         }}
       >
-      <div className="print-container grid gap-3 md:grid-cols-2">
+      <div className="print-container grid min-w-0 w-full max-w-full gap-3 md:grid-cols-2">
         {filtered.map((o) => {
           const info = parseContactInfo(o.description ?? "");
           const lineage = commercialByOpportunity.get(o.id);
           const quoteStatus = lineage?.quotation?.status;
           const orderStatus = lineage?.order?.status;
           return (
-            <Card key={o.id} className="hover:border-primary/30 transition-colors cursor-pointer" onClick={() => setViewingOpp(o)}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-sm sm:text-base break-words-safe">{o.title}</CardTitle>
-                  <Badge className={statusColors[o.status || "identified"] || ""} variant="outline">{o.status}</Badge>
+            <Card key={o.id} className="w-full min-w-0 max-w-full overflow-hidden hover:border-primary/30 transition-colors cursor-pointer" onClick={() => setViewingOpp(o)}>
+              <CardHeader className="min-w-0 pb-2">
+                <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <CardTitle className="min-w-0 max-w-full text-sm sm:text-base break-words-safe">{o.title}</CardTitle>
+                  <Badge className={`max-w-full shrink-0 ${statusColors[o.status || "identified"] || ""}`} variant="outline">{o.status}</Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="min-w-0 space-y-2">
                 {info.description && <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 break-words-safe">{info.description}</p>}
 
                 <div className="flex flex-wrap gap-1.5">
                   {o.relevance_score != null && (
-                    <Badge variant="outline" className="text-[10px] gap-0.5"><BarChart3 className="h-3 w-3" /> {o.relevance_score}/10</Badge>
+                    <Badge variant="outline" className="max-w-full text-[10px] gap-0.5"><BarChart3 className="h-3 w-3 shrink-0" /> {o.relevance_score}/10</Badge>
                   )}
                   {o.success_probability != null && (
-                    <Badge variant="outline" className="text-[10px] gap-0.5"><Target className="h-3 w-3" /> {o.success_probability}%</Badge>
+                    <Badge variant="outline" className="max-w-full text-[10px] gap-0.5"><Target className="h-3 w-3 shrink-0" /> {o.success_probability}%</Badge>
                   )}
                   {o.capital_estimate && (
-                    <Badge variant="outline" className="text-[10px] gap-0.5"><DollarSign className="h-3 w-3" /> {formatCurrency(o.capital_estimate)}</Badge>
+                    <Badge variant="outline" className="max-w-full text-[10px] gap-0.5"><DollarSign className="h-3 w-3 shrink-0" /> <span className="truncate">{formatCurrency(o.capital_estimate)}</span></Badge>
                   )}
                   {o.competition_intensity && (
-                    <Badge variant="outline" className="text-[10px] capitalize">{o.competition_intensity}</Badge>
+                    <Badge variant="outline" className="max-w-full truncate text-[10px] capitalize">{o.competition_intensity}</Badge>
                   )}
                 </div>
 
                 {info.contactConfidence !== "Not Available" && (
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
+                  <p className="flex min-w-0 max-w-full items-center gap-1 truncate text-[10px] text-muted-foreground">
                     <Phone className="h-3 w-3 shrink-0" />{info.contact}
                   </p>
                 )}
 
-                <div className="flex items-center justify-between text-xs flex-wrap gap-1">
-                  <Badge variant="outline" className="text-[10px]">{o.source || "Unknown"}</Badge>
-                  <span className="font-bold text-primary text-sm">{o.estimated_value ? formatCurrency(o.estimated_value) : "TBD"}</span>
+                <div className="flex min-w-0 flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between">
+                  <Badge variant="outline" className="max-w-full self-start truncate text-[10px]">{o.source || "Unknown"}</Badge>
+                  <span className="max-w-full break-words-safe font-bold text-primary text-sm">{o.estimated_value ? formatCurrency(o.estimated_value) : "TBD"}</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-                  <Badge variant="outline" className="gap-1"><Link className="h-3 w-3" />{lineage?.quotation ? `${lineage.quotation.quotation_number} · ${quoteStatus}` : "No quotation"}</Badge>
-                  {lineage?.order && <Badge variant="outline" className="text-primary">Order {lineage.order.order_number} · {orderStatus}</Badge>}
+                <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px]">
+                  <Badge variant="outline" className="max-w-full gap-1"><Link className="h-3 w-3 shrink-0" /><span className="truncate">{lineage?.quotation ? `${lineage.quotation.quotation_number} · ${quoteStatus}` : "No quotation"}</span></Badge>
+                  {lineage?.order && <Badge variant="outline" className="max-w-full text-primary"><span className="truncate">Order {lineage.order.order_number} · {orderStatus}</span></Badge>}
                 </div>
                 {o.deadline && (
                   <p className="text-[10px] text-muted-foreground flex items-center gap-1">

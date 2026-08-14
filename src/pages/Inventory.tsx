@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
+import { industrialDb } from "@/lib/industrialDb";
 
 type InventoryItem = Database["public"]["Tables"]["inventory"]["Row"] & { 
   storage_locations?: { name: string } | null;
@@ -179,7 +180,8 @@ const Inventory = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("inventory").delete().eq("id", id);
+      if (!orgId) throw new Error("No organization");
+      const { error } = await industrialDb.rpc("delete_inventory_item_safely", { _org_id: orgId, _inventory_id: id });
       if (error) throw error;
     },
     onSuccess: () => {

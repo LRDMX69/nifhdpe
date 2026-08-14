@@ -153,7 +153,6 @@ const Quotations = () => {
   const [editingQuotation, setEditingQuotation] = useState<DbQuotation | null>(null);
   const [historyTarget, setHistoryTarget] = useState<DbQuotation | null>(null);
   const [revisionReason, setRevisionReason] = useState("");
-  const [invoicePrompt, setInvoicePrompt] = useState<DbQuotation | null>(null);
   const listRef = useGsapStagger(".gsap-card", 0.06);
 
   const { data: quotations = [], isLoading, error, refetch, dataUpdatedAt } = useQuery({
@@ -375,12 +374,6 @@ const Quotations = () => {
       if (error) throw error;
       toast({ title: `Status → ${status}` });
 
-      // If status is accepted, offer to create invoice
-      if (status === "accepted") {
-        const q = quotations.find(q => q.id === id);
-        if (q) setInvoicePrompt(q);
-      }
-
       refetch();
     } catch (err: unknown) {
       const error = err as Error;
@@ -424,45 +417,6 @@ const Quotations = () => {
     } catch (error) {
       toast({ title: "Could not create invoice", description: humanizeError(error), variant: "destructive" });
     } finally { setSaving(false); }
-  };
-
-  const convertToInvoice = async (q: DbQuotation) => {
-    setSaving(true);
-    try {
-      const { data: invoice, error: invError } = await supabase.from("invoices").insert({
-        organization_id: orgId,
-        client_id: q.client_id,
-        quotation_id: q.id,
-        subtotal: q.subtotal,
-        total_amount: q.total_amount,
-        balance_due: q.total_amount,
-        created_by: user?.id,
-        notes: q.notes
-      } as Database["public"]["Tables"]["invoices"]["Insert"]).select().single();
-
-      if (invError) throw invError;
-
-      // Copy items. An invoice without its line items is a silent data bug —
-      // surface the failure so it can be retried.
-      const { data: items } = await supabase.from("quotation_items").select("*").eq("quotation_id", q.id);
-      if (items && items.length > 0) {
-        const { error: itemsError } = await supabase.from("invoice_items").insert(items.map(i => ({
-          invoice_id: invoice.id,
-          description: i.description,
-          quantity: i.quantity,
-          unit_price: i.unit_price,
-          total_price: i.total_price
-        })));
-        if (itemsError) throw itemsError;
-      }
-
-      toast({ title: "Invoice generated successfully", description: `Invoice ${invoice.document_number || ''} has been created.` });
-    } catch (err: unknown) {
-      const e = err as Error;
-      toast({ title: "Failed to generate invoice", description: e.message, variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleExport = () => {
@@ -714,26 +668,6 @@ const Quotations = () => {
           </AlertDialogFooter></AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={!!invoicePrompt} onOpenChange={(open) => !open && setInvoicePrompt(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Generate invoice now?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Quotation {invoicePrompt?.quotation_number} is accepted. Generating an invoice will copy all line items and create an open balance for this client.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Not now</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                const q = invoicePrompt; setInvoicePrompt(null);
-                if (q) await convertToInvoice(q);
-              }}
-            >Generate invoice</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Search quotations..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -751,7 +685,7 @@ const Quotations = () => {
         emptyState={quotations.length === 0 ? {
           icon: FileText,
           title: "No quotations yet",
-          description: "Quotations are the first step in the revenue cycle. Create one for an existing client — once accepted, you can convert it to an invoice instantly.",
+          description: "Quotations are the first step in the revenue cycle. Create one for an existing client — once accepted, create the linked sales order, confirm stock, and invoice from the controlled order lifecycle.",
           ownedBy: "Marketing / Sales & Administrators",
           action: canEdit ? { label: "New quotation", onClick: () => setDialogOpen(true) } : undefined,
         } : {
@@ -776,7 +710,6 @@ const Quotations = () => {
             canViewHistory={canViewHistory}
             onDelete={() => setDeleteTarget(q)}
             onStatusChange={(s) => handleStatusChange(q.id, s)}
-            onConvertToInvoice={canEdit ? () => convertToInvoice(q) : undefined}
           />
         ))}
       </div>

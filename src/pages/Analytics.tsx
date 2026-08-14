@@ -59,7 +59,7 @@ const Analytics = () => {
     enabled: !!orgId,
   });
 
-  const { data: expenses = [], isLoading: loadingExpenses } = useQuery({
+  const { data: expenses = [], isLoading: loadingExpenses, refetch: refetchExpenses } = useQuery({
     queryKey: ["analytics-expenses", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -69,7 +69,7 @@ const Analytics = () => {
     enabled: !!orgId,
   });
 
-  const { data: quotations = [] } = useQuery({
+  const { data: quotations = [], isLoading: loadingQuotations, refetch: refetchQuotations } = useQuery({
     queryKey: ["analytics-quotations", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -79,7 +79,7 @@ const Analytics = () => {
     enabled: !!orgId,
   });
 
-  const { data: inventory = [] } = useQuery({
+  const { data: inventory = [], isLoading: loadingInventory, refetch: refetchInventory } = useQuery({
     queryKey: ["analytics-inventory", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -89,7 +89,7 @@ const Analytics = () => {
     enabled: !!orgId,
   });
 
-  const { data: invoices = [] } = useQuery({
+  const { data: invoices = [], isLoading: loadingInvoices, refetch: refetchInvoices } = useQuery({
     queryKey: ["analytics-invoices", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -99,7 +99,7 @@ const Analytics = () => {
     enabled: !!orgId,
   });
 
-  const { data: receipts = [] } = useQuery({
+  const { data: receipts = [], isLoading: loadingReceipts, refetch: refetchReceipts } = useQuery({
     queryKey: ["analytics-receipts", orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -126,37 +126,48 @@ const Analytics = () => {
 
     const inventoryValue = inventory.reduce((s: number, i) => s + (i.quantity_meters ?? 0) * (i.unit_cost ?? 0), 0);
 
-    // Monthly revenue data
+    const monthKey = (value: string | null | undefined) => {
+      if (!value) return "unknown";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? "unknown" : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    };
+    const monthLabel = (key: string) => {
+      if (key === "unknown") return "Unknown";
+      const date = new Date(`${key}-01T00:00:00`);
+      return date.toLocaleString("en", { month: "short", year: "2-digit" });
+    };
+
+    // Monthly revenue data. Year-month keys prevent January 2025 and January 2026 from merging.
     const monthlyMap = new Map<string, { revenue: number; expenses: number }>();
     quotations.filter((q) => q.status === "accepted").forEach((q) => {
-      const month = new Date(q.created_at).toLocaleString("en", { month: "short" });
+      const month = monthKey(q.created_at);
       const entry = monthlyMap.get(month) ?? { revenue: 0, expenses: 0 };
       entry.revenue += Number(q.total_amount ?? 0);
       monthlyMap.set(month, entry);
     });
     expenses.forEach((e) => {
-      const month = new Date(e.date).toLocaleString("en", { month: "short" });
+      const month = monthKey(e.date);
       const entry = monthlyMap.get(month) ?? { revenue: 0, expenses: 0 };
       entry.expenses += Number(e.amount ?? 0);
       monthlyMap.set(month, entry);
     });
-    const revenueData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => ({ month: row.month, revenue: Number(row.invoiced ?? 0), expenses: Number(row.expenses ?? 0) })) : Array.from(monthlyMap.entries()).map(([month, data]) => ({ month, ...data }));
+    const revenueData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => ({ month: row.month, revenue: Number(row.invoiced ?? 0), expenses: Number(row.expenses ?? 0) })) : Array.from(monthlyMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([month, data]) => ({ month: monthLabel(month), ...data }));
 
-    // Cash flow: billed (invoices issued) vs collected (receipts) by month
+    // Cash flow: billed (invoices issued) vs collected (receipts) by month.
     const cashMap = new Map<string, { billed: number; collected: number }>();
     invoices.filter((inv) => inv.status !== "draft").forEach((inv) => {
-      const month = new Date(inv.created_at).toLocaleString("en", { month: "short" });
+      const month = monthKey(inv.created_at);
       const entry = cashMap.get(month) ?? { billed: 0, collected: 0 };
       entry.billed += Number(inv.total_amount ?? 0);
       cashMap.set(month, entry);
     });
     receipts.forEach((r) => {
-      const month = new Date(r.payment_date).toLocaleString("en", { month: "short" });
+      const month = monthKey(r.payment_date);
       const entry = cashMap.get(month) ?? { billed: 0, collected: 0 };
       entry.collected += Number(r.amount_received ?? 0);
       cashMap.set(month, entry);
     });
-    const cashFlowData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => ({ month: row.month, billed: Number(row.invoiced ?? 0), collected: Number(row.collected ?? 0) })) : Array.from(cashMap.entries()).map(([month, data]) => ({ month, ...data }));
+    const cashFlowData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => ({ month: row.month, billed: Number(row.invoiced ?? 0), collected: Number(row.collected ?? 0) })) : Array.from(cashMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([month, data]) => ({ month: monthLabel(month), ...data }));
 
     // Pipe usage by diameter
     const diameterMap = new Map<string, number>();
@@ -169,13 +180,13 @@ const Analytics = () => {
     // Quotation conversion by month
     const convMap = new Map<string, { sent: number; accepted: number }>();
     quotations.forEach((q) => {
-      const month = new Date(q.created_at).toLocaleString("en", { month: "short" });
+      const month = monthKey(q.created_at);
       const entry = convMap.get(month) ?? { sent: 0, accepted: 0 };
       if (["sent", "accepted", "rejected"].includes(q.status)) entry.sent++;
       if (q.status === "accepted") entry.accepted++;
       convMap.set(month, entry);
     });
-    const conversionData = Array.from(convMap.entries()).map(([month, data]) => ({ month, ...data })).slice(-6);
+    const conversionData = Array.from(convMap.entries()).sort(([a], [b]) => a.localeCompare(b)).slice(-6).map(([month, data]) => ({ month: monthLabel(month), ...data }));
 
     // Top clients
     const clientMap = new Map<string, number>();
@@ -188,7 +199,7 @@ const Analytics = () => {
     return { billed, collected, outstanding, totalRevenue, totalExpenses: totalExpenses + totalPayments, netProfit, conversionRate, sentCount, acceptedCount, inventoryValue, revenueData, cashFlowData, pipeUsageData, conversionData, topClients };
   }, [payments, expenses, quotations, inventory, invoices, receipts, financeReport]);
 
-  const isLoading = loadingPayments || loadingExpenses || loadingOperationalDashboard || loadingFinanceReport;
+  const isLoading = loadingPayments || loadingExpenses || loadingQuotations || loadingInventory || loadingInvoices || loadingReceipts || loadingOperationalDashboard || loadingFinanceReport;
 
   if (isLoading) {
     return <LoadingState variant="page" rows={4} />;
@@ -208,7 +219,7 @@ const Analytics = () => {
         description="Live business insights from your data"
         executiveSummary={`${quotations.filter((q: any) => q.status === "accepted").length} accepted quotes feeding pipeline · ${inventory.length} inventory SKUs in scope`}
         lastUpdated={paymentsUpdatedAt ? new Date(paymentsUpdatedAt) : null}
-        onRefresh={() => { refetchPayments(); refetchOperationalDashboard(); refetchFinanceReport(); }}
+        onRefresh={() => { void Promise.all([refetchPayments(), refetchExpenses(), refetchQuotations(), refetchInventory(), refetchInvoices(), refetchReceipts(), refetchOperationalDashboard(), refetchFinanceReport()]); }}
       >
         <div className="flex flex-wrap items-end gap-2"><div><p className="text-[11px] text-muted-foreground">From</p><Input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="h-8 w-[140px] text-xs" /></div><div><p className="text-[11px] text-muted-foreground">To</p><Input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="h-8 w-[140px] text-xs" /></div></div>
       </PageHeader>
@@ -314,7 +325,7 @@ const Analytics = () => {
         </Card>
 
         <Card className="border-border/50">
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Top Clients by Revenue</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Top Clients by Accepted Value</CardTitle></CardHeader>
           <CardContent>
             {analytics.topClients.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-16">No accepted quotations yet.</p>

@@ -38,6 +38,7 @@ const statusIcons: Record<string, React.ReactNode> = {
 
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import { humanizeError } from "@/lib/humanizeError";
+import { industrialDb } from "@/lib/industrialDb";
 
 const ClaimImage = ({ path }: { path: string }) => {
   const { data: signedUrl } = useSignedUrl("claim-attachments", path, 3600);
@@ -75,6 +76,9 @@ const WorkerClaims = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [paymentClaim, setPaymentClaim] = useState<WorkerClaim | null>(null);
+  const [paymentType, setPaymentType] = useState("salary");
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
   const orgId = memberships[0]?.organization_id;
   const isAdmin = activeRole === "administrator" || isMaintenance;
   const isFinance = isFinanceCapable(activeRole);
@@ -96,6 +100,7 @@ const WorkerClaims = () => {
       const { data } = await supabase
         .from("worker_claims")
         .select("id, organization_id, user_id, claim_type, category, amount, description, status, admin_notes, file_url, uploaded_at, reviewed_by, created_at, project_id, updated_at")
+        .eq("organization_id", orgId)
         .order("created_at", { ascending: false })
         .limit(200);
       return data ?? [];
@@ -186,7 +191,7 @@ const WorkerClaims = () => {
 
   const updateClaim = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from("worker_claims").update({ status, reviewed_by: user?.id } as Database["public"]["Tables"]["worker_claims"]["Update"]).eq("id", id);
+      const { error } = await supabase.from("worker_claims").update({ status, reviewed_by: user?.id } as Database["public"]["Tables"]["worker_claims"]["Update"]).eq("id", id).eq("organization_id", orgId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -199,6 +204,27 @@ const WorkerClaims = () => {
         queryClient.invalidateQueries({ queryKey: ["messages", orgId, user?.id] });
       }
     },
+  });
+
+  const createClaimPayment = useMutation({
+    mutationFn: async () => {
+      if (!orgId || !paymentClaim) throw new Error("No claim selected");
+      const { error } = await industrialDb.rpc("create_worker_payment_from_claim", {
+        _org_id: orgId,
+        _claim_id: paymentClaim.id,
+        _payment_type: paymentType,
+        _payment_date: paymentDate,
+        _description: `Approved worker claim: ${paymentClaim.category}`,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Payable created", description: "The approved claim is now linked to a Finance worker-payment record." });
+      setPaymentClaim(null);
+      queryClient.invalidateQueries({ queryKey: ["worker-claims"] });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+    },
+    onError: (err: Error) => toast({ title: "Could not create payable", description: humanizeError(err), variant: "destructive" }),
   });
 
   const handleExportClaim = async (c: WorkerClaim) => {
@@ -295,6 +321,7 @@ const WorkerClaims = () => {
       const claimRole = membershipMap.get(c.user_id);
       const hasImage = c.file_url && isImageUrl(c.file_url);
       const showReviewerActions = emptyKind === "inbox" && isReviewer && (c.status === "pending" || c.status === "flagged");
+      const hasLinkedPayment = Boolean((c as WorkerClaim & { payment_id?: string | null }).payment_id);
       return (
         <Card key={c.id} className={`hover:border-primary/20 transition-colors ${c.status === "flagged" ? "border-orange-500/40 bg-orange-500/5" : ""}`}>
           <CardContent className="p-3 sm:p-4">
@@ -336,6 +363,8 @@ const WorkerClaims = () => {
                         </Button>
                       </>
                     )}
+                    {emptyKind === "inbox" && isFinance && c.status === "approved" && !hasLinkedPayment && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setPaymentClaim(c); setPaymentType("salary"); setPaymentDate(new Date().toISOString().slice(0, 10)); }}>Create payable</Button>}
+                    {hasLinkedPayment && <Badge variant="outline" className="text-[10px]">Payable linked</Badge>}
                   </div>
                 </div>
               </div>
@@ -425,9 +454,15 @@ const WorkerClaims = () => {
             </DialogContent>
           </Dialog>
         )}
-      </PageHeader>
-
+            </PageHeader>
+      <Dialog open={!!paymentClaim} onOpenChange={(isOpen) => { if (!isOpen) setPaymentClaim(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Create payment from approved claim</DialogTitle></DialogHeader>
+          {paymentClaim && <div className="space-y-4"><div className="rounded-lg border bg-muted/30 p-3 text-sm"><div className="flex justify-between gap-2"><span className="text-muted-foreground">Claim</span><span className="font-medium">{paymentClaim.category}</span></div><div className="flex justify-between gap-2"><span className="text-muted-foreground">Amount</span><span className="font-semibold">{formatCurrency(paymentClaim.amount ?? 0)}</span></div></div><div className="space-y-2"><Label>Finance payment type *</Label><Select value={paymentType} onValueChange={setPaymentType}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="salary">Salary</SelectItem><SelectItem value="overtime">Overtime</SelectItem><SelectItem value="fuel">Fuel</SelectItem><SelectItem value="maintenance">Maintenance</SelectItem><SelectItem value="bonus">Bonus</SelectItem><SelectItem value="transport">Transport</SelectItem><SelectItem value="vendor">Vendor</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Posting date *</Label><Input type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} /></div><div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setPaymentClaim(null)}>Cancel</Button><Button onClick={() => createClaimPayment.mutate()} disabled={createClaimPayment.isPending || !paymentDate}>{createClaimPayment.isPending ? "Creating…" : "Create linked payable"}</Button></div></div>}
+        </DialogContent>
+      </Dialog>
       <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-3">
+
         <Card className="border-border/50 shadow-sm"><CardContent className="p-3 sm:p-4"><p className="text-[10px] sm:text-xs text-muted-foreground font-medium">Pending</p><p className="text-xl sm:text-2xl font-bold text-warning truncate">{pendingCount}</p></CardContent></Card>
         <Card className="border-border/50 shadow-sm"><CardContent className="p-3 sm:p-4"><p className="text-[10px] sm:text-xs text-muted-foreground font-medium">Total Claims</p><p className="text-xl sm:text-2xl font-bold text-foreground truncate">{claims.length}</p></CardContent></Card>
         <Card className="border-border/50 shadow-sm col-span-1 xs:col-span-2 md:col-span-1"><CardContent className="p-3 sm:p-4"><p className="text-[10px] sm:text-xs text-muted-foreground font-medium">Approved Total</p><p className="text-xl sm:text-2xl font-bold text-primary truncate">{formatCurrency(totalAmount)}</p></CardContent></Card>

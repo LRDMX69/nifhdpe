@@ -34,7 +34,6 @@ interface QuotationCardProps {
   onHistory: () => void;
   canViewHistory?: boolean;
   allStatuses: string[];
-  onConvertToInvoice?: () => void;
 }
 
 export const QuotationCard = ({
@@ -49,7 +48,6 @@ export const QuotationCard = ({
   onHistory,
   canViewHistory = false,
   allStatuses,
-  onConvertToInvoice,
 }: QuotationCardProps) => (
   <Card className="gsap-card border-border/50 hover:border-primary/20 transition-all">
     <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-3">
@@ -89,12 +87,6 @@ export const QuotationCard = ({
                 <DropdownMenuItem onClick={onHistory}>
                   <History className="h-3.5 w-3.5 mr-2" />
                   Revision History
-                </DropdownMenuItem>
-              )}
-              {onConvertToInvoice && (
-                <DropdownMenuItem onClick={onConvertToInvoice}>
-                  <Receipt className="h-3.5 w-3.5 mr-2" />
-                  Convert to Invoice
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />

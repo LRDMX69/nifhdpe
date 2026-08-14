@@ -9,12 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Search, FileText, Receipt as ReceiptIcon, Truck, ShoppingCart, ShieldAlert, Package, ClipboardList, AlertCircle, CreditCard, Download, AlertTriangle } from "lucide-react";
+import { Search, FileText, Receipt as ReceiptIcon, Truck, ShoppingCart, ShieldAlert, Package, ClipboardList, AlertCircle, CreditCard, Download, AlertTriangle, History } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency } from "@/lib/constants";
+import { industrialDb } from "@/lib/industrialDb";
 import { toast } from "@/hooks/use-toast";
 
 interface DocRow {
@@ -25,6 +26,17 @@ interface DocRow {
   party: string | null;
   amount: number | null;
   status: string | null;
+}
+
+interface RevisionRow {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  revision_number: number;
+  is_current: boolean;
+  changed_at: string;
+  change_reason: string;
+  profiles?: { full_name: string | null } | null;
 }
 
 const TYPE_META: Record<string, { label: string; icon: typeof FileText; color: string; route: string }> = {
@@ -58,8 +70,8 @@ const DocumentRegistry = () => {
 
   const { data, isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["doc-registry", orgId],
-    queryFn: async (): Promise<{ rows: DocRow[]; partial: string[] }> => {
-      if (!orgId) return { rows: [], partial: [] };
+    queryFn: async (): Promise<{ rows: DocRow[]; partial: string[]; revisions: RevisionRow[] }> => {
+      if (!orgId) return { rows: [], partial: [], revisions: [] };
       type Source = { key: string; run: () => Promise<DocRow[]> };
       const vendorMapPromise = supabase.from("vendors").select("id, name").eq("organization_id", orgId).then(r => {
         const m = new Map<string, string>();
@@ -127,18 +139,25 @@ const DocumentRegistry = () => {
       const results = await Promise.allSettled(sources.map(s => s.run()));
       const rows: DocRow[] = [];
       const partial: string[] = [];
+      const revisionResult = await industrialDb.from("document_revisions")
+        .select("id, entity_type, entity_id, revision_number, is_current, changed_at, change_reason, profiles(full_name)")
+        .eq("organization_id", orgId)
+        .order("changed_at", { ascending: false })
+        .limit(SOURCE_FETCH_LIMIT);
+      if (revisionResult.error) partial.push("revisions");
       results.forEach((res, i) => {
         if (res.status === "fulfilled") rows.push(...res.value);
         else partial.push(sources[i].key);
       });
       rows.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
-      return { rows, partial };
+      return { rows, partial, revisions: (revisionResult.data ?? []) as RevisionRow[] };
     },
     enabled: !!orgId,
   });
 
   const docs = data?.rows ?? [];
   const partial = data?.partial ?? [];
+  const revisions = data?.revisions ?? [];
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -253,6 +272,30 @@ const DocumentRegistry = () => {
           <span>Some document sources could not be loaded ({partial.join(", ")}). Other documents are shown below — try refreshing.</span>
         </div>
       )}
+
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2"><History className="h-4 w-4 text-primary" /><div><p className="text-sm font-semibold">Operational revision history</p><p className="text-xs text-muted-foreground">Snapshots created before controlled document edits.</p></div></div>
+            <Badge variant="outline">{revisions.length} revisions</Badge>
+          </div>
+          {revisions.length === 0 ? <p className="text-sm text-muted-foreground rounded-lg border border-dashed p-4">No operational document revisions have been recorded in this organization.</p> : (
+            <div className="overflow-x-auto rounded-lg border">
+              <Table>
+                <TableHeader><TableRow><TableHead>Document type</TableHead><TableHead>Revision</TableHead><TableHead>Reason</TableHead><TableHead>Changed by</TableHead><TableHead>Changed at</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                <TableBody>{revisions.map((revision) => <TableRow key={revision.id}>
+                  <TableCell className="text-xs font-medium capitalize">{revision.entity_type.replace("_", " ")}</TableCell>
+                  <TableCell className="text-xs">v{revision.revision_number}</TableCell>
+                  <TableCell className="text-xs max-w-[260px] break-words">{revision.change_reason}</TableCell>
+                  <TableCell className="text-xs">{revision.profiles?.full_name ?? "System"}</TableCell>
+                  <TableCell className="text-xs whitespace-nowrap">{new Date(revision.changed_at).toLocaleString("en-NG")}</TableCell>
+                  <TableCell><Badge variant={revision.is_current ? "default" : "outline"} className="text-[10px]">{revision.is_current ? "Current snapshot" : "Superseded"}</Badge></TableCell>
+                </TableRow>)}</TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="flex flex-wrap items-end gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-md">

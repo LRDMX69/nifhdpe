@@ -134,8 +134,8 @@ const DashboardRouter = () => {
 
   const showSwitcher = memberships.length > 1 || isMaintenance;
   const rolesList = isMaintenance
-    ? ["administrator", "technician", "reception_sales", "warehouse", "finance", "hr", "knowledge_manager", "siwes_trainee"]
-    : memberships.map((m) => m.role);
+    ? ["administrator", "engineer", "technician", "warehouse", "finance", "hr", "reception_sales", "knowledge_manager", "siwes_trainee", "it_student", "nysc_member"]
+    : [...new Set(memberships.map((m) => m.role))];
 
   const effectiveRole = activeRole ?? (isMaintenance ? "administrator" : undefined);
   const roleInfo = effectiveRole ? ROLE_RESPONSIBILITIES[effectiveRole] : undefined;

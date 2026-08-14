@@ -52,7 +52,7 @@ export const navItems: NavItem[] = [
   { label: "Projects",      icon: FolderKanban,    path: "/projects",      roles: [...ADMIN, ...TECHNICAL], group: "Technical" },
   { label: "Equipment",     icon: Wrench,          path: "/equipment",     roles: [...ADMIN, ...TECHNICAL, ...LOGISTICS], group: "Technical" },
   { label: "Field Reports", icon: ClipboardList,   path: "/field-reports", roles: [...ADMIN, ...TECHNICAL], group: "Technical" },
-  { label: "HSE",           icon: ShieldCheck,     path: "/hse",           roles: [...ADMIN, ...TECHNICAL], group: "Technical" },
+  { label: "HSE",           icon: ShieldCheck,     path: "/hse",           roles: [...ADMIN, ...TECHNICAL, ...HR_ROLE], group: "Technical" },
   { label: "Compliance",    icon: ShieldCheck,     path: "/compliance",    roles: [...ADMIN, ...TECHNICAL], group: "Technical" },
   { label: "Calculator",    icon: Calculator,      path: "/calculator",    roles: [...ADMIN, ...TECHNICAL], group: "Technical" },
 
