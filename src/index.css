@@ -60,6 +60,8 @@
     --nif-ink: 207 80% 9%;
     --nif-surface: 105 35% 97%;
     --nif-line: 105 25% 88%;
+    /* Asset-release marker: changes the emitted stylesheet URL without altering the visual design. */
+    --nif-asset-release: "2026-08-14-pwa-recovery";
   }
 
   .dark {
