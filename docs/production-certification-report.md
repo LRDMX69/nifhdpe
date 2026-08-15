@@ -26,7 +26,7 @@ The static verification gate passed: standard TypeScript type checking, strict T
 | Dependency audit | ✅ Passed | `npm audit --audit-level=high` reported 0 vulnerabilities. |
 | Diff hygiene | ✅ Passed | `git diff --check` exited 0. |
 | Placeholder audit | ✅ Clean by review | Only legitimate GPS “samples” terminology and an explicit AI fallback comment matched; no TODO, FIXME, placeholder, dummy-data, or unfinished implementation marker was found. |
-| GitHub Actions CI | ✅ Added and locally validated | `.github/workflows/ci.yml` runs on pushes, pull requests targeting `main`, and manual dispatch; it runs type checks, strict checks, lint, all behavior tests, production build, dependency audit, diff hygiene, and the production-marker audit. | Push the workflow and confirm the first hosted run is green on GitHub. |
+| GitHub Actions CI | ✅ Hosted run passed | `.github/workflows/ci.yml` runs on pushes, pull requests targeting `main`, and manual dispatch. Hosted run [31882493483](https://github.com/LRDMX69/nifhdpe/actions/runs/31882493483) passed the quality gate in 52 seconds: type checks, strict checks, lint, behavior tests, production build, dependency audit, diff hygiene, and production-marker audit. | Continue reducing non-blocking lint warnings; the hosted action reported the existing Node.js 20 deprecation annotation for checkout/setup-node v4. |
 | Live Supabase migration | ❌ NOT VERIFIED | The user must apply the migration and refresh the schema cache before authenticated workflow testing. |
 | Authenticated end-to-end smoke tests | ❌ NOT VERIFIED | No live role-based smoke run was available in the sandbox. |
 
