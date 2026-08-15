@@ -123,6 +123,10 @@ const Quotations = () => {
   const { user, memberships, activeRole, isMaintenance } = useAuth();
   const [searchParams] = useSearchParams();
   const [catalogueOpen, setCatalogueOpen] = useState(() => searchParams.get("section") === "products");
+  const [proformaOpen, setProformaOpen] = useState(false);
+  const [proformaQuotationId, setProformaQuotationId] = useState("");
+  const [proformaValidUntil, setProformaValidUntil] = useState("");
+  const [proformaNotes, setProformaNotes] = useState("");
   const { toast } = useToast();
   const orgId = memberships[0]?.organization_id;
   const canEdit = activeRole === "administrator" || activeRole === "reception_sales" || isFinanceCapable(activeRole) || isMaintenance;
@@ -381,6 +385,42 @@ const Quotations = () => {
     }
   };
 
+  const createProforma = async () => {
+    if (!orgId || !user || !proformaQuotationId) return;
+    const quotation = quotations.find((candidate) => candidate.id === proformaQuotationId);
+    if (!quotation) return;
+    setSaving(true);
+    try {
+      const { data: number, error: numberError } = await industrialDb.rpc("next_doc_number", { _org_id: orgId, _doc_type: "proforma_invoices" });
+      if (numberError) throw numberError;
+      const { data: lineItems, error: lineItemsError } = await industrialDb.from("quotation_items").select("description, quantity, unit_price, total_price, item_type, product_specification_id").eq("quotation_id", quotation.id);
+      if (lineItemsError) throw lineItemsError;
+      const { error } = await industrialDb.from("proforma_invoices").insert({
+        organization_id: orgId,
+        proforma_number: number ?? `PF-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
+        client_id: quotation.client_id,
+        quotation_id: quotation.id,
+        issue_date: new Date().toISOString().slice(0, 10),
+        valid_until: proformaValidUntil || null,
+        currency: quotation.currency ?? "NGN",
+        subtotal: quotation.subtotal ?? 0,
+        discount_amount: quotation.discount_amount ?? 0,
+        tax_amount: quotation.tax_amount ?? 0,
+        transportation_cost: quotation.transport_cost ?? 0,
+        total_amount: quotation.total_amount ?? 0,
+        items: lineItems ?? [],
+        notes: proformaNotes.trim() || null,
+        status: "draft",
+        created_by: user.id,
+      });
+      if (error) throw error;
+      toast({ title: "Proforma invoice created", description: "It uses a separate proforma sequence and remains linked to the quotation." });
+      setProformaOpen(false); setProformaQuotationId(""); setProformaValidUntil(""); setProformaNotes("");
+    } catch (error) {
+      toast({ title: "Could not create proforma", description: humanizeError(error), variant: "destructive" });
+    } finally { setSaving(false); }
+  };
+
   const createSalesOrder = async (q: DbQuotation) => {
     if (!orgId) return;
     setSaving(true);
@@ -535,6 +575,7 @@ const Quotations = () => {
         <Button size="sm" variant="outline" onClick={handleExport} disabled={quotations.length === 0}>
           <Download className="h-3.5 w-3.5 mr-1" /> Export CSV
         </Button>
+        {canEdit && <Dialog open={proformaOpen} onOpenChange={setProformaOpen}><DialogTrigger asChild><Button size="sm" variant="outline"><ReceiptText className="h-3.5 w-3.5 mr-1" />Proforma</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Create Proforma Invoice</DialogTitle></DialogHeader><div className="space-y-4"><div className="space-y-2"><Label>Source quotation *</Label><Select value={proformaQuotationId} onValueChange={setProformaQuotationId}><SelectTrigger><SelectValue placeholder="Select quotation" /></SelectTrigger><SelectContent>{quotations.filter((quotation) => quotation.status !== "rejected").map((quotation) => <SelectItem key={quotation.id} value={quotation.id}>{quotation.quotation_number} · {quotation.clients?.name ?? "Client"} · {formatCurrency(Number(quotation.total_amount ?? 0))}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Valid until</Label><Input type="date" value={proformaValidUntil} onChange={(event) => setProformaValidUntil(event.target.value)} /></div><div className="space-y-2"><Label>Notes</Label><Textarea rows={3} value={proformaNotes} onChange={(event) => setProformaNotes(event.target.value)} placeholder="Commercial notes or conditions" /></div><Button onClick={createProforma} disabled={saving || !proformaQuotationId}>Create draft proforma</Button></div></DialogContent></Dialog>}
         {canEdit && (
           <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
             <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> New Quotation</Button></DialogTrigger>

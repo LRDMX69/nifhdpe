@@ -58,13 +58,13 @@ export const navItems: NavItem[] = [
 
   // Marketing
   { label: "Opportunities", icon: Target,          path: "/opportunities", roles: [...ADMIN, ...MARKETING], group: "Marketing" },
-  { label: "Quotations",    icon: FileText,        path: "/quotations",    roles: [...ADMIN, ...MARKETING], group: "Marketing" },
+  { label: "Quotations",    icon: FileText,        path: "/quotations",    roles: [...ADMIN, ...MARKETING, ...HR_ROLE], group: "Marketing" },
   { label: "BOQ",           icon: FileSpreadsheet, path: "/boq",           roles: [...ADMIN, ...TECHNICAL, ...MARKETING, ...ACCOUNTS], group: "Technical" },
-  { label: "Clients",       icon: Users,           path: "/clients",       roles: [...ADMIN, ...MARKETING], group: "Marketing" },
+  { label: "Clients",       icon: Users,           path: "/clients",       roles: [...ADMIN, ...MARKETING, ...HR_ROLE], group: "Marketing" },
 
   // Logistics
   { label: "Inventory",     icon: Package,         path: "/inventory",     roles: [...ADMIN, ...LOGISTICS], group: "Logistics" },
-  { label: "Logistics",     icon: Truck,           path: "/logistics",     roles: [...ADMIN, ...LOGISTICS], group: "Logistics" },
+  { label: "Logistics",     icon: Truck,           path: "/logistics",     roles: [...ADMIN, ...LOGISTICS, ...HR_ROLE], group: "Logistics" },
 
   // Accounts (also visible to HR for payroll & salary oversight)
   { label: "Finance",       icon: DollarSign,      path: "/finance",       roles: [...ADMIN, ...ACCOUNTS, ...HR_ROLE], group: "Accounts" },

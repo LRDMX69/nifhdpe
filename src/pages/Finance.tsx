@@ -34,6 +34,7 @@ import { humanizeError } from "@/lib/humanizeError";
 
 type ExpenseItem = Database["public"]["Tables"]["expenses"]["Row"];
 type PaymentItem = Database["public"]["Tables"]["worker_payments"]["Row"];
+type ExpenseItemExtended = ExpenseItem & { account_id?: string | null; folio_number?: string | null; project_id?: string | null; site_reference?: string | null; vat_amount?: number | null; withholding_tax_amount?: number | null; outstanding_amount?: number | null; payment_status?: string | null };
 type InvoiceItem = Database["public"]["Tables"]["invoices"]["Row"] & { clients?: { name: string } | null; sales_order_id?: string | null; project_id?: string | null; discount_amount?: number | null; overhead_amount?: number | null; tax_rate?: number | null; payment_terms?: string | null; terms_and_conditions?: string | null; currency?: string | null };
 type ReceiptItem = Database["public"]["Tables"]["receipts"]["Row"] & { clients?: { name: string } | null };
 type InvoiceLineItem = Database["public"]["Tables"]["invoice_items"]["Row"] & { item_type?: string | null; product_specification_id?: string | null };
@@ -78,6 +79,12 @@ const Finance = () => {
   const [expAmount, setExpAmount] = useState("");
   const [expDesc, setExpDesc] = useState("");
   const [expDate, setExpDate] = useState(new Date().toISOString().split("T")[0]);
+  const [expAccountId, setExpAccountId] = useState("none");
+  const [expFolio, setExpFolio] = useState("");
+  const [expSiteReference, setExpSiteReference] = useState("");
+  const [expVatAmount, setExpVatAmount] = useState("");
+  const [expWithholding, setExpWithholding] = useState("");
+  const [expOutstanding, setExpOutstanding] = useState("");
 
   // Deep-link: ?tab=invoices&new=1 opens the New Invoice dialog
   useEffect(() => {
@@ -123,6 +130,8 @@ const Finance = () => {
     },
     enabled: !!orgId,
   });
+
+  const { data: financeAccounts = [] } = useQuery({ queryKey: ["finance-accounts-page", orgId], queryFn: async () => { if (!orgId) return []; const { data, error } = await industrialDb.from("finance_accounts").select("id, account_name, account_number").eq("organization_id", orgId).eq("is_active", true).order("account_name"); if (error) throw error; return data ?? []; }, enabled: !!orgId });
 
   const { data: expenses = [], refetch: refetchExpenses, isLoading: expensesLoading, error: expensesError } = useQuery({
     queryKey: ["expenses", orgId],
@@ -207,7 +216,7 @@ const Finance = () => {
   const getMemberName = (userId: string) => members.find(m => m.value === userId)?.label ?? "Unknown";
 
   const resetPaymentForm = () => { setPayType(""); setPayAmount(""); setPayDesc(""); setPayUserId(""); setPayDate(new Date().toISOString().split("T")[0]); setEditingPayment(null); setPayVendorName(""); setPayOverrideMatch(false); };
-  const resetExpenseForm = () => { setExpCategory(""); setExpAmount(""); setExpDesc(""); setExpDate(new Date().toISOString().split("T")[0]); setEditingExpense(null); };
+  const resetExpenseForm = () => { setExpCategory(""); setExpAmount(""); setExpDesc(""); setExpDate(new Date().toISOString().split("T")[0]); setExpAccountId("none"); setExpFolio(""); setExpSiteReference(""); setExpVatAmount(""); setExpWithholding(""); setExpOutstanding(""); setEditingExpense(null); };
 
   const openEditPayment = (p: PaymentItem) => {
     setEditingPayment(p); setPayType(p.type); setPayAmount(p.amount.toString());
@@ -218,7 +227,8 @@ const Finance = () => {
 
   const openEditExpense = (e: ExpenseItem) => {
     setEditingExpense(e); setExpCategory(e.category); setExpAmount(e.amount.toString());
-    setExpDesc(e.description ?? ""); setExpDate(e.date);
+    const extended = e as ExpenseItemExtended;
+    setExpDesc(e.description ?? ""); setExpDate(e.date); setExpAccountId(extended.account_id ?? "none"); setExpFolio(extended.folio_number ?? ""); setExpSiteReference(extended.site_reference ?? ""); setExpVatAmount(extended.vat_amount?.toString() ?? ""); setExpWithholding(extended.withholding_tax_amount?.toString() ?? ""); setExpOutstanding(extended.outstanding_amount?.toString() ?? "");
     setExpenseOpen(true);
   };
 
@@ -301,11 +311,18 @@ const Finance = () => {
     if (!expCategory || !expAmount || !user || !orgId) return;
     setSaving(true);
     try {
-      const payload: Database["public"]["Tables"]["expenses"]["Insert"] = {
+      const payload = {
         organization_id: orgId, created_by: user.id,
         category: expCategory as Database["public"]["Enums"]["expense_category"], amount: parseFloat(expAmount),
         description: expDesc || null, date: expDate,
-      };
+        account_id: expAccountId === "none" ? null : expAccountId,
+        folio_number: expFolio.trim() || null,
+        site_reference: expSiteReference.trim() || null,
+        vat_amount: Number(expVatAmount || 0),
+        withholding_tax_amount: Number(expWithholding || 0),
+        outstanding_amount: Number(expOutstanding || 0),
+        payment_status: Number(expOutstanding || 0) > 0 ? "partially_paid" : "paid",
+      } as Database["public"]["Tables"]["expenses"]["Insert"] & Record<string, unknown>;
       if (editingExpense) {
         const { error } = await supabase.from("expenses").update(payload as Database["public"]["Tables"]["expenses"]["Update"]).eq("id", editingExpense.id).eq("organization_id", orgId);
         if (error) throw error;
@@ -457,7 +474,10 @@ const Finance = () => {
                   </div>
                 </div>
                 <div className="space-y-2"><Label>Description</Label><Input value={expDesc} onChange={(e) => setExpDesc(e.target.value)} placeholder="Expense description" /></div>
-                <div className="space-y-2"><Label>Amount (₦) *</Label><Input type="number" value={expAmount} onChange={(e) => setExpAmount(e.target.value)} placeholder="0.00" /></div>
+                <div className="space-y-2"><Label>Source account</Label><Select value={expAccountId} onValueChange={setExpAccountId}><SelectTrigger><SelectValue placeholder="Optional account" /></SelectTrigger><SelectContent><SelectItem value="none">Not assigned</SelectItem>{financeAccounts.map((account) => <SelectItem key={account.id} value={account.id}>{account.account_name}{account.account_number ? ` · ${account.account_number}` : ""}</SelectItem>)}</SelectContent></Select></div>
+                <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>Amount (₦) *</Label><Input type="number" value={expAmount} onChange={(e) => setExpAmount(e.target.value)} placeholder="0.00" /></div><div className="space-y-2"><Label>Folio / reference</Label><Input value={expFolio} onChange={(e) => setExpFolio(e.target.value)} placeholder="Folio" /></div></div>
+                <div className="space-y-2"><Label>Site / project reference</Label><Input value={expSiteReference} onChange={(e) => setExpSiteReference(e.target.value)} placeholder="Project, site, or cost centre" /></div>
+                <div className="grid grid-cols-3 gap-3"><div className="space-y-2"><Label>VAT</Label><Input type="number" value={expVatAmount} onChange={(e) => setExpVatAmount(e.target.value)} placeholder="0" /></div><div className="space-y-2"><Label>WHT</Label><Input type="number" value={expWithholding} onChange={(e) => setExpWithholding(e.target.value)} placeholder="0" /></div><div className="space-y-2"><Label>Outstanding</Label><Input type="number" value={expOutstanding} onChange={(e) => setExpOutstanding(e.target.value)} placeholder="0" /></div></div>
                 <Button className="w-full" onClick={handleLogExpense} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}{editingExpense ? "Update" : "Save"} Expense</Button>
               </div>
             </DialogContent>

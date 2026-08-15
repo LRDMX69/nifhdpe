@@ -21,13 +21,13 @@ import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
 
-type ClientItem = Database["public"]["Tables"]["clients"]["Row"];
+type ClientItem = Database["public"]["Tables"]["clients"]["Row"] & { tax_identification_number?: string | null; state?: string | null; local_government?: string | null };
 
 const Clients = () => {
   const { user, memberships, activeRole, isMaintenance } = useAuth();
   const { toast } = useToast();
   const orgId = memberships[0]?.organization_id;
-  const canEdit = activeRole === "administrator" || activeRole === "reception_sales" || isMaintenance;
+  const canEdit = activeRole === "administrator" || activeRole === "reception_sales" || activeRole === "hr" || isMaintenance;
   const canDelete = activeRole === "administrator" || isMaintenance;
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -42,6 +42,9 @@ const Clients = () => {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
+  const [taxIdentificationNumber, setTaxIdentificationNumber] = useState("");
+  const [state, setState] = useState("");
+  const [localGovernment, setLocalGovernment] = useState("");
 
   const { data: clients = [], isLoading, error: clientsError, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["clients", orgId],
@@ -61,12 +64,15 @@ const Clients = () => {
     setPhone(client.phone ?? "");
     setEmail(client.email ?? "");
     setAddress(client.address ?? "");
+    setTaxIdentificationNumber(client.tax_identification_number ?? "");
+    setState(client.state ?? "");
+    setLocalGovernment(client.local_government ?? "");
     setDialogOpen(true);
   };
 
   const openAdd = () => {
     setEditingClient(null);
-    setName(""); setContactPerson(""); setPhone(""); setEmail(""); setAddress("");
+    setName(""); setContactPerson(""); setPhone(""); setEmail(""); setAddress(""); setTaxIdentificationNumber(""); setState(""); setLocalGovernment("");
     setDialogOpen(true);
   };
 
@@ -82,7 +88,10 @@ const Clients = () => {
         phone: phone || null,
         email: email || null,
         address: address || null,
-      };
+        tax_identification_number: taxIdentificationNumber.trim() || null,
+        state: state.trim() || null,
+        local_government: localGovernment.trim() || null,
+      } as Database["public"]["Tables"]["clients"]["Insert"] & Record<string, unknown>;
       if (editingClient) {
         const { error } = await supabase.from("clients").update(payload as Database["public"]["Tables"]["clients"]["Update"]).eq("id", editingClient.id);
         if (error) throw error;
@@ -138,7 +147,7 @@ const Clients = () => {
         storageKey="clients"
         summary="The client master powers every quotation, invoice, opportunity and project. Keep the company name and contact details accurate — they print on every document."
         steps={[
-          { actor: "Marketing / Admin", action: "register the client with company name, contact person and address." },
+          { actor: "Marketing / HR / Admin", action: "register the client with company name, contact person and address." },
           { actor: "Sales", action: "raises Quotations and Opportunities against the client record." },
           { actor: "Finance", action: "issues Invoices and Receipts that automatically pull the client's details." },
         ]}
@@ -154,6 +163,9 @@ const Clients = () => {
               <div className="space-y-2"><Label>Phone</Label><Input placeholder="+234..." value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
               <div className="space-y-2"><Label>Email</Label><Input type="email" placeholder="email@company.com" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
               <div className="space-y-2"><Label>Address</Label><Input placeholder="Office address" value={address} onChange={(e) => setAddress(e.target.value)} /></div>
+              <div className="space-y-2"><Label>TIN</Label><Input placeholder="Optional tax identification number" value={taxIdentificationNumber} onChange={(e) => setTaxIdentificationNumber(e.target.value)} /></div>
+              <div className="space-y-2"><Label>State</Label><Input placeholder="State" value={state} onChange={(e) => setState(e.target.value)} /></div>
+              <div className="space-y-2"><Label>Local Government</Label><Input placeholder="LGA" value={localGovernment} onChange={(e) => setLocalGovernment(e.target.value)} /></div>
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
