@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, FileText, Users, Package, FolderKanban, BarChart3, Calculator,
-  Truck, Settings, ClipboardList, DollarSign, Wrench, ShieldCheck, Target, UserCog, AlertCircle, MessageSquare, ShoppingCart, Receipt, FileSpreadsheet,
+  Truck, Settings, ClipboardList, DollarSign, Wrench, ShieldCheck, Target, UserCog, AlertCircle, MessageSquare, ShoppingCart, FileSpreadsheet,
 } from "lucide-react";
 
 export interface NavItem {
@@ -68,7 +68,6 @@ export const navItems: NavItem[] = [
 
   // Accounts (also visible to HR for payroll & salary oversight)
   { label: "Finance",       icon: DollarSign,      path: "/finance",       roles: [...ADMIN, ...ACCOUNTS, ...HR_ROLE], group: "Accounts" },
-  { label: "Invoices",      icon: Receipt,         path: "/finance?tab=invoices", roles: [...ADMIN, ...ACCOUNTS, ...MARKETING], group: "Accounts" },
   { label: "Procurement",   icon: ShoppingCart,    path: "/procurement",   roles: [...ADMIN, ...ACCOUNTS, ...LOGISTICS], group: "Accounts" },
   { label: "Analytics",     icon: BarChart3,       path: "/analytics",     roles: [...ADMIN, ...ACCOUNTS, ...MARKETING], group: "Accounts" },
 
