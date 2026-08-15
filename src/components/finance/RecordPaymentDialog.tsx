@@ -53,6 +53,7 @@ export const RecordPaymentDialog = ({ open, onOpenChange, invoice, onRecorded, f
     if (!invoice || !user) return;
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) { toast({ title: "Enter a valid amount", variant: "destructive" }); return; }
+    if (!bankAccountId || bankAccountId === "none") { toast({ title: "Receiving account is required", description: "Select the bank or cash account so the receipt remains traceable in Bank Analysis.", variant: "destructive" }); return; }
     setBusy(true);
     try {
       const { data: receipt, error } = await industrialDb.rpc("record_invoice_payment", {
@@ -128,7 +129,7 @@ export const RecordPaymentDialog = ({ open, onOpenChange, invoice, onRecorded, f
                 </Select>
               </div>
               <div className="space-y-1.5"><Label>Date</Label><Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} /></div>
-              <div className="space-y-1.5 col-span-2"><Label>Destination bank account</Label><Select value={bankAccountId} onValueChange={setBankAccountId}><SelectTrigger><SelectValue placeholder="Select the account receiving this payment" /></SelectTrigger><SelectContent><SelectItem value="none">Not assigned</SelectItem>{financeAccounts.map((account) => <SelectItem key={account.id} value={account.id}>{account.account_name}{account.account_number ? ` · ${account.account_number}` : ""}</SelectItem>)}</SelectContent></Select><p className="text-[11px] text-muted-foreground">Assigning an account keeps the receipt connected to Bank Analysis. You can still reconcile the exact bank line later.</p></div>
+              <div className="space-y-1.5 col-span-2"><Label>Receiving bank / cash account *</Label><Select value={bankAccountId} onValueChange={setBankAccountId}><SelectTrigger><SelectValue placeholder="Select the account receiving this payment" /></SelectTrigger><SelectContent><SelectItem value="none">Select an account</SelectItem>{financeAccounts.map((account) => <SelectItem key={account.id} value={account.id}>{account.account_name}{account.account_number ? ` · ${account.account_number}` : ""}</SelectItem>)}</SelectContent></Select><p className="text-[11px] text-muted-foreground">Every receipt must identify its receiving account. You can reconcile the exact bank line later without losing this lineage.</p></div>
               <div className="space-y-1.5 col-span-2"><Label>Reference / Cheque #</Label><Input value={reference} onChange={e => setReference(e.target.value)} placeholder="Optional" /></div>
               <div className="space-y-1.5 col-span-2"><Label>Notes</Label><Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} /></div>
             </div>

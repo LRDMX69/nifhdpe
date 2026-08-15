@@ -36,7 +36,7 @@ import { calculateExpensePaymentStatus, calculateOutstandingBalance } from "@/li
 type ExpenseItem = Database["public"]["Tables"]["expenses"]["Row"];
 type PaymentItem = Database["public"]["Tables"]["worker_payments"]["Row"];
 type ExpenseItemExtended = ExpenseItem & { account_id?: string | null; folio?: string | null; project_id?: string | null; site_reference?: string | null; vat_amount?: number | null; withholding_tax_amount?: number | null; part_payment?: number | null; outstanding_balance?: number | null; payment_status?: string | null };
-type InvoiceItem = Database["public"]["Tables"]["invoices"]["Row"] & { clients?: { name: string } | null; sales_order_id?: string | null; project_id?: string | null; discount_amount?: number | null; overhead_amount?: number | null; tax_rate?: number | null; payment_terms?: string | null; terms_and_conditions?: string | null; currency?: string | null };
+type InvoiceItem = Database["public"]["Tables"]["invoices"]["Row"] & { clients?: { name: string } | null; sales_order_id?: string | null; project_id?: string | null; client_po_id?: string | null; delivery_id?: string | null; customer_reference?: string | null; client_name_snapshot?: string | null; client_tin_snapshot?: string | null; site_reference?: string | null; delivery_address?: string | null; delivery_contact?: string | null; delivery_state?: string | null; delivery_lga?: string | null; invoice_kind?: string | null; discount_amount?: number | null; overhead_amount?: number | null; transportation_cost?: number | null; tax_rate?: number | null; withholding_tax_rate?: number | null; withholding_tax_amount?: number | null; taxable_amount?: number | null; net_amount?: number | null; amount_paid?: number | null; payment_terms?: string | null; terms_and_conditions?: string | null; currency?: string | null; free_trade_zone?: boolean | null };
 type ReceiptItem = Database["public"]["Tables"]["receipts"]["Row"] & { clients?: { name: string } | null };
 type InvoiceLineItem = Database["public"]["Tables"]["invoice_items"]["Row"] & { item_type?: string | null; product_specification_id?: string | null };
 type QuotationItem = { total_amount: number | null; created_at: string };
@@ -695,17 +695,18 @@ const Finance = () => {
               >
                 <div className="min-w-[700px]">
                   <Table><TableHeader><TableRow>
-                    <TableHead>Invoice #</TableHead><TableHead>Client</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="text-right">Balance</TableHead><TableHead>Bank link</TableHead><TableHead className="w-[40px]"></TableHead>
+                    <TableHead>Invoice #</TableHead><TableHead>Client / reference</TableHead><TableHead>Source / site</TableHead><TableHead>Date / due</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Gross / net</TableHead><TableHead className="text-right">Balance</TableHead><TableHead>Bank link</TableHead><TableHead className="w-[40px]"></TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
                     {(invoices as InvoiceItem[]).map((inv) => (
                       <TableRow key={inv.id}>
                         <TableCell className="text-sm font-bold">{inv.document_number}</TableCell>
-                        <TableCell className="text-sm">{inv.clients?.name}</TableCell>
-                        <TableCell className="text-sm">{inv.invoice_date}</TableCell>
+                        <TableCell className="text-sm"><div>{inv.clients?.name ?? inv.client_name_snapshot ?? "—"}</div><div className="text-[10px] text-muted-foreground">{inv.customer_reference ?? (inv.client_tin_snapshot ? `TIN ${inv.client_tin_snapshot}` : "No customer reference")}</div></TableCell>
+                        <TableCell className="text-sm"><div>{inv.sales_order_id ? `Order ${inv.sales_order_id.slice(0, 8)}` : inv.invoice_kind ?? "Manual"}</div><div className="text-[10px] text-muted-foreground">{inv.site_reference ?? (inv.project_id ? `Project ${inv.project_id.slice(0, 8)}` : "No site reference")}</div></TableCell>
+                        <TableCell className="text-sm"><div>{inv.invoice_date}</div><div className="text-[10px] text-muted-foreground">Due {inv.due_date ?? "—"}</div></TableCell>
                         <TableCell><Badge variant="outline" className="capitalize">{inv.status}</Badge></TableCell>
-                        <TableCell className="text-right">{formatCurrency(inv.total_amount)}</TableCell>
-                        <TableCell className="text-right font-bold text-primary">{formatCurrency(inv.balance_due)}</TableCell>
+                        <TableCell className="text-right"><div>{formatCurrency(inv.total_amount)}</div><div className="text-[10px] text-muted-foreground">Net {formatCurrency(inv.net_amount ?? inv.total_amount)}</div></TableCell>
+                        <TableCell className="text-right font-bold text-primary"><div>{formatCurrency(inv.balance_due)}</div><div className="text-[10px] text-muted-foreground">Paid {formatCurrency(inv.amount_paid ?? Number(inv.total_amount ?? 0) - Number(inv.balance_due ?? 0))}</div></TableCell>
                         <TableCell>{entityIsBankLinked("invoice", inv.id) ? <Badge className="bg-emerald-600">Linked</Badge> : <Badge variant="outline">Unlinked</Badge>}</TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-1">
@@ -725,7 +726,7 @@ const Finance = () => {
                             generatePdf({
                               title: `Invoice ${inv.document_number}`,
                               senderName: "NIF Technical Services Ltd",
-                              contentSections: [{ heading: "Billing and project", bullets: [`Client: ${inv.clients?.name ?? "N/A"}`, inv.sales_order_id ? `Sales order: ${inv.sales_order_id}` : "", inv.project_id ? `Project: ${inv.project_id}` : "", `Invoice date: ${inv.invoice_date ?? "N/A"}`, `Due date: ${inv.due_date ?? "Not specified"}`, `Status: ${(inv.status ?? "draft").toUpperCase()}`].filter(Boolean) }, { heading: "Payment terms", bullets: [inv.payment_terms ? `Terms: ${inv.payment_terms}` : "", inv.terms_and_conditions ? `Conditions: ${inv.terms_and_conditions}` : "", `Amount received: ${formatCurrency(Number((inv.total_amount ?? 0) - (inv.balance_due ?? 0)) )}`, `Balance due: ${formatCurrency(inv.balance_due ?? 0)}`].filter(Boolean) }],
+                              contentSections: [{ heading: "Billing and project", bullets: [`Client: ${inv.clients?.name ?? "N/A"}`, inv.client_tin_snapshot ? `Client TIN: ${inv.client_tin_snapshot}` : "", inv.customer_reference ? `Customer reference: ${inv.customer_reference}` : "", inv.client_po_id ? `Client PO: ${inv.client_po_id}` : "", inv.sales_order_id ? `Sales order: ${inv.sales_order_id}` : "", inv.project_id ? `Project: ${inv.project_id}` : "", inv.site_reference ? `Site reference: ${inv.site_reference}` : "", inv.delivery_address ? `Delivery address: ${inv.delivery_address}` : "", inv.delivery_contact ? `Delivery contact: ${inv.delivery_contact}` : "", inv.delivery_state || inv.delivery_lga ? `Delivery location: ${[inv.delivery_state, inv.delivery_lga].filter(Boolean).join(" / ")}` : "", `Invoice type: ${(inv.invoice_kind ?? "standard").replace("_", " ")}`, `Invoice date: ${inv.invoice_date ?? "N/A"}`, `Due date: ${inv.due_date ?? "Not specified"}`, `Status: ${(inv.status ?? "draft").toUpperCase()}`].filter(Boolean) }, { heading: "Payment terms", bullets: [inv.payment_terms ? `Terms: ${inv.payment_terms}` : "", inv.terms_and_conditions ? `Conditions: ${inv.terms_and_conditions}` : "", `Taxable amount: ${formatCurrency(Number(inv.taxable_amount ?? inv.subtotal ?? 0))}`, `VAT / tax: ${formatCurrency(Number(inv.tax_amount ?? 0))}`, `WHT: ${formatCurrency(Number(inv.withholding_tax_amount ?? 0))}`, `Gross total: ${formatCurrency(Number(inv.total_amount ?? 0))}`, `Amount received: ${formatCurrency(Number(inv.amount_paid ?? Number(inv.total_amount ?? 0) - Number(inv.balance_due ?? 0)))}`, `Net due: ${formatCurrency(Number(inv.net_amount ?? inv.total_amount ?? 0))}`, `Balance due: ${formatCurrency(inv.balance_due ?? 0)}`].filter(Boolean) }],
                               tableData: items ? {
                                 columns: [
                                   { header: "Description", dataKey: "description" },
@@ -745,8 +746,11 @@ const Finance = () => {
                                   { label: "Subtotal", value: formatCurrency(inv.subtotal ?? 0) },
                                   ...((inv.discount_amount ?? 0) > 0 ? [{ label: "Discount", value: `-${formatCurrency(inv.discount_amount ?? 0)}` }] : []),
                                   ...((inv.overhead_amount ?? 0) > 0 ? [{ label: "Overhead / site cost", value: formatCurrency(inv.overhead_amount ?? 0) }] : []),
+                                  ...((inv.transportation_cost ?? 0) > 0 ? [{ label: "Transportation", value: formatCurrency(inv.transportation_cost ?? 0) }] : []),
                                   ...((inv.tax_amount ?? 0) > 0 ? [{ label: `Tax (${inv.tax_rate ?? 0}%)`, value: formatCurrency(inv.tax_amount ?? 0) }] : []),
-                                  { label: "Total Amount", value: formatCurrency(inv.total_amount) },
+                                  ...((inv.withholding_tax_amount ?? 0) > 0 ? [{ label: `WHT (${inv.withholding_tax_rate ?? 0}%)`, value: `-${formatCurrency(inv.withholding_tax_amount ?? 0)}` }] : []),
+                                  { label: "Gross total", value: formatCurrency(inv.total_amount) },
+                                  { label: "Net due", value: formatCurrency(inv.net_amount ?? inv.total_amount) },
                                   { label: "Balance Due", value: formatCurrency(inv.balance_due) },
                                 ]
                               } : undefined,

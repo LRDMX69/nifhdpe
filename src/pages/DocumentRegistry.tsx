@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency } from "@/lib/constants";
 import { industrialDb } from "@/lib/industrialDb";
 import { toast } from "@/hooks/use-toast";
+import { reprintWaybill, type PersistedWaybill } from "@/lib/generateWaybill";
 
 interface DocRow {
   id: string;
@@ -26,6 +27,7 @@ interface DocRow {
   party: string | null;
   amount: number | null;
   status: string | null;
+  waybill?: PersistedWaybill;
 }
 
 interface RevisionRow {
@@ -43,7 +45,8 @@ const TYPE_META: Record<string, { label: string; icon: typeof FileText; color: s
   invoice:   { label: "Invoice",          icon: FileText,      color: "text-blue-500",    route: "/finance" },
   quotation: { label: "Quotation",        icon: FileText,      color: "text-violet-500",  route: "/quotations" },
   receipt:   { label: "Receipt",          icon: ReceiptIcon,   color: "text-emerald-500", route: "/finance" },
-  delivery:  { label: "Delivery/Waybill", icon: Truck,         color: "text-orange-500",  route: "/logistics" },
+  delivery:  { label: "Delivery",         icon: Truck,         color: "text-orange-500",  route: "/logistics" },
+  waybill:    { label: "Waybill",           icon: Truck,         color: "text-orange-600",  route: "/logistics" },
   po:        { label: "Purchase Order",   icon: ShoppingCart,  color: "text-cyan-500",    route: "/procurement" },
   grn:       { label: "Goods Received",   icon: Package,       color: "text-amber-500",   route: "/procurement" },
   hse:       { label: "HSE Incident",     icon: ShieldAlert,   color: "text-red-500",     route: "/hse" },
@@ -67,6 +70,7 @@ const DocumentRegistry = () => {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const navigate = useNavigate();
+  const [reprintingId, setReprintingId] = useState<string | null>(null);
 
   const { data, isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["doc-registry", orgId],
@@ -98,6 +102,11 @@ const DocumentRegistry = () => {
           const { data, error } = await supabase.from("deliveries").select("id, document_number, delivery_date, destination, status, cost").eq("organization_id", orgId).not("document_number", "is", null).order("delivery_date", { ascending: false }).limit(SOURCE_FETCH_LIMIT);
           if (error) throw error;
           return (data ?? []).map((r: any) => ({ id: r.id, number: r.document_number, type: "delivery", date: r.delivery_date, party: r.destination, amount: r.cost, status: r.status }));
+        }},
+        { key: "waybill", run: async () => {
+          const { data, error } = await industrialDb.from("waybills").select("*").eq("organization_id", orgId).order("waybill_date", { ascending: false }).limit(SOURCE_FETCH_LIMIT);
+          if (error) throw error;
+          return (data ?? []).map((r: PersistedWaybill) => ({ id: r.id, number: r.document_number, type: "waybill", date: r.waybill_date, party: r.destination, amount: null, status: r.status, waybill: r }));
         }},
         { key: "po",        run: async () => {
           const [{ data, error }, vendorMap] = await Promise.all([
@@ -181,6 +190,17 @@ const DocumentRegistry = () => {
     return map;
   }, [filtered]);
 
+  const handleReprint = async (waybill: PersistedWaybill) => {
+    setReprintingId(waybill.id);
+    try {
+      const printed = await reprintWaybill(waybill);
+      toast({ title: "Waybill reprinted", description: `${printed.document_number} copy ${printed.print_count} was generated and recorded.` });
+      await refetch();
+    } catch (error) {
+      toast({ title: "Waybill reprint failed", description: error instanceof Error ? error.message : "Could not reprint waybill", variant: "destructive" });
+    } finally { setReprintingId(null); }
+  };
+
   const exportCsv = () => {
     if (!filtered.length) { toast({ title: "Nothing to export", description: "Adjust filters and try again." }); return; }
     const header = ["Reference", "Type", "Date", "Party", "Amount", "Status"];
@@ -205,7 +225,7 @@ const DocumentRegistry = () => {
             <EmptyState
               icon={FileText}
               title="No documents in this view"
-              description="Every numbered document issued in the ERP — invoices, receipts, quotations, waybills and Purchase Orders — appears here automatically when it's created in its own module."
+              description="Every numbered document issued in the ERP — invoices, receipts, quotations, waybills and Purchase Orders — appears here automatically when it is created in its own module. Waybill rows retain printed state and can be reprinted from the stored record."
               compact
             />
           </div>
@@ -217,7 +237,7 @@ const DocumentRegistry = () => {
               <TableHead className="w-[120px]">Date</TableHead>
               <TableHead>Party / Detail</TableHead>
               <TableHead className="text-right w-[140px]">Amount</TableHead>
-              <TableHead className="w-[100px]">Status</TableHead>
+              <TableHead className="w-[100px]">Status</TableHead><TableHead className="w-[130px]">Actions</TableHead>
             </TableRow></TableHeader>
             <TableBody>
               {rows.map(r => {
@@ -235,7 +255,7 @@ const DocumentRegistry = () => {
                     <TableCell className="text-xs">{r.date ? new Date(r.date).toLocaleDateString("en-NG") : "—"}</TableCell>
                     <TableCell className="text-xs max-w-[260px] truncate">{r.party ?? "—"}</TableCell>
                     <TableCell className="text-right text-xs font-medium">{r.amount != null ? formatCurrency(r.amount) : "—"}</TableCell>
-                    <TableCell>{r.status ? <Badge variant="outline" className="capitalize text-[10px]">{r.status}</Badge> : "—"}</TableCell>
+                    <TableCell>{r.status ? <Badge variant={r.status === "generation_failed" ? "destructive" : "outline"} className="capitalize text-[10px]">{r.status.replace(/_/g, " ")}</Badge> : "—"}</TableCell><TableCell>{r.type === "waybill" && r.waybill ? <Button size="sm" variant="outline" disabled={reprintingId === r.waybill.id} onClick={(event) => { event.stopPropagation(); void handleReprint(r.waybill!); }}>{reprintingId === r.waybill.id ? "Printing…" : "Reprint"}</Button> : "—"}</TableCell>
                   </TableRow>
                 );
               })}

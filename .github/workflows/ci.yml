@@ -1,0 +1,68 @@
+name: NIFHDPE CI
+
+on:
+  push:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nifhdpe-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gate:
+    name: Quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npm run typecheck
+
+      - name: Strict TypeScript check
+        run: npm run typecheck:strict
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Behavior and regression tests
+        run: npm test -- --run
+
+      - name: Production build
+        run: npm run build
+
+      - name: High-severity dependency audit
+        run: npm audit --audit-level=high
+
+      - name: Diff hygiene
+        run: git diff --check
+
+      - name: Production marker audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          matches="$(grep -RInE 'TODO|FIXME|PLACEHOLDER|REPLACE_WITH|coming soon|not implemented|mock|dummy' src supabase --exclude='*.map' || true)"
+          filtered="$(printf '%s\n' "$matches" | grep -vE 'CheckInWidget\.tsx:.*samples|AppSettings\.tsx:.*samples|ai-assistant/index\.ts:.*NOT mocked' || true)"
+          if [[ -n "${filtered//[[:space:]]/}" ]]; then
+            echo "Production marker audit failed. Review these matches:"
+            printf '%s\n' "$filtered"
+            exit 1
+          fi
+          echo "No prohibited production markers found outside the documented benign allowlist."

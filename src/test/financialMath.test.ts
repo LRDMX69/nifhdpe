@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateExpensePaymentStatus, calculateLoanBalance, calculateOutstandingBalance, calculateQuotationTotals, calculateReconciliationDifference, calculateVatSchedule } from "@/lib/financialMath";
+import { calculateExpensePaymentStatus, calculateInvoiceTotals, calculateLoanBalance, calculateOutstandingBalance, calculateQuotationTotals, calculateReconciliationDifference, calculateVatSchedule, formatClientDocumentNumber } from "@/lib/financialMath";
 
 describe("financial business calculations", () => {
   it("calculates quotation subtotal, margin, discount, overhead, VAT, and grand total deterministically", () => {
@@ -73,5 +73,30 @@ describe("financial business calculations", () => {
     expect(calculateReconciliationDifference(1_000.1, 1_000.3)).toBe(0.2);
     expect(calculateLoanBalance(100_000, 20_000, [10_000, 15_000, 5_000])).toBe(90_000);
     expect(calculateLoanBalance(100_000, 0, [150_000])).toBe(0);
+  });
+
+  it("keeps a client's document family contiguous with alphabetic suffixes", () => {
+    expect(formatClientDocumentNumber("INVOICES/2026/0027", 1)).toBe("INVOICES/2026/0027");
+    expect(formatClientDocumentNumber("INVOICES/2026/0027", 2)).toBe("INVOICES/2026/0027B");
+    expect(formatClientDocumentNumber("INVOICES/2026/0027", 3)).toBe("INVOICES/2026/0027C");
+    expect(formatClientDocumentNumber("INVOICES/2026/0027", 28)).toBe("INVOICES/2026/0027AB");
+  });
+
+  it("calculates complete invoice gross, net, VAT, WHT, and balance inputs deterministically", () => {
+    const totals = calculateInvoiceTotals({
+      items: [{ quantity: 10, unitPrice: 12_345.67, discountAmount: 100 }],
+      discountAmount: 500,
+      overheadAmount: 2_000,
+      transportationCost: 3_000,
+      taxRatePercent: 7.5,
+      withholdingTaxRatePercent: 2,
+    });
+    expect(totals.subtotal).toBe(123_356.7);
+    expect(totals.discount).toBe(500);
+    expect(totals.taxableAmount).toBe(127_856.7);
+    expect(totals.taxAmount).toBe(9_589.25);
+    expect(totals.withholdingTaxAmount).toBe(2_557.13);
+    expect(totals.totalAmount).toBe(137_445.95);
+    expect(totals.netAmount).toBe(134_888.82);
   });
 });
