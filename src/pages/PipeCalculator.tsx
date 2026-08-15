@@ -120,7 +120,7 @@ const PipeCalculator = () => {
               </CardContent></Card>
               <Card className="border-border/50"><CardContent className="pt-4 pb-3 text-center">
                 <p className="text-xs text-muted-foreground mt-5">Total Weight</p>
-                <p className="text-xl font-bold">{totalWeight.toFixed(0)} kg</p>
+                <p className="text-xl font-bold">{totalWeight < 1 ? totalWeight.toFixed(2) : totalWeight.toFixed(0)} kg</p>
               </CardContent></Card>
             </div>
           )}

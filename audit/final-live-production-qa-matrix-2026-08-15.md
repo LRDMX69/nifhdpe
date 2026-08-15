@@ -235,3 +235,19 @@ The live quotation PDF downloaded from `/quotations` successfully. `pdfinfo` rep
 ### D04 Waybill PDF and registry lifecycle
 
 The Document Registry Waybill tab showed `WAYBILLS/2026/0001`, status Reprinted, and a Reprint action. Clicking Reprint produced the explicit confirmation `WAYBILLS/2026/0001 copy 3 was generated and recorded.` The downloaded PDF was **1 page, A4**, with document ID, date, driver, vehicle, destination, recipient, project, print history `copy 3`, notes, authorization text, inherited item description `UAT HDPE Pipe 110mm SDR11`, quantity 8, unit m, prepared/approved/date lines, and company seal. Visual inspection confirmed the table, seal, watermark, footer, and signatures stayed together on one page.
+
+### D02 Invoice revision history merged retest
+
+After PR #18 deployment, Finance → Invoices → `INVOICES/2026/0001` → Revision History now displays four operational snapshots instead of the previous empty state. The dialog shows v1 superseded, v2 superseded, v3 superseded, and v4 current, with snapshot reasons and timestamp metadata. The v2 entry shows the proforma-invoice link change; v4 shows status `unpaid` → `paid`, amount paid `0` → `205,518.79`, and balance due `205,518.79` → `0`. The central registry and record-level Finance history now agree.
+
+### Finance integrity correction merged retest
+
+After PR #19 deployment, `/finance?tab=receipts` shows `RECEIPTS/2026/0001` with bank status **Linked via invoice**, matching the authoritative linked invoice and amount. `/finance?tab=payments` shows the salary record as Salary and the two historical staff-loan rows as **loan repayment** for `₦20,000` and `₦10,000`. `/hr` → Payroll shows the same three records with Salary and Loan Repayment labels, total `₦269,000`, 3 payments this month, and 3 all-time records. `/documents` settles at 11 numbered documents and 10 revisions; its three Worker Payment rows show salary `₦239,000`, loan repayment `₦20,000`, and loan repayment `₦10,000`. The cross-module presentation and receipt-link propagation defect is resolved without rewriting historical UAT data.
+
+### Settled Dashboard and Opportunities retest
+
+The earlier Dashboard `Total Expenses ₦0.00` and Opportunities zero-card capture occurred during the initial loading skeleton. After the queries settled, Dashboard showed `Total Expenses ₦1,000.00`, matching Finance and the 30-day recent-outflow value. A live DOM inspection found one settled Total Expenses card at `₦1,000.00`; no duplicate metric remained. `/opportunities` settled at **643 live opportunities**, **₦2,535,510,000,000.00 pipeline value**, 0 active bids, 0 won, and 643 total tracked. The AI card’s `3 new opportunities identified` is a scan delta dated 19 June 2026, not a claim that only three opportunities exist, so the settled KPI is consistent. The provisional loading-state warnings for these two routes are closed.
+
+### C01/CALC Pipe Calculator live validation
+
+The settled production calculator case used HDPE, 110 mm, length 100 m, and flow 5 L/s. The live output was Pressure Rating `16 bar`, Flow Velocity `0.79 m/s`, Head Loss `0.68 m`, and Total Weight `314 kg`. An independent saved Python calculation using the implementation’s stated inner diameter (0.09 m), HDPE Hazen-Williams coefficient (150), and formulas produced velocity `0.785950 m/s`, head loss `0.675110 m`, and weight `314.00 kg`, matching the displayed rounded values. The earlier zero-input validation remains PASS with a clear error and no false result. Normal calculation integrity is PASS for this case; small/large/decimal edge cases remain pending.
