@@ -30,6 +30,7 @@ import { calculateNigerianSalary, SalaryBreakdown } from "@/lib/payroll";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
 import { industrialDb } from "@/lib/industrialDb";
+import { workerPaymentTypeLabel } from "@/lib/workerPaymentLabels";
 import { HRFinanceWorkspace } from "@/components/hr/HRFinanceWorkspace";
 import { HRCommercialOperationsPanel } from "@/components/hr/HRCommercialOperationsPanel";
 import { HRFinanceAuditWorkspace } from "@/components/hr/HRFinanceAuditWorkspace";
@@ -868,7 +869,7 @@ const HR = () => {
                             <div className="space-y-1 pl-8">
                               {pms.map((p) => (
                                 <div key={p.id} className="flex items-center justify-between text-xs text-muted-foreground">
-                                  <span><span className="mr-1 capitalize text-foreground">{p.type.replace(/_/g, " ")}</span>{p.date}{p.description ? ` · ${p.description}` : ""}</span>
+                                  <span><span className="mr-1 capitalize text-foreground">{workerPaymentTypeLabel(p)}</span>{p.date}{p.description ? ` · ${p.description}` : ""}</span>
                                   <span>₦{Number(p.amount).toLocaleString()}</span>
                                 </div>
                               ))}

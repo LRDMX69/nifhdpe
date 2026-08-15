@@ -18,6 +18,7 @@ import { formatCurrency } from "@/lib/constants";
 import { industrialDb } from "@/lib/industrialDb";
 import { toast } from "@/hooks/use-toast";
 import { reprintWaybill, type PersistedWaybill } from "@/lib/generateWaybill";
+import { workerPaymentTypeLabel } from "@/lib/workerPaymentLabels";
 
 interface DocRow {
   id: string;
@@ -64,6 +65,7 @@ function csvEscape(v: unknown): string {
   const s = String(v);
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
+
 
 const DocumentRegistry = () => {
   const { memberships } = useAuth();
@@ -147,9 +149,9 @@ const DocumentRegistry = () => {
           return (data ?? []).map((r: any) => ({ id: r.id, number: r.document_number, type: "claim", date: r.created_at, party: r.category, amount: r.amount, status: r.status }));
         }},
         { key: "payment",   run: async () => {
-          const { data, error } = await supabase.from("worker_payments").select("id, document_number, date, amount, type").eq("organization_id", orgId).not("document_number", "is", null).order("date", { ascending: false }).limit(SOURCE_FETCH_LIMIT);
+          const { data, error } = await supabase.from("worker_payments").select("id, document_number, date, amount, type, description").eq("organization_id", orgId).not("document_number", "is", null).order("date", { ascending: false }).limit(SOURCE_FETCH_LIMIT);
           if (error) throw error;
-          return (data ?? []).map((r: any) => ({ id: r.id, number: r.document_number, type: "payment", date: r.date, party: r.type, amount: r.amount, status: "logged" }));
+          return (data ?? []).map((r: any) => ({ id: r.id, number: r.document_number, type: "payment", date: r.date, party: workerPaymentTypeLabel({ type: r.type, description: r.description }), amount: r.amount, status: "logged" }));
         }},
       ];
       const results = await Promise.allSettled(sources.map(s => s.run()));
