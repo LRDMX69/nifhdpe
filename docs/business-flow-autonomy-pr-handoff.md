@@ -4,8 +4,9 @@
 
 The earlier invoice/waybill pull request has been merged. This follow-up commit is on `feat/invoice-waybill-reactive-workflows` and must be reviewed in the fresh pull request created from the now-current `main`.
 
-**Latest commit:** `bfbd509`  
-**Hosted CI:** [NIFHDPE CI run 31888184925](https://github.com/LRDMX69/nifhdpe/actions/runs/31888184925) — passed.
+**Latest implementation commit:** `bfbd509`  
+**Final documentation commit:** `92d06aa`  
+**Hosted CI:** [NIFHDPE CI run 31888235239](https://github.com/LRDMX69/nifhdpe/actions/runs/31888235239) — passed.
 
 ## Included work
 

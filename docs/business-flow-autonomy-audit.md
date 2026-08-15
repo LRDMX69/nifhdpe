@@ -162,7 +162,7 @@ The following concrete error-path improvements were applied:
 
 ## 6. Verification evidence
 
-The local behavior suite now passes **26 tests in 5 test files**. Standard and strict TypeScript checks pass after the current changes. The exact shared CI gate now passes locally: TypeScript, strict TypeScript, lint, tests, production build, high-severity dependency audit, diff hygiene, and the shared marker audit. The repository CI workflow at `.github/workflows/ci.yml` runs the same checks on pushes, pull requests to `main`, and manual dispatch.
+The local behavior suite now passes **26 tests in 5 test files**. Standard and strict TypeScript checks pass after the current changes. The exact shared CI gate now passes locally: TypeScript, strict TypeScript, lint, tests, production build, high-severity dependency audit, diff hygiene, and the shared marker audit. The repository CI workflow at `.github/workflows/ci.yml` runs the same checks on pushes, pull requests to `main`, and manual dispatch. The final PR #9 hosted run [31888235239](https://github.com/LRDMX69/nifhdpe/actions/runs/31888235239) passed all quality-gate steps.
 
 | Verification | Current result |
 |---|---:|
