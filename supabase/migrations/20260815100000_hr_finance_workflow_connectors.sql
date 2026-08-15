@@ -477,7 +477,7 @@ BEGIN
   SELECT * INTO schedule_row FROM public.hr_salary_schedules WHERE id = _schedule_id AND organization_id = _org_id FOR UPDATE;
   IF schedule_row.id IS NULL OR schedule_row.status <> 'approved' THEN RAISE EXCEPTION 'Salary schedule must be approved before payment'; END IF;
   IF schedule_row.payment_id IS NOT NULL THEN SELECT * INTO payment_row FROM public.worker_payments WHERE id = schedule_row.payment_id; RETURN payment_row; END IF;
-  INSERT INTO public.worker_payments (organization_id, user_id, type, amount, description, date, created_by) VALUES (_org_id, schedule_row.employee_id, 'salary', schedule_row.net_pay, format('Salary schedule %s to %s', schedule_row.period_start, schedule_row.period_end), current_date, auth.uid()) RETURNING * INTO payment_row;
+  INSERT INTO public.worker_payments (organization_id, user_id, type, amount, description, date, created_by, bank_account_id) VALUES (_org_id, schedule_row.employee_id, 'salary', schedule_row.net_pay, format('Salary schedule %s to %s', schedule_row.period_start, schedule_row.period_end), current_date, auth.uid(), schedule_row.bank_account_id) RETURNING * INTO payment_row;
   UPDATE public.hr_salary_schedules SET status = 'paid', payment_id = payment_row.id WHERE id = schedule_row.id;
   RETURN payment_row;
 END;
@@ -504,7 +504,7 @@ BEGIN
   SELECT * INTO entry_row FROM public.hr_overtime_entries WHERE id = _entry_id AND organization_id = _org_id FOR UPDATE;
   IF entry_row.id IS NULL OR entry_row.status <> 'approved' THEN RAISE EXCEPTION 'Overtime must be approved before payment'; END IF;
   IF entry_row.payment_id IS NOT NULL THEN SELECT * INTO payment_row FROM public.worker_payments WHERE id = entry_row.payment_id; RETURN payment_row; END IF;
-  INSERT INTO public.worker_payments (organization_id, user_id, type, amount, description, date, created_by) VALUES (_org_id, entry_row.employee_id, 'overtime', entry_row.overtime_earnings, format('Overtime %s', entry_row.period_month), current_date, auth.uid()) RETURNING * INTO payment_row;
+  INSERT INTO public.worker_payments (organization_id, user_id, type, amount, description, date, created_by, bank_account_id) VALUES (_org_id, entry_row.employee_id, 'overtime', entry_row.overtime_earnings, format('Overtime %s', entry_row.period_month), current_date, auth.uid(), entry_row.bank_account_id) RETURNING * INTO payment_row;
   UPDATE public.hr_overtime_entries SET status = 'paid', payment_id = payment_row.id WHERE id = entry_row.id;
   RETURN payment_row;
 END;
@@ -520,7 +520,7 @@ BEGIN
   SELECT * INTO loan_row FROM public.hr_staff_loans WHERE id = _loan_id AND organization_id = _org_id FOR UPDATE;
   IF loan_row.id IS NULL OR loan_row.status <> 'active' THEN RAISE EXCEPTION 'Active loan not found'; END IF;
   IF _amount > loan_row.outstanding_balance THEN RAISE EXCEPTION 'Repayment exceeds outstanding balance'; END IF;
-  INSERT INTO public.worker_payments (organization_id, user_id, type, amount, description, date, created_by) VALUES (_org_id, loan_row.employee_id, 'salary', _amount, format('Staff loan repayment for loan %s', loan_row.id), _payment_date, auth.uid()) RETURNING id INTO repayment_row.payment_id;
+  INSERT INTO public.worker_payments (organization_id, user_id, type, amount, description, date, created_by, bank_account_id) VALUES (_org_id, loan_row.employee_id, 'salary', _amount, format('Staff loan repayment for loan %s', loan_row.id), _payment_date, auth.uid(), loan_row.bank_account_id) RETURNING id INTO repayment_row.payment_id;
   INSERT INTO public.hr_loan_repayments (organization_id, loan_id, amount, payment_date, payment_id, recorded_by, notes) VALUES (_org_id, _loan_id, _amount, _payment_date, repayment_row.payment_id, auth.uid(), _notes) RETURNING * INTO repayment_row;
   new_balance := GREATEST(0, loan_row.outstanding_balance - _amount);
   UPDATE public.hr_staff_loans SET payments_made = payments_made + _amount, outstanding_balance = new_balance, status = CASE WHEN new_balance = 0 THEN 'completed' ELSE status END WHERE id = _loan_id;
@@ -597,3 +597,198 @@ BEGIN
 END;
 $$;
 GRANT EXECUTE ON FUNCTION public.create_purchase_order_with_metadata(uuid, uuid, uuid, date, text, jsonb, jsonb) TO authenticated;
+
+
+ALTER TABLE public.expenses
+  ADD COLUMN IF NOT EXISTS withholding_tax_amount numeric NOT NULL DEFAULT 0 CHECK (withholding_tax_amount >= 0),
+  ADD COLUMN IF NOT EXISTS payment_status text NOT NULL DEFAULT 'unpaid' CHECK (payment_status IN ('unpaid','partially_paid','paid'));
+
+
+CREATE TABLE IF NOT EXISTS public.finance_transaction_links (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+  bank_transaction_id uuid NOT NULL REFERENCES public.bank_transactions(id) ON DELETE CASCADE,
+  entity_type text NOT NULL CHECK (entity_type IN ('invoice','receipt','expense','worker_payment','purchase_order','fuel_log','director_account','staff_loan','loan_repayment','salary_schedule','overtime','vat_entry','external_loan','transfer')),
+  entity_id uuid NOT NULL,
+  linked_amount numeric NOT NULL CHECK (linked_amount >= 0),
+  linked_by uuid NOT NULL REFERENCES auth.users(id),
+  linked_at timestamptz NOT NULL DEFAULT now(),
+  notes text,
+  UNIQUE (organization_id, bank_transaction_id, entity_type, entity_id)
+);
+ALTER TABLE public.finance_transaction_links ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Finance HR admin view transaction links" ON public.finance_transaction_links FOR SELECT USING (is_member_of_org(auth.uid(), organization_id) OR is_maintenance_admin(auth.uid()));
+CREATE POLICY "Finance HR admin manage transaction links" ON public.finance_transaction_links FOR ALL USING (has_org_role(auth.uid(), organization_id, 'administrator') OR has_org_role(auth.uid(), organization_id, 'finance') OR has_org_role(auth.uid(), organization_id, 'hr') OR is_maintenance_admin(auth.uid())) WITH CHECK (has_org_role(auth.uid(), organization_id, 'administrator') OR has_org_role(auth.uid(), organization_id, 'finance') OR has_org_role(auth.uid(), organization_id, 'hr') OR is_maintenance_admin(auth.uid()));
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.finance_transaction_links TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.review_bank_transaction(
+  _org_id uuid,
+  _transaction_id uuid,
+  _status text,
+  _category text DEFAULT NULL,
+  _notes text DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql SECURITY INVOKER SET search_path = public AS $$
+BEGIN
+  IF NOT (has_org_role(auth.uid(), _org_id, 'administrator') OR has_org_role(auth.uid(), _org_id, 'finance') OR has_org_role(auth.uid(), _org_id, 'hr') OR is_maintenance_admin(auth.uid())) THEN
+    RAISE EXCEPTION 'Not authorized to review bank transactions';
+  END IF;
+  IF _status NOT IN ('suggested','approved','rejected') THEN RAISE EXCEPTION 'Invalid bank review status'; END IF;
+  UPDATE public.bank_transactions SET review_status = _status, suggested_category = COALESCE(NULLIF(trim(_category), ''), suggested_category), reviewed_by = auth.uid(), reviewed_at = now(), review_notes = NULLIF(trim(_notes), '') WHERE id = _transaction_id AND organization_id = _org_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Bank transaction not found in organization'; END IF;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.review_bank_transaction(uuid, uuid, text, text, text) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.link_bank_transaction(
+  _org_id uuid,
+  _transaction_id uuid,
+  _entity_type text,
+  _entity_id uuid,
+  _linked_amount numeric,
+  _notes text DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY INVOKER SET search_path = public AS $$
+DECLARE v_link_id uuid; v_transaction public.bank_transactions%ROWTYPE;
+BEGIN
+  IF NOT (has_org_role(auth.uid(), _org_id, 'administrator') OR has_org_role(auth.uid(), _org_id, 'finance') OR has_org_role(auth.uid(), _org_id, 'hr') OR is_maintenance_admin(auth.uid())) THEN
+    RAISE EXCEPTION 'Not authorized to link bank transactions';
+  END IF;
+  IF _linked_amount < 0 THEN RAISE EXCEPTION 'Linked amount cannot be negative'; END IF;
+  SELECT * INTO v_transaction FROM public.bank_transactions WHERE id = _transaction_id AND organization_id = _org_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Bank transaction not found in organization'; END IF;
+  IF v_transaction.review_status NOT IN ('approved','suggested','linked') THEN RAISE EXCEPTION 'Bank transaction must be approved before linking'; END IF;
+  IF _entity_type NOT IN ('invoice','receipt','expense','worker_payment','purchase_order','fuel_log','director_account','staff_loan','loan_repayment','salary_schedule','overtime','vat_entry','external_loan','transfer') THEN RAISE EXCEPTION 'Unsupported financial entity type'; END IF;
+  IF _entity_type = 'invoice' AND NOT EXISTS (SELECT 1 FROM public.invoices WHERE id = _entity_id AND organization_id = _org_id) THEN RAISE EXCEPTION 'Invoice not found in organization'; END IF;
+  IF _entity_type = 'receipt' AND NOT EXISTS (SELECT 1 FROM public.receipts WHERE id = _entity_id AND organization_id = _org_id) THEN RAISE EXCEPTION 'Receipt not found in organization'; END IF;
+  IF _entity_type = 'expense' AND NOT EXISTS (SELECT 1 FROM public.expenses WHERE id = _entity_id AND organization_id = _org_id) THEN RAISE EXCEPTION 'Expense not found in organization'; END IF;
+  IF _entity_type = 'worker_payment' AND NOT EXISTS (SELECT 1 FROM public.worker_payments WHERE id = _entity_id AND organization_id = _org_id) THEN RAISE EXCEPTION 'Worker payment not found in organization'; END IF;
+  IF _entity_type = 'purchase_order' AND NOT EXISTS (SELECT 1 FROM public.purchase_orders WHERE id = _entity_id AND organization_id = _org_id) THEN RAISE EXCEPTION 'Purchase order not found in organization'; END IF;
+  IF _entity_type = 'fuel_log' AND NOT EXISTS (SELECT 1 FROM public.fuel_logs WHERE id = _entity_id AND organization_id = _org_id) THEN RAISE EXCEPTION 'Fuel log not found in organization'; END IF;
+  IF _entity_type = 'director_account' AND NOT EXISTS (SELECT 1 FROM public.director_account_entries WHERE id = _entity_id AND organization_id = _org_id) THEN RAISE EXCEPTION 'Director account entry not found in organization'; END IF;
+  IF _entity_type = 'staff_loan' AND NOT EXISTS (SELECT 1 FROM public.hr_staff_loans WHERE id = _entity_id AND organization_id = _org_id) THEN RAISE EXCEPTION 'Staff loan not found in organization'; END IF;
+  IF _entity_type = 'loan_repayment' AND NOT EXISTS (SELECT 1 FROM public.hr_loan_repayments WHERE id = _entity_id AND organization_id = _org_id) THEN RAISE EXCEPTION 'Loan repayment not found in organization'; END IF;
+  IF _entity_type = 'salary_schedule' AND NOT EXISTS (SELECT 1 FROM public.hr_salary_schedules WHERE id = _entity_id AND organization_id = _org_id) THEN RAISE EXCEPTION 'Salary schedule not found in organization'; END IF;
+  IF _entity_type = 'overtime' AND NOT EXISTS (SELECT 1 FROM public.hr_overtime_entries WHERE id = _entity_id AND organization_id = _org_id) THEN RAISE EXCEPTION 'Overtime entry not found in organization'; END IF;
+  IF _entity_type = 'vat_entry' AND NOT EXISTS (SELECT 1 FROM public.vat_schedule_entries WHERE id = _entity_id AND organization_id = _org_id) THEN RAISE EXCEPTION 'VAT entry not found in organization'; END IF;
+  IF _entity_type = 'external_loan' AND NOT EXISTS (SELECT 1 FROM public.hr_external_loans WHERE id = _entity_id AND organization_id = _org_id) THEN RAISE EXCEPTION 'External loan not found in organization'; END IF;
+  INSERT INTO public.finance_transaction_links (organization_id, bank_transaction_id, entity_type, entity_id, linked_amount, linked_by, notes) VALUES (_org_id, _transaction_id, _entity_type, _entity_id, _linked_amount, auth.uid(), NULLIF(trim(_notes), '')) ON CONFLICT (organization_id, bank_transaction_id, entity_type, entity_id) DO UPDATE SET linked_amount = EXCLUDED.linked_amount, linked_by = EXCLUDED.linked_by, linked_at = now(), notes = EXCLUDED.notes RETURNING id INTO v_link_id;
+  UPDATE public.bank_transactions SET review_status = 'linked', reviewed_by = auth.uid(), reviewed_at = now() WHERE id = _transaction_id AND organization_id = _org_id;
+  RETURN v_link_id;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.link_bank_transaction(uuid, uuid, text, uuid, numeric, text) TO authenticated;
+
+
+CREATE OR REPLACE FUNCTION public.create_vat_schedule_entry(
+  _org_id uuid,
+  _entry_date date,
+  _client_tin text,
+  _client_name text,
+  _gross_amount numeric,
+  _output_vat numeric,
+  _input_vat numeric,
+  _withholding_tax numeric,
+  _vat_withheld numeric,
+  _vat_paid numeric,
+  _penalty numeric,
+  _interest numeric,
+  _brought_forward numeric,
+  _lrp numeric,
+  _state text,
+  _local_government text,
+  _free_trade_zone boolean,
+  _source_entity_type text,
+  _source_entity_id uuid,
+  _note text
+)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY INVOKER SET search_path = public AS $$
+DECLARE v_id uuid; v_net numeric; v_total numeric;
+BEGIN
+  IF NOT (has_org_role(auth.uid(), _org_id, 'administrator') OR has_org_role(auth.uid(), _org_id, 'finance') OR has_org_role(auth.uid(), _org_id, 'hr') OR is_maintenance_admin(auth.uid())) THEN
+    RAISE EXCEPTION 'Not authorized to create VAT schedule entries';
+  END IF;
+  IF NULLIF(trim(_client_name), '') IS NULL THEN RAISE EXCEPTION 'Client name is required'; END IF;
+  IF _gross_amount < 0 OR _output_vat < 0 OR _input_vat < 0 OR _withholding_tax < 0 OR _vat_withheld < 0 OR _vat_paid < 0 OR _penalty < 0 OR _interest < 0 OR _brought_forward < 0 OR _lrp < 0 THEN RAISE EXCEPTION 'VAT amounts cannot be negative'; END IF;
+  v_net := round(greatest(0, _gross_amount - _vat_withheld), 2);
+  v_total := round(_output_vat - _input_vat - _vat_withheld - _vat_paid + _penalty + _interest - _brought_forward - _lrp, 2);
+  INSERT INTO public.vat_schedule_entries (organization_id, entry_date, client_tin, client_name, gross_amount, output_vat, input_vat, withholding_tax, net_amount, state, local_government, vat_withheld, free_trade_zone, vat_paid, vat_payable, vat_credit, penalty, interest, brought_forward, lrp, total_vat_credit_payable, source_entity_type, source_entity_id, note, created_by)
+  VALUES (_org_id, _entry_date, NULLIF(trim(_client_tin), ''), trim(_client_name), round(_gross_amount, 2), round(_output_vat, 2), round(_input_vat, 2), round(_withholding_tax, 2), v_net, NULLIF(trim(_state), ''), NULLIF(trim(_local_government), ''), round(_vat_withheld, 2), COALESCE(_free_trade_zone, false), round(_vat_paid, 2), greatest(0, v_total), greatest(0, -v_total), round(_penalty, 2), round(_interest, 2), round(_brought_forward, 2), round(_lrp, 2), v_total, NULLIF(trim(_source_entity_type), ''), _source_entity_id, NULLIF(trim(_note), ''), auth.uid())
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.create_vat_schedule_entry(uuid, date, text, text, numeric, numeric, numeric, numeric, numeric, numeric, numeric, numeric, numeric, numeric, text, text, boolean, text, uuid, text) TO authenticated;
+
+
+ALTER TABLE public.receipts
+  ADD COLUMN IF NOT EXISTS bank_account_id uuid REFERENCES public.finance_accounts(id) ON DELETE SET NULL;
+ALTER TABLE public.worker_payments
+  ADD COLUMN IF NOT EXISTS bank_account_id uuid REFERENCES public.finance_accounts(id) ON DELETE SET NULL;
+ALTER TABLE public.hr_staff_loans
+  ADD COLUMN IF NOT EXISTS bank_account_id uuid REFERENCES public.finance_accounts(id) ON DELETE SET NULL;
+ALTER TABLE public.hr_hmo_enrolments
+  ADD COLUMN IF NOT EXISTS bank_account_id uuid REFERENCES public.finance_accounts(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS payment_id uuid REFERENCES public.worker_payments(id) ON DELETE SET NULL;
+ALTER TABLE public.fuel_logs
+  ADD COLUMN IF NOT EXISTS account_id uuid REFERENCES public.finance_accounts(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS payment_id uuid REFERENCES public.worker_payments(id) ON DELETE SET NULL;
+ALTER TABLE public.purchase_orders
+  ADD COLUMN IF NOT EXISTS bank_account_id uuid REFERENCES public.finance_accounts(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS receipts_bank_account_idx ON public.receipts(organization_id, bank_account_id);
+CREATE INDEX IF NOT EXISTS worker_payments_bank_account_idx ON public.worker_payments(organization_id, bank_account_id);
+CREATE INDEX IF NOT EXISTS fuel_logs_account_idx ON public.fuel_logs(organization_id, account_id);
+CREATE INDEX IF NOT EXISTS purchase_orders_bank_account_idx ON public.purchase_orders(organization_id, bank_account_id);
+
+
+CREATE OR REPLACE FUNCTION public.record_invoice_payment(
+  _org_id uuid,
+  _invoice_id uuid,
+  _amount numeric,
+  _payment_method text,
+  _reference_number text,
+  _notes text,
+  _payment_date date,
+  _bank_account_id uuid
+)
+RETURNS public.receipts
+LANGUAGE plpgsql SECURITY INVOKER SET search_path = public AS $$
+DECLARE v_receipt public.receipts;
+BEGIN
+  IF _bank_account_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.finance_accounts WHERE id = _bank_account_id AND organization_id = _org_id AND is_active = true) THEN
+    RAISE EXCEPTION 'Bank account not found or inactive in organization';
+  END IF;
+  v_receipt := public.record_invoice_payment(_org_id, _invoice_id, _amount, _payment_method, _reference_number, _notes, _payment_date);
+  UPDATE public.receipts SET bank_account_id = _bank_account_id WHERE id = v_receipt.id AND organization_id = _org_id RETURNING * INTO v_receipt;
+  RETURN v_receipt;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.record_invoice_payment(uuid, uuid, numeric, text, text, text, date, uuid) TO authenticated;
+
+
+CREATE OR REPLACE FUNCTION public.normalize_expense_payment_fields()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+BEGIN
+  IF COALESCE(NEW.amount, 0) < 0 OR COALESCE(NEW.part_payment, 0) < 0 THEN
+    RAISE EXCEPTION 'Expense amount and part payment cannot be negative';
+  END IF;
+  NEW.outstanding_balance := round(greatest(0, COALESCE(NEW.amount, 0) - COALESCE(NEW.part_payment, 0)), 2);
+  NEW.payment_status := CASE
+    WHEN NEW.outstanding_balance > 0 AND COALESCE(NEW.part_payment, 0) > 0 THEN 'partially_paid'
+    WHEN NEW.outstanding_balance > 0 THEN 'unpaid'
+    ELSE 'paid'
+  END;
+  RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS normalize_expense_payment_fields_trigger ON public.expenses;
+CREATE TRIGGER normalize_expense_payment_fields_trigger
+BEFORE INSERT OR UPDATE OF amount, part_payment, outstanding_balance, payment_status ON public.expenses
+FOR EACH ROW EXECUTE FUNCTION public.normalize_expense_payment_fields();

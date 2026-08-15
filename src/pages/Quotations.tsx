@@ -29,6 +29,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
 import { exportCsv, csvDate } from "@/lib/exportCsv";
 import { industrialDb } from "@/lib/industrialDb";
+import { calculateQuotationTotals } from "@/lib/financialMath";
 
 type DbQuotation = Database["public"]["Tables"]["quotations"]["Row"] & { clients?: { name: string } | null, quotation_items?: { count: number }[], opportunity_id?: string | null, discount_amount?: number | null, tax_amount?: number | null, overhead_amount?: number | null, payment_terms?: string | null, terms_and_conditions?: string | null, exclusions?: string | null, assumptions?: string | null, site_reference?: string | null, currency?: string | null };
 type DbQuotationItem = Database["public"]["Tables"]["quotation_items"]["Row"];
@@ -224,14 +225,8 @@ const Quotations = () => {
   };
   const removeItem = (id: string) => setItems(items.filter((i) => i.id !== id));
 
-  const subtotal = items.reduce((sum, i) => sum + i.total, 0);
-  const laborTotal = items.filter((i) => i.type === "pipe").reduce((s, i) => s + i.quantity, 0) * laborCost;
-  const profitAmount = (subtotal + laborTotal + transportCost) * (profitMargin / 100);
-  const baseCommercialTotal = subtotal + laborTotal + transportCost + profitAmount;
-  const discount = Math.min(baseCommercialTotal, Math.max(0, discountAmount));
-  const taxableTotal = Math.max(0, baseCommercialTotal - discount + Math.max(0, overheadAmount));
-  const taxAmount = taxableTotal * (Math.max(0, taxPct) / 100);
-  const grandTotal = taxableTotal + taxAmount;
+  const quotationTotals = calculateQuotationTotals({ items, laborUnits: items.filter((i) => i.type === "pipe").reduce((s, i) => s + i.quantity, 0), laborRate: laborCost, transportCost, profitMarginPercent: profitMargin, discountAmount, overheadAmount, taxRatePercent: taxPct });
+  const { subtotal, laborTotal, profitAmount, discount, taxableTotal, taxAmount, grandTotal } = quotationTotals;
 
   const resetForm = () => {
     setItems([]); setClientId(""); setOpportunityId(""); setPipeType("hdpe"); setProfitMargin(15);

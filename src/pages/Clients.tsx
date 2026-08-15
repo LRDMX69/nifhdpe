@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -20,6 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
+import { NIGERIAN_STATES, lgasForState } from "@/lib/nigeriaLocations";
 
 type ClientItem = Database["public"]["Tables"]["clients"]["Row"] & { tax_identification_number?: string | null; state?: string | null; local_government?: string | null };
 
@@ -164,8 +166,8 @@ const Clients = () => {
               <div className="space-y-2"><Label>Email</Label><Input type="email" placeholder="email@company.com" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
               <div className="space-y-2"><Label>Address</Label><Input placeholder="Office address" value={address} onChange={(e) => setAddress(e.target.value)} /></div>
               <div className="space-y-2"><Label>TIN</Label><Input placeholder="Optional tax identification number" value={taxIdentificationNumber} onChange={(e) => setTaxIdentificationNumber(e.target.value)} /></div>
-              <div className="space-y-2"><Label>State</Label><Input placeholder="State" value={state} onChange={(e) => setState(e.target.value)} /></div>
-              <div className="space-y-2"><Label>Local Government</Label><Input placeholder="LGA" value={localGovernment} onChange={(e) => setLocalGovernment(e.target.value)} /></div>
+              <div className="space-y-2"><Label>State</Label><Select value={state || "none"} onValueChange={(value) => { setState(value === "none" ? "" : value); setLocalGovernment(""); }}><SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger><SelectContent><SelectItem value="none">Not specified</SelectItem>{NIGERIAN_STATES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-2"><Label>Local Government</Label><Select value={localGovernment || "none"} onValueChange={(value) => setLocalGovernment(value === "none" ? "" : value)}><SelectTrigger><SelectValue placeholder={state ? "Select LGA" : "Select state first"} /></SelectTrigger><SelectContent><SelectItem value="none">Not specified</SelectItem>{lgasForState(state).map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>

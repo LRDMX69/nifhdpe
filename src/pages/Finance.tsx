@@ -14,7 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, DollarSign, TrendingUp, TrendingDown, Brain, CreditCard, Loader2, MoreVertical, Pencil, Trash2, FileDown, Receipt, FileText, AlertCircle, History } from "lucide-react";
+import { Plus, DollarSign, TrendingUp, TrendingDown, Brain, CreditCard, Loader2, MoreVertical, Pencil, Trash2, FileDown, Receipt, FileText, AlertCircle, History, Link2, Banknote } from "lucide-react";
 import { exportCsv } from "@/lib/exportCsv";
 import { isFinanceCapable } from "@/lib/constants";
 import { AuditHistoryDialog } from "@/components/AuditHistoryDialog";
@@ -23,7 +23,7 @@ import { useGsapAnimation } from "@/hooks/useGsapAnimation";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { industrialDb } from "@/lib/industrialDb";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { stripMarkdown } from "@/lib/stripMarkdown";
@@ -31,14 +31,17 @@ import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
+import { calculateExpensePaymentStatus, calculateOutstandingBalance } from "@/lib/financialMath";
 
 type ExpenseItem = Database["public"]["Tables"]["expenses"]["Row"];
 type PaymentItem = Database["public"]["Tables"]["worker_payments"]["Row"];
-type ExpenseItemExtended = ExpenseItem & { account_id?: string | null; folio_number?: string | null; project_id?: string | null; site_reference?: string | null; vat_amount?: number | null; withholding_tax_amount?: number | null; outstanding_amount?: number | null; payment_status?: string | null };
+type ExpenseItemExtended = ExpenseItem & { account_id?: string | null; folio?: string | null; project_id?: string | null; site_reference?: string | null; vat_amount?: number | null; withholding_tax_amount?: number | null; part_payment?: number | null; outstanding_balance?: number | null; payment_status?: string | null };
 type InvoiceItem = Database["public"]["Tables"]["invoices"]["Row"] & { clients?: { name: string } | null; sales_order_id?: string | null; project_id?: string | null; discount_amount?: number | null; overhead_amount?: number | null; tax_rate?: number | null; payment_terms?: string | null; terms_and_conditions?: string | null; currency?: string | null };
 type ReceiptItem = Database["public"]["Tables"]["receipts"]["Row"] & { clients?: { name: string } | null };
 type InvoiceLineItem = Database["public"]["Tables"]["invoice_items"]["Row"] & { item_type?: string | null; product_specification_id?: string | null };
 type QuotationItem = { total_amount: number | null; created_at: string };
+type BankTransactionItem = { id: string; transaction_date: string; description: string | null; reference: string | null; amount: number; direction: "credit" | "debit"; review_status: string; account_id: string; };
+type FinanceTransactionLinkItem = { id: string; bank_transaction_id: string; entity_type: string; entity_id: string; linked_amount: number; notes: string | null; linked_at: string; };
 
 const PAYMENT_TYPES = ["salary", "overtime", "fuel", "maintenance", "bonus", "transport", "vendor"] as const;
 const EXPENSE_CATEGORIES = ["labor", "fuel", "transport", "materials", "equipment", "other"] as const;
@@ -72,7 +75,14 @@ const Finance = () => {
   const [payDate, setPayDate] = useState(new Date().toISOString().split("T")[0]);
   const [payUserId, setPayUserId] = useState("");
   const [payVendorName, setPayVendorName] = useState("");
+  const [payAccountId, setPayAccountId] = useState("none");
   const [payOverrideMatch, setPayOverrideMatch] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkEntityType, setLinkEntityType] = useState<"invoice" | "receipt" | "expense" | "worker_payment">("receipt");
+  const [linkEntityId, setLinkEntityId] = useState("");
+  const [linkBankTransactionId, setLinkBankTransactionId] = useState("");
+  const [linkAmount, setLinkAmount] = useState("");
+  const [linkNotes, setLinkNotes] = useState("");
 
   // Expense form
   const [expCategory, setExpCategory] = useState("");
@@ -84,6 +94,7 @@ const Finance = () => {
   const [expSiteReference, setExpSiteReference] = useState("");
   const [expVatAmount, setExpVatAmount] = useState("");
   const [expWithholding, setExpWithholding] = useState("");
+  const [expPartPayment, setExpPartPayment] = useState("");
   const [expOutstanding, setExpOutstanding] = useState("");
 
   // Deep-link: ?tab=invoices&new=1 opens the New Invoice dialog
@@ -163,6 +174,28 @@ const Finance = () => {
     enabled: !!orgId,
   });
 
+  const { data: bankTransactions = [], refetch: refetchBankTransactions, isLoading: bankTransactionsLoading, error: bankTransactionsError } = useQuery({
+    queryKey: ["finance-bank-transactions", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await industrialDb.from("bank_transactions").select("id, transaction_date, description, reference, amount, direction, review_status, account_id").eq("organization_id", orgId).in("review_status", ["approved", "suggested", "linked"]).order("transaction_date", { ascending: false }).limit(200);
+      if (error) throw error;
+      return (data ?? []) as BankTransactionItem[];
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: transactionLinks = [], refetch: refetchTransactionLinks, isLoading: transactionLinksLoading, error: transactionLinksError } = useQuery({
+    queryKey: ["finance-transaction-links", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await industrialDb.from("finance_transaction_links").select("id, bank_transaction_id, entity_type, entity_id, linked_amount, notes, linked_at").eq("organization_id", orgId).order("linked_at", { ascending: false }).limit(200);
+      if (error) throw error;
+      return (data ?? []) as FinanceTransactionLinkItem[];
+    },
+    enabled: !!orgId,
+  });
+
   const { data: financeReport, isLoading: financeReportLoading, refetch: refetchFinanceReport } = useQuery({
     queryKey: ["finance-period-report", orgId, reportFrom, reportTo],
     queryFn: async () => { if (!orgId) return null; const { data, error } = await industrialDb.rpc("get_finance_period_report", { _org_id: orgId, _from: reportFrom, _to: reportTo }); if (error) throw error; return data as unknown as { invoiced: number; collected: number; operating_expenses: number; worker_payments: number; invoice_count: number; receipt_count: number; aging: Record<string, number>; monthly: Array<{ month: string; invoiced: number; collected: number; expenses: number; worker_payments: number }> }; },
@@ -214,21 +247,69 @@ const Finance = () => {
   }, [payments, expenses, invoices, receipts, financeReport]);
 
   const getMemberName = (userId: string) => members.find(m => m.value === userId)?.label ?? "Unknown";
+  const accountName = (accountId: string) => financeAccounts.find((account) => account.id === accountId)?.account_name ?? "Bank account";
+  const calculatedExpenseOutstanding = calculateOutstandingBalance(Number(expAmount || 0), [Number(expPartPayment || 0)]);
+  const calculatedExpenseStatus = calculateExpensePaymentStatus(calculatedExpenseOutstanding, Number(expPartPayment || 0));
+  const linkSources = useMemo(() => {
+    if (linkEntityType === "invoice") return (invoices as InvoiceItem[]).map((item) => ({ id: item.id, label: `${item.document_number ?? "Invoice"} · ${item.clients?.name ?? "Unknown client"}`, amount: Number(item.total_amount ?? 0) }));
+    if (linkEntityType === "receipt") return (receipts as ReceiptItem[]).map((item) => ({ id: item.id, label: `${item.document_number ?? "Receipt"} · ${item.clients?.name ?? "Unknown client"}`, amount: Number(item.amount_received ?? 0) }));
+    if (linkEntityType === "expense") return (expenses as ExpenseItem[]).map((item) => ({ id: item.id, label: `${item.date} · ${item.category} · ${item.description ?? "Expense"}`, amount: Number(item.amount ?? 0) }));
+    return (payments as PaymentItem[]).map((item) => ({ id: item.id, label: `${item.date} · ${item.type} · ${item.description ?? "Worker payment"}`, amount: Number(item.amount ?? 0) }));
+  }, [linkEntityType, invoices, receipts, expenses, payments]);
 
-  const resetPaymentForm = () => { setPayType(""); setPayAmount(""); setPayDesc(""); setPayUserId(""); setPayDate(new Date().toISOString().split("T")[0]); setEditingPayment(null); setPayVendorName(""); setPayOverrideMatch(false); };
-  const resetExpenseForm = () => { setExpCategory(""); setExpAmount(""); setExpDesc(""); setExpDate(new Date().toISOString().split("T")[0]); setExpAccountId("none"); setExpFolio(""); setExpSiteReference(""); setExpVatAmount(""); setExpWithholding(""); setExpOutstanding(""); setEditingExpense(null); };
+  const openBankLinkDialog = (entityType: "invoice" | "receipt" | "expense" | "worker_payment", entityId?: string, amount?: number) => {
+    setLinkEntityType(entityType);
+    setLinkEntityId(entityId ?? "");
+    setLinkAmount(amount && amount > 0 ? String(amount) : "");
+    setLinkBankTransactionId("");
+    setLinkNotes("");
+    setLinkOpen(true);
+  };
+
+  const handleLinkBankTransaction = async () => {
+    if (!orgId || !linkBankTransactionId || !linkEntityId || !linkAmount) {
+      toast({ title: "Complete the bank link fields", description: "Select a bank transaction, an ERP record, and a positive amount.", variant: "destructive" });
+      return;
+    }
+    const numericAmount = Number(linkAmount);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      toast({ title: "Invalid link amount", description: "The linked amount must be a positive number.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await industrialDb.rpc("link_bank_transaction", { _org_id: orgId, _transaction_id: linkBankTransactionId, _entity_type: linkEntityType, _entity_id: linkEntityId, _linked_amount: numericAmount, _notes: linkNotes.trim() || null });
+      if (error) throw error;
+      toast({ title: "Bank transaction linked", description: "The bank line is now connected to the selected financial record." });
+      setLinkOpen(false);
+      setLinkEntityId("");
+      setLinkBankTransactionId("");
+      setLinkAmount("");
+      setLinkNotes("");
+      refetchBankTransactions();
+      refetchTransactionLinks();
+    } catch (err: unknown) {
+      toast({ title: "Could not link bank transaction", description: humanizeError(err as Error), variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const resetPaymentForm = () => { setPayType(""); setPayAmount(""); setPayDesc(""); setPayUserId(""); setPayDate(new Date().toISOString().split("T")[0]); setEditingPayment(null); setPayVendorName(""); setPayAccountId("none"); setPayOverrideMatch(false); };
+  const resetExpenseForm = () => { setExpCategory(""); setExpAmount(""); setExpDesc(""); setExpDate(new Date().toISOString().split("T")[0]); setExpAccountId("none"); setExpFolio(""); setExpSiteReference(""); setExpVatAmount(""); setExpWithholding(""); setExpPartPayment(""); setExpOutstanding(""); setEditingExpense(null); };
 
   const openEditPayment = (p: PaymentItem) => {
     setEditingPayment(p); setPayType(p.type); setPayAmount(p.amount.toString());
     setPayDesc(p.description ?? ""); setPayDate(p.date); setPayUserId(p.user_id ?? "");
     setPayVendorName(p.vendor_name ?? "");
+    setPayAccountId((p as PaymentItem & { bank_account_id?: string | null }).bank_account_id ?? "none");
     setPaymentOpen(true);
   };
 
   const openEditExpense = (e: ExpenseItem) => {
     setEditingExpense(e); setExpCategory(e.category); setExpAmount(e.amount.toString());
     const extended = e as ExpenseItemExtended;
-    setExpDesc(e.description ?? ""); setExpDate(e.date); setExpAccountId(extended.account_id ?? "none"); setExpFolio(extended.folio_number ?? ""); setExpSiteReference(extended.site_reference ?? ""); setExpVatAmount(extended.vat_amount?.toString() ?? ""); setExpWithholding(extended.withholding_tax_amount?.toString() ?? ""); setExpOutstanding(extended.outstanding_amount?.toString() ?? "");
+    setExpDesc(e.description ?? ""); setExpDate(e.date); setExpAccountId(extended.account_id ?? "none"); setExpFolio(extended.folio ?? ""); setExpSiteReference(extended.site_reference ?? ""); setExpVatAmount(extended.vat_amount?.toString() ?? ""); setExpWithholding(extended.withholding_tax_amount?.toString() ?? ""); setExpPartPayment(extended.part_payment?.toString() ?? ""); setExpOutstanding(extended.outstanding_balance?.toString() ?? "");
     setExpenseOpen(true);
   };
 
@@ -284,12 +365,13 @@ const Finance = () => {
     }
     setSaving(true);
     try {
-      const payload: Database["public"]["Tables"]["worker_payments"]["Insert"] = {
+      const payload = {
         organization_id: orgId, created_by: user.id,
         type: payType as Database["public"]["Enums"]["payment_type"], amount: parseFloat(payAmount),
         description: payDesc || null, date: payDate, user_id: payUserId || null,
         vendor_name: payType === "vendor" ? (payVendorName.trim() || null) : null,
-      };
+        bank_account_id: payAccountId === "none" ? null : payAccountId,
+      } as Database["public"]["Tables"]["worker_payments"]["Insert"] & Record<string, unknown>;
       if (editingPayment) {
         const { error } = await supabase.from("worker_payments").update(payload as Database["public"]["Tables"]["worker_payments"]["Update"]).eq("id", editingPayment.id).eq("organization_id", orgId);
         if (error) throw error;
@@ -316,12 +398,13 @@ const Finance = () => {
         category: expCategory as Database["public"]["Enums"]["expense_category"], amount: parseFloat(expAmount),
         description: expDesc || null, date: expDate,
         account_id: expAccountId === "none" ? null : expAccountId,
-        folio_number: expFolio.trim() || null,
+        folio: expFolio.trim() || null,
         site_reference: expSiteReference.trim() || null,
         vat_amount: Number(expVatAmount || 0),
         withholding_tax_amount: Number(expWithholding || 0),
-        outstanding_amount: Number(expOutstanding || 0),
-        payment_status: Number(expOutstanding || 0) > 0 ? "partially_paid" : "paid",
+        part_payment: Number(expPartPayment || 0),
+        outstanding_balance: calculatedExpenseOutstanding,
+        payment_status: calculatedExpenseStatus,
       } as Database["public"]["Tables"]["expenses"]["Insert"] & Record<string, unknown>;
       if (editingExpense) {
         const { error } = await supabase.from("expenses").update(payload as Database["public"]["Tables"]["expenses"]["Update"]).eq("id", editingExpense.id).eq("organization_id", orgId);
@@ -338,6 +421,10 @@ const Finance = () => {
       toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
     } finally { setSaving(false); }
   };
+
+  const linkedTransactionIds = useMemo(() => new Set(transactionLinks.map((link) => link.bank_transaction_id)), [transactionLinks]);
+  const bankTransactionById = useMemo(() => new Map(bankTransactions.map((transaction) => [transaction.id, transaction])), [bankTransactions]);
+  const entityIsBankLinked = (entityType: string, entityId: string) => transactionLinks.some((link) => link.entity_type === entityType && link.entity_id === entityId);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -396,7 +483,7 @@ const Finance = () => {
         description="Revenue, expenses, payments, and profit tracking"
         executiveSummary={`${invoices.filter((i: any) => i.status !== "paid").length} unpaid invoices · ${payments.length} recent payments tracked`}
         lastUpdated={Math.max(invoicesUpdatedAt || 0, paymentsUpdatedAt || 0) || null}
-        onRefresh={() => { refetchInvoices(); refetchPayments(); refetchExpenses(); refetchReceipts(); refetchFinanceReport(); }}
+        onRefresh={() => { refetchInvoices(); refetchPayments(); refetchExpenses(); refetchReceipts(); refetchFinanceReport(); refetchBankTransactions(); refetchTransactionLinks(); }}
       >
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => exportCsv(`invoices-${new Date().toISOString().slice(0, 10)}`, [
@@ -431,6 +518,7 @@ const Finance = () => {
                   <div className="space-y-2"><Label>Amount (₦) *</Label><Input type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} placeholder="0.00" /></div>
                 </div>
                 <div className="space-y-2"><Label>Description</Label><Input value={payDesc} onChange={(e) => setPayDesc(e.target.value)} placeholder="Payment description" /></div>
+                <div className="space-y-2"><Label>Source bank account</Label><Select value={payAccountId} onValueChange={setPayAccountId}><SelectTrigger><SelectValue placeholder="Optional account" /></SelectTrigger><SelectContent><SelectItem value="none">Not assigned</SelectItem>{financeAccounts.map((account) => <SelectItem key={account.id} value={account.id}>{account.account_name}{account.account_number ? ` · ${account.account_number}` : ""}</SelectItem>)}</SelectContent></Select></div>
                 <div className="space-y-2"><Label>Date</Label><Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} /></div>
                 {payType === "vendor" && (
                   <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/5 p-3">
@@ -477,13 +565,30 @@ const Finance = () => {
                 <div className="space-y-2"><Label>Source account</Label><Select value={expAccountId} onValueChange={setExpAccountId}><SelectTrigger><SelectValue placeholder="Optional account" /></SelectTrigger><SelectContent><SelectItem value="none">Not assigned</SelectItem>{financeAccounts.map((account) => <SelectItem key={account.id} value={account.id}>{account.account_name}{account.account_number ? ` · ${account.account_number}` : ""}</SelectItem>)}</SelectContent></Select></div>
                 <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>Amount (₦) *</Label><Input type="number" value={expAmount} onChange={(e) => setExpAmount(e.target.value)} placeholder="0.00" /></div><div className="space-y-2"><Label>Folio / reference</Label><Input value={expFolio} onChange={(e) => setExpFolio(e.target.value)} placeholder="Folio" /></div></div>
                 <div className="space-y-2"><Label>Site / project reference</Label><Input value={expSiteReference} onChange={(e) => setExpSiteReference(e.target.value)} placeholder="Project, site, or cost centre" /></div>
-                <div className="grid grid-cols-3 gap-3"><div className="space-y-2"><Label>VAT</Label><Input type="number" value={expVatAmount} onChange={(e) => setExpVatAmount(e.target.value)} placeholder="0" /></div><div className="space-y-2"><Label>WHT</Label><Input type="number" value={expWithholding} onChange={(e) => setExpWithholding(e.target.value)} placeholder="0" /></div><div className="space-y-2"><Label>Outstanding</Label><Input type="number" value={expOutstanding} onChange={(e) => setExpOutstanding(e.target.value)} placeholder="0" /></div></div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4"><div className="space-y-2"><Label>VAT</Label><Input type="number" value={expVatAmount} onChange={(e) => setExpVatAmount(e.target.value)} placeholder="0" /></div><div className="space-y-2"><Label>WHT</Label><Input type="number" value={expWithholding} onChange={(e) => setExpWithholding(e.target.value)} placeholder="0" /></div><div className="space-y-2"><Label>Part payment</Label><Input type="number" min="0" value={expPartPayment} onChange={(e) => setExpPartPayment(e.target.value)} placeholder="0" /></div><div className="space-y-2"><Label>Calculated outstanding</Label><Input type="number" value={calculatedExpenseOutstanding} readOnly className="bg-muted" /></div></div><p className="text-xs text-muted-foreground">Payment status: <span className="font-medium capitalize">{calculatedExpenseStatus.replace("_", " ")}</span>. The database trigger revalidates this balance when the record is written.</p>
                 <Button className="w-full" onClick={handleLogExpense} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}{editingExpense ? "Update" : "Save"} Expense</Button>
               </div>
             </DialogContent>
           </Dialog>
         </div>
       </PageHeader>
+
+      <Dialog open={linkOpen} onOpenChange={(open) => { setLinkOpen(open); if (!open) { setLinkEntityId(""); setLinkBankTransactionId(""); setLinkAmount(""); setLinkNotes(""); } }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Link2 className="h-5 w-5 text-primary" />Link bank transaction to ERP record</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Only approved or suggested bank lines can be linked. The database validates that the selected record belongs to this organization and writes an auditable connection.</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2"><Label>ERP record type *</Label><Select value={linkEntityType} onValueChange={(value) => { const next = value as typeof linkEntityType; setLinkEntityType(next); setLinkEntityId(""); setLinkAmount(""); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="invoice">Invoice</SelectItem><SelectItem value="receipt">Receipt</SelectItem><SelectItem value="expense">Expense</SelectItem><SelectItem value="worker_payment">Worker payment</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label>ERP record *</Label><Select value={linkEntityId} onValueChange={(value) => { setLinkEntityId(value); const source = linkSources.find((item) => item.id === value); if (source) setLinkAmount(String(source.amount)); }}><SelectTrigger><SelectValue placeholder="Select an ERP record" /></SelectTrigger><SelectContent>{linkSources.map((source) => <SelectItem key={source.id} value={source.id}>{source.label}</SelectItem>)}</SelectContent></Select></div>
+            </div>
+            <div className="space-y-2"><Label>Bank transaction *</Label><Select value={linkBankTransactionId} onValueChange={setLinkBankTransactionId}><SelectTrigger><SelectValue placeholder={bankTransactionsLoading ? "Loading bank lines…" : "Select an approved bank line"} /></SelectTrigger><SelectContent>{bankTransactions.filter((transaction) => transaction.review_status !== "rejected").map((transaction) => <SelectItem key={transaction.id} value={transaction.id}>{transaction.transaction_date} · {transaction.direction === "credit" ? "+" : "−"}{formatCurrency(Number(transaction.amount))} · {accountName(transaction.account_id)} · {transaction.description ?? transaction.reference ?? "Bank transaction"}</SelectItem>)}</SelectContent></Select>{bankTransactions.length === 0 && <p className="text-xs text-muted-foreground">No approved or suggested bank transactions are available. Import and review a statement in HR → Bank & Reconciliation first.</p>}</div>
+            <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Linked amount (₦) *</Label><Input type="number" min="0.01" step="0.01" value={linkAmount} onChange={(event) => setLinkAmount(event.target.value)} /></div><div className="space-y-2"><Label>Audit note</Label><Input value={linkNotes} onChange={(event) => setLinkNotes(event.target.value)} placeholder="Reason, reference, or reconciliation note" /></div></div>
+            {(bankTransactionsError || transactionLinksError) && <p className="text-sm text-destructive">Bank analysis could not be loaded. Retry the page before linking.</p>}
+            <Button className="w-full" onClick={handleLinkBankTransaction} disabled={saving || bankTransactionsLoading}>{saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Link2 className="mr-1 h-4 w-4" />}Save bank link</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <WorkflowBanner
         storageKey="finance-overview"
@@ -538,6 +643,7 @@ const Finance = () => {
           <TabsTrigger value="receipts" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Receipts</TabsTrigger>
           <TabsTrigger value="expenses" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Expenses</TabsTrigger>
           <TabsTrigger value="payments" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Payments</TabsTrigger>
+          <TabsTrigger value="bank-analysis" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Bank Analysis</TabsTrigger>
         </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -589,7 +695,7 @@ const Finance = () => {
               >
                 <div className="min-w-[700px]">
                   <Table><TableHeader><TableRow>
-                    <TableHead>Invoice #</TableHead><TableHead>Client</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="text-right">Balance</TableHead><TableHead className="w-[40px]"></TableHead>
+                    <TableHead>Invoice #</TableHead><TableHead>Client</TableHead><TableHead>Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="text-right">Balance</TableHead><TableHead>Bank link</TableHead><TableHead className="w-[40px]"></TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
                     {(invoices as InvoiceItem[]).map((inv) => (
@@ -600,6 +706,7 @@ const Finance = () => {
                         <TableCell><Badge variant="outline" className="capitalize">{inv.status}</Badge></TableCell>
                         <TableCell className="text-right">{formatCurrency(inv.total_amount)}</TableCell>
                         <TableCell className="text-right font-bold text-primary">{formatCurrency(inv.balance_due)}</TableCell>
+                        <TableCell>{entityIsBankLinked("invoice", inv.id) ? <Badge className="bg-emerald-600">Linked</Badge> : <Badge variant="outline">Unlinked</Badge>}</TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-1">
                           {Number(inv.balance_due ?? 0) > 0 && (
@@ -685,7 +792,7 @@ const Finance = () => {
               >
                 <div className="min-w-[600px]">
                   <Table><TableHeader><TableRow>
-                    <TableHead>Receipt #</TableHead><TableHead>Client</TableHead><TableHead>Date</TableHead><TableHead>Method</TableHead><TableHead className="text-right">Amount Received</TableHead>
+                    <TableHead>Receipt #</TableHead><TableHead>Client</TableHead><TableHead>Date</TableHead><TableHead>Method</TableHead><TableHead className="text-right">Amount Received</TableHead><TableHead>Bank link</TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
                     {(receipts as ReceiptItem[]).map((r) => (
@@ -695,6 +802,7 @@ const Finance = () => {
                         <TableCell className="text-sm">{r.payment_date}</TableCell>
                         <TableCell className="text-sm capitalize">{r.payment_method}</TableCell>
                         <TableCell className="text-right font-bold text-emerald-600">{formatCurrency(r.amount_received)}</TableCell>
+                        <TableCell>{entityIsBankLinked("receipt", r.id) ? <Badge className="bg-emerald-600">Linked</Badge> : <Badge variant="outline">Unlinked</Badge>}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody></Table>
@@ -727,7 +835,7 @@ const Finance = () => {
               >
                 <div className="min-w-[600px]">
                   <Table><TableHeader><TableRow>
-                    <TableHead>Date</TableHead><TableHead>Category</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-[40px]"></TableHead>
+                    <TableHead>Date</TableHead><TableHead>Category</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>Bank link</TableHead><TableHead className="w-[40px]"></TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
                     {expenses.map((e: ExpenseItem) => (
@@ -736,6 +844,7 @@ const Finance = () => {
                         <TableCell><Badge variant="outline" className="capitalize">{e.category}</Badge></TableCell>
                         <TableCell className="text-sm max-w-[200px] truncate" title={e.description || ""}>{e.description || "—"}</TableCell>
                         <TableCell className="text-right font-medium">{formatCurrency(e.amount)}</TableCell>
+                        <TableCell>{entityIsBankLinked("expense", e.id) ? <Badge className="bg-emerald-600">Linked</Badge> : <Badge variant="outline">Unlinked</Badge>}</TableCell>
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical className="h-3.5 w-3.5" /></Button></DropdownMenuTrigger>
@@ -778,7 +887,7 @@ const Finance = () => {
               >
                 <div className="min-w-[700px]">
                   <Table><TableHeader><TableRow>
-                    <TableHead>Date</TableHead><TableHead>Employee</TableHead><TableHead>Type</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-[40px]"></TableHead>
+                    <TableHead>Date</TableHead><TableHead>Employee</TableHead><TableHead>Type</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>Bank link</TableHead><TableHead className="w-[40px]"></TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
                     {payments.map((p: PaymentItem) => (
@@ -788,6 +897,7 @@ const Finance = () => {
                         <TableCell><Badge variant="outline" className="capitalize">{p.type}</Badge></TableCell>
                         <TableCell className="text-sm max-w-[200px] truncate" title={p.description || ""}>{p.description || "—"}</TableCell>
                         <TableCell className="text-right font-medium">{formatCurrency(p.amount)}</TableCell>
+                        <TableCell>{entityIsBankLinked("worker_payment", p.id) ? <Badge className="bg-emerald-600">Linked</Badge> : <Badge variant="outline">Unlinked</Badge>}</TableCell>
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical className="h-3.5 w-3.5" /></Button></DropdownMenuTrigger>
@@ -806,6 +916,22 @@ const Finance = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="bank-analysis" className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Reviewed bank lines</p><p className="mt-1 text-2xl font-bold">{bankTransactions.length}</p></CardContent></Card>
+            <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Linked lines</p><p className="mt-1 text-2xl font-bold text-emerald-600">{linkedTransactionIds.size}</p></CardContent></Card>
+            <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Awaiting ERP connection</p><p className="mt-1 text-2xl font-bold text-warning">{Math.max(0, bankTransactions.length - linkedTransactionIds.size)}</p></CardContent></Card>
+          </div>
+          <Card>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><CardTitle className="flex items-center gap-2 text-base"><Banknote className="h-5 w-5 text-primary" />Bank Analysis</CardTitle><p className="mt-1 text-sm text-muted-foreground">The central connection layer between imported bank lines and invoices, receipts, expenses, and payments.</p></div><Button size="sm" onClick={() => openBankLinkDialog("receipt")}><Link2 className="mr-1 h-4 w-4" />Link bank line</Button></CardHeader>
+            <CardContent className="space-y-6">
+              {bankTransactionsError || transactionLinksError ? <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">Bank analysis could not be loaded. Use Refresh to retry; no connection is silently treated as reconciled.</div> : null}
+              <div><h3 className="mb-2 text-sm font-semibold">Bank lines awaiting an ERP connection</h3><div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Direction</TableHead><TableHead>Description</TableHead><TableHead>Review</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-[110px]"></TableHead></TableRow></TableHeader><TableBody>{bankTransactions.filter((transaction) => !linkedTransactionIds.has(transaction.id)).map((transaction) => <TableRow key={transaction.id}><TableCell className="text-sm">{transaction.transaction_date}</TableCell><TableCell><Badge variant="outline" className="capitalize">{transaction.direction}</Badge></TableCell><TableCell className="max-w-[280px] truncate text-sm" title={transaction.description ?? transaction.reference ?? ""}>{transaction.description ?? transaction.reference ?? "—"}</TableCell><TableCell><Badge variant="secondary" className="capitalize">{transaction.review_status.split("_").join(" ")}</Badge></TableCell><TableCell className="text-right font-medium">{formatCurrency(Number(transaction.amount))}</TableCell><TableCell><Button variant="outline" size="sm" onClick={() => openBankLinkDialog(transaction.direction === "credit" ? "receipt" : "expense", undefined, Number(transaction.amount))}>Connect</Button></TableCell></TableRow>)}{!bankTransactionsLoading && bankTransactions.filter((transaction) => !linkedTransactionIds.has(transaction.id)).length === 0 ? <TableRow><TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">No reviewed bank lines are awaiting connection.</TableCell></TableRow> : null}</TableBody></Table></div></div>
+              <div><h3 className="mb-2 text-sm font-semibold">Existing ERP connections</h3><div className="overflow-x-auto rounded-lg border"><Table><TableHeader><TableRow><TableHead>Bank line</TableHead><TableHead>ERP type</TableHead><TableHead>ERP record</TableHead><TableHead>Linked on</TableHead><TableHead className="text-right">Linked amount</TableHead></TableRow></TableHeader><TableBody>{transactionLinks.map((link) => { const transaction = bankTransactionById.get(link.bank_transaction_id); return <TableRow key={link.id}><TableCell className="text-sm">{transaction ? `${transaction.transaction_date} · ${transaction.description ?? transaction.reference ?? "Bank line"}` : link.bank_transaction_id}</TableCell><TableCell><Badge variant="outline" className="capitalize">{link.entity_type.split("_").join(" ")}</Badge></TableCell><TableCell className="font-mono text-xs">{link.entity_id}</TableCell><TableCell className="text-sm">{new Date(link.linked_at).toLocaleString()}</TableCell><TableCell className="text-right font-medium text-emerald-600">{formatCurrency(Number(link.linked_amount))}</TableCell></TableRow>; })}{!transactionLinksLoading && transactionLinks.length === 0 ? <TableRow><TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">No bank-to-ERP links recorded yet.</TableCell></TableRow> : null}</TableBody></Table></div></div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       <InvoiceDialog open={invoiceOpen} onOpenChange={setInvoiceOpen} onCreated={() => refetchInvoices()} />
@@ -813,6 +939,7 @@ const Finance = () => {
         open={!!paymentInvoice}
         onOpenChange={(o) => { if (!o) setPaymentInvoice(null); }}
         invoice={paymentInvoice}
+        financeAccounts={financeAccounts as Array<{ id: string; account_name: string; account_number?: string | null }>}
         onRecorded={() => { refetchInvoices(); refetchReceipts?.(); }}
       />
 
