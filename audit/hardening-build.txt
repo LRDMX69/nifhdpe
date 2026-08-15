@@ -1,0 +1,77 @@
+$ vite build
+vite v6.4.3 building for production...
+transforming...
+✓ 3081 modules transformed.
+rendering chunks...
+[plugin vite:reporter] 
+(!) /home/ubuntu/work/nifhdpe-github/node_modules/.pnpm/sonner@1.7.4_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/sonner/dist/index.mjs is dynamically imported by /home/ubuntu/work/nifhdpe-github/src/lib/pushNotifications.ts but also statically imported by /home/ubuntu/work/nifhdpe-github/src/components/feedback/FeedbackButton.tsx, /home/ubuntu/work/nifhdpe-github/src/components/feedback/FeedbackInbox.tsx, /home/ubuntu/work/nifhdpe-github/src/components/ui/sonner.tsx, dynamic import will not move module into another chunk.
+
+[plugin vite:reporter] 
+(!) /home/ubuntu/work/nifhdpe-github/src/lib/pushNotifications.ts is dynamically imported by /home/ubuntu/work/nifhdpe-github/src/components/layout/NotificationBell.tsx, /home/ubuntu/work/nifhdpe-github/src/pages/Equipment.tsx but also statically imported by /home/ubuntu/work/nifhdpe-github/src/main.tsx, dynamic import will not move module into another chunk.
+
+computing gzip size...
+dist/index.html                                 2.39 kB │ gzip:   0.78 kB
+dist/assets/nif-logo-yygQBVy6.png             736.75 kB
+dist/assets/letterhead-bg-CEoN3xYU.png      1,202.69 kB
+dist/assets/index-BNqu4QWD.css                 86.22 kB │ gzip:  15.47 kB
+dist/assets/industrialDb-C0C_JDRe.js            0.06 kB │ gzip:   0.07 kB
+dist/assets/skeleton-CjQJeiBX.js                0.20 kB │ gzip:   0.17 kB
+dist/assets/useSignedUrl-Bi5cZy4Z.js            0.35 kB │ gzip:   0.27 kB
+dist/assets/stripMarkdown-CW65Vwg0.js           0.38 kB │ gzip:   0.21 kB
+dist/assets/hibp-CeGptcPm.js                    0.52 kB │ gzip:   0.39 kB
+dist/assets/useGsapAnimation-Djl6Vsuh.js        0.66 kB │ gzip:   0.36 kB
+dist/assets/exportCsv-D2uXOK0A.js               0.67 kB │ gzip:   0.47 kB
+dist/assets/separator-DWAahQcI.js               0.82 kB │ gzip:   0.49 kB
+dist/assets/NotFound-CBQHtxEV.js                1.26 kB │ gzip:   0.60 kB
+dist/assets/table-BQrT1nq3.js                   1.63 kB │ gzip:   0.59 kB
+dist/assets/workflow-banner-Bo43JjAI.js         1.98 kB │ gzip:   0.90 kB
+dist/assets/financialMath-DgwNVxM3.js           2.00 kB │ gzip:   0.77 kB
+dist/assets/async-boundary-C4Tn90VU.js          2.18 kB │ gzip:   1.05 kB
+dist/assets/AiInsightPanel-CeZ8JgIc.js          2.46 kB │ gzip:   1.16 kB
+dist/assets/avatar-BaN26fIy.js                  2.49 kB │ gzip:   1.10 kB
+dist/assets/loading-state-CBLug_s4.js           2.55 kB │ gzip:   0.79 kB
+dist/assets/useAiAssistant-COBTo6tP.js          2.83 kB │ gzip:   1.35 kB
+dist/assets/AuditHistoryDialog-BTlf7yUr.js      3.23 kB │ gzip:   1.45 kB
+dist/assets/generateWaybill-uPrsIlHr.js         3.44 kB │ gzip:   1.42 kB
+dist/assets/PageHeader-C-V-U0cR.js              3.66 kB │ gzip:   1.53 kB
+dist/assets/alert-dialog-CAmzK588.js            3.76 kB │ gzip:   1.26 kB
+dist/assets/checkbox-B3eapXtd.js                4.38 kB │ gzip:   1.90 kB
+dist/assets/generateIdCard-BOos06z9.js          4.56 kB │ gzip:   1.96 kB
+dist/assets/ResetPassword-BQnqIEFQ.js           4.80 kB │ gzip:   1.82 kB
+dist/assets/PipeCalculator-Cd11sx5j.js          6.32 kB │ gzip:   1.85 kB
+dist/assets/Login-DCXsgh2H.js                   8.31 kB │ gzip:   2.96 kB
+dist/assets/nigeriaLocations-B8LtNja1.js        8.59 kB │ gzip:   3.83 kB
+dist/assets/slider-BPC8t5Cc.js                 10.27 kB │ gzip:   4.08 kB
+dist/assets/Compliance-Cj_kZ59c.js             10.53 kB │ gzip:   3.92 kB
+dist/assets/HSE-CgQ0f6Aj.js                    10.96 kB │ gzip:   3.43 kB
+dist/assets/BOQ-8fCdLoGE.js                    12.33 kB │ gzip:   3.84 kB
+dist/assets/CheckInWidget-B_BuZrMk.js          12.36 kB │ gzip:   4.68 kB
+dist/assets/scroll-area-DVCjI4db.js            13.59 kB │ gzip:   4.28 kB
+dist/assets/DocumentRegistry-jR_j2B3C.js       16.57 kB │ gzip:   5.20 kB
+dist/assets/Messages-BJ6_pV0J.js               16.63 kB │ gzip:   5.08 kB
+dist/assets/Inventory-CK-rieVg.js              17.10 kB │ gzip:   5.11 kB
+dist/assets/WorkerClaims-CnEIw25i.js           18.19 kB │ gzip:   5.96 kB
+dist/assets/dropdown-menu-BBC1b37K.js          19.96 kB │ gzip:   5.95 kB
+dist/assets/Equipment-BdSGz6u7.js              21.09 kB │ gzip:   6.04 kB
+dist/assets/Opportunities-CQpH5fEP.js          23.26 kB │ gzip:   7.11 kB
+dist/assets/Procurement-DW7f_Yln.js            27.25 kB │ gzip:   6.86 kB
+dist/assets/purify.es-DP5U8-sc.js              29.17 kB │ gzip:  10.99 kB
+dist/assets/AppSettings-BhBp-F7y.js            29.58 kB │ gzip:   8.50 kB
+dist/assets/Clients-CuVmSY6_.js                35.75 kB │ gzip:   8.43 kB
+dist/assets/FieldReports-BHujqcQV.js           36.97 kB │ gzip:  11.68 kB
+dist/assets/Logistics-Df3Ou-di.js              39.90 kB │ gzip:  10.38 kB
+dist/assets/Quotations-CyMdWL9n.js             43.07 kB │ gzip:  10.64 kB
+dist/assets/Projects-DCDHf5sC.js               44.15 kB │ gzip:  11.61 kB
+dist/assets/Analytics-Dohlrg7q.js              50.73 kB │ gzip:  13.11 kB
+dist/assets/Dashboard-D96nMVN3.js              67.55 kB │ gzip:  15.58 kB
+dist/assets/Finance-D11O46ti.js                73.99 kB │ gzip:  17.74 kB
+dist/assets/HR-VMOc1vcF.js                    112.77 kB │ gzip:  23.62 kB
+dist/assets/ui-DQ-USsDc.js                    147.99 kB │ gzip:  47.48 kB
+dist/assets/index.es-rB1mzKos.js              159.83 kB │ gzip:  53.60 kB
+dist/assets/vendor-BcvaGjCv.js                173.41 kB │ gzip:  57.34 kB
+dist/assets/html2canvas.esm-B0tyYwQk.js       202.36 kB │ gzip:  48.04 kB
+dist/assets/db-oDOTTKay.js                    254.31 kB │ gzip:  67.97 kB
+dist/assets/index-BVWpBU5m.js                 295.57 kB │ gzip:  94.74 kB
+dist/assets/BarChart-BiePBAAa.js              384.32 kB │ gzip: 106.14 kB
+dist/assets/generatePdf-DxFCrBtr.js           429.51 kB │ gzip: 141.45 kB
+✓ built in 5.73s

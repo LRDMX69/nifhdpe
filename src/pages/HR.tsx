@@ -17,7 +17,7 @@ import { CalendarDays, Award, Users, Clock, AlertTriangle, Plus, Loader2, Trendi
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useGsapFadeUp } from "@/hooks/useGsapAnimation";
-import { CheckInWidget } from "@/components/CheckInWidget";
+import { CheckInWidget, getNigeriaBusinessDate } from "@/components/CheckInWidget";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -144,7 +144,7 @@ const HR = () => {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; table: string; label: string } | null>(null);
 
   // Attendance date filter
-  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split("T")[0]);
+  const [attendanceDate, setAttendanceDate] = useState(getNigeriaBusinessDate());
 
   // Attendance data
   const { data: allAttendance = [], isLoading: attendanceLoading, error: attendanceError, refetch: refetchAttendance, dataUpdatedAt: attendanceUpdatedAt } = useQuery({
@@ -161,7 +161,7 @@ const HR = () => {
     queryKey: ["attendance-weekly", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toLocaleDateString("en-CA", { timeZone: "Africa/Lagos" });
       const { data } = await supabase.from("attendance").select("*").eq("organization_id", orgId).gte("date", weekAgo).order("date", { ascending: false });
       return data ?? [];
     },
@@ -237,7 +237,7 @@ const HR = () => {
     queryKey: ["salary-payments", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("worker_payments").select("*").eq("organization_id", orgId).eq("type", "salary").order("date", { ascending: false }).limit(100);
+      const { data } = await supabase.from("worker_payments").select("*").eq("organization_id", orgId).in("type", ["salary", "overtime", "loan_repayment"]).order("date", { ascending: false }).limit(100);
       return data ?? [];
     },
     enabled: !!orgId && isHrOrAdmin,
@@ -583,9 +583,19 @@ const HR = () => {
         </div>
       )}
 
-      {isHrOrAdmin && <HRFinanceWorkspace orgId={orgId} userId={user?.id} members={membersList} profileMap={profileMap} activeRole={activeRole ?? undefined} />}
-      {isHrOrAdmin && <HRCommercialOperationsPanel orgId={orgId} />}
-      {isHrOrAdmin && <HRFinanceAuditWorkspace orgId={orgId} userId={user?.id} />}
+      {isHrOrAdmin && (
+        <details className="group rounded-xl border border-primary/20 bg-primary/[0.03]">
+          <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3">
+            <span><span className="font-semibold text-sm">Centralized operations view</span><span className="block text-xs text-muted-foreground">Read-only connected oversight. Source records remain owned by Finance, Quotations, Logistics, and Bank Analysis.</span></span>
+            <span className="text-xs text-primary group-open:hidden">Expand</span><span className="text-xs text-primary hidden group-open:inline">Collapse</span>
+          </summary>
+          <div className="grid gap-4 border-t border-primary/10 p-4 lg:grid-cols-2">
+            <HRFinanceWorkspace orgId={orgId} userId={user?.id} members={membersList} profileMap={profileMap} activeRole={activeRole ?? undefined} />
+            <HRCommercialOperationsPanel orgId={orgId} />
+            <div className="lg:col-span-2"><HRFinanceAuditWorkspace orgId={orgId} userId={user?.id} /></div>
+          </div>
+        </details>
+      )}
 
       {isHrOrAdmin && (attendancePatterns.lateArrivals.length > 3 || attendancePatterns.missingCheckouts.length > 0 || attendancePatterns.absentUsers.length > 0) && (
         <Card className="border-warning/30 bg-warning/5"><CardContent className="p-4 space-y-2">
@@ -752,7 +762,7 @@ const HR = () => {
             </div>
             <Card className="border-border/50">
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-5 w-5 text-primary" /> Salary Payments</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-5 w-5 text-primary" /> Worker Payments</CardTitle>
                 <Dialog open={payrollOpen} onOpenChange={setPayrollOpen}>
                   <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" />Submit Salary Schedule</Button></DialogTrigger>
                   <DialogContent><DialogHeader><DialogTitle>Record Salary Payment</DialogTitle></DialogHeader>
@@ -791,11 +801,11 @@ const HR = () => {
                   isEmpty={salaryPayments.length === 0}
                   loadingVariant="list"
                   loadingRows={3}
-                  emptyState={{ compact: true, icon: DollarSign, title: "No salary schedules yet", description: "Use 'Submit Salary Schedule' above to create an auditable payroll row. Statutory deductions (PAYE, pension, NHF) are calculated from the employee's base salary." }}
+                  emptyState={{ compact: true, icon: DollarSign, title: "No worker payments yet", description: "Salary, overtime, and loan-repayment payments appear here after their connected approval workflow completes." }}
                 >
                   {(() => {
                   // Group payments by employee
-                  const groupedByEmployee = new Map<string, Array<{ id: string; amount: number; date: string; description: string | null }>>();
+                  const groupedByEmployee = new Map<string, Array<{ id: string; amount: number; date: string; description: string | null; type: string }>>();
                   salaryPayments.forEach((p) => {
                     if (!groupedByEmployee.has(p.user_id)) {
                       groupedByEmployee.set(p.user_id, []);
@@ -822,7 +832,7 @@ const HR = () => {
                             <div className="space-y-1 pl-8">
                               {pms.map((p) => (
                                 <div key={p.id} className="flex items-center justify-between text-xs text-muted-foreground">
-                                  <span>{p.date}{p.description ? ` · ${p.description}` : ""}</span>
+                                  <span><span className="mr-1 capitalize text-foreground">{p.type.replace(/_/g, " ")}</span>{p.date}{p.description ? ` · ${p.description}` : ""}</span>
                                   <span>₦{Number(p.amount).toLocaleString()}</span>
                                 </div>
                               ))}
