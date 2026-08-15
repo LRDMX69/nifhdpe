@@ -107,7 +107,7 @@ const Compliance = () => {
     if (!orgId || !user || !title.trim() || !docType) return;
     setSaving(true);
     try {
-      const payload: Record<string, unknown> = {
+      const payload: Database["public"]["Tables"]["compliance_documents"]["Update"] = {
         title: title.trim(), doc_type: docType, expiry_date: expiryDate || null,
         project_id: projectId && projectId !== "none" ? projectId : null,
         file_url: fileUrl, status: docStatus as Database["public"]["Enums"]["compliance_status"],
