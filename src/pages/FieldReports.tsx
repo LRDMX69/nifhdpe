@@ -168,8 +168,9 @@ const FieldReports = () => {
           // Confirmed success — the ONLY case an item leaves the queue.
           successCount++;
           await removeFromQueue(item._id);
-          // Optional: Invoke AI processing (non-fatal)
-          await supabase.functions.invoke("process-report", { body: { reportId: report.id } });
+          // Optional: Invoke AI processing (non-fatal), but never hide its failure.
+          const { error: processingError } = await supabase.functions.invoke("process-report", { body: { reportId: report.id } });
+          if (processingError) logger.error("Offline report uploaded; AI processing deferred", { reportId: report.id, error: processingError.message });
         } catch (itemErr) {
           failureCount++;
           const attempts = (item._attempts ?? 0) + 1;

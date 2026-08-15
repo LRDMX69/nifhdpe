@@ -126,3 +126,8 @@ export function formatClientDocumentNumber(baseNumber: string, occurrence: numbe
   const count = Math.max(1, Math.floor(occurrence));
   return count === 1 ? base : `${base}${alphabeticSuffix(count)}`;
 }
+
+
+export function calculateReceivablesFromAging(aging: Record<string, number | null | undefined>): number {
+  return roundMoney(Object.values(aging).reduce((sum, amount) => sum + Math.max(0, Number(amount) || 0), 0));
+}

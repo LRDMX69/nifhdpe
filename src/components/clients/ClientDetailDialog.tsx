@@ -39,6 +39,15 @@ interface InvoiceRow {
   balance_due: number | null;
   invoice_date: string | null;
 }
+interface ProformaRow {
+  id: string;
+  proforma_number: string | null;
+  status: string | null;
+  total_amount: number | null;
+  valid_until: string | null;
+  issue_date: string | null;
+  invoice_id: string | null;
+}
 interface ProjectRow {
   id: string;
   name: string;
@@ -112,6 +121,21 @@ export const ClientDetailDialog = ({
     enabled: !!clientId && open,
   });
 
+  const { data: proformas = [], isLoading: loadingProformas } = useQuery({
+    queryKey: ["client-proformas", orgId, clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data, error } = await industrialDb.from("proforma_invoices")
+        .select("id, proforma_number, status, total_amount, valid_until, issue_date, invoice_id")
+        .eq("organization_id", orgId)
+        .eq("client_id", clientId)
+        .order("issue_date", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as ProformaRow[];
+    },
+    enabled: !!clientId && open,
+  });
+
   const { data: invoices = [], isLoading: loadingInvoices } = useQuery({
     queryKey: ["client-invoices", orgId, clientId],
     queryFn: async () => {
@@ -137,6 +161,21 @@ export const ClientDetailDialog = ({
   const { data: deliveries = [], isLoading: loadingDeliveries } = useQuery({
     queryKey: ["client-deliveries", orgId, clientId],
     queryFn: async () => { if (!clientId) return []; const { data, error } = await industrialDb.from("deliveries").select("id, status, destination, delivery_date, sales_order_id").eq("organization_id", orgId).eq("client_id", clientId).order("delivery_date", { ascending: false }); if (error) throw error; return (data ?? []) as LinkedRow[]; },
+    enabled: !!clientId && open,
+  });
+
+  const { data: waybills = [], isLoading: loadingWaybills } = useQuery({
+    queryKey: ["client-waybills", orgId, clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data, error } = await industrialDb.from("waybills")
+        .select("id, document_number, status, waybill_date, destination, delivery_id")
+        .eq("organization_id", orgId)
+        .eq("client_id", clientId)
+        .order("waybill_date", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as LinkedRow[];
+    },
     enabled: !!clientId && open,
   });
 
@@ -186,9 +225,10 @@ export const ClientDetailDialog = ({
     const orderValue = salesOrders.reduce((s, order) => s + Number(order.total_amount ?? 0), 0);
     const receivedTotal = receipts.reduce((s, receipt) => s + Number(receipt.amount_received ?? 0), 0);
     const openTickets = serviceTickets.filter((ticket) => !["resolved", "closed", "rejected"].includes(String(ticket.status))).length;
-    return { openQuoteCount: openQuotes.length, openQuoteValue, acceptedValue, invoicedTotal, outstanding, projectCount: projects.length, orderValue, receivedTotal, openTickets, deliveryCount: deliveries.length, warrantyCount: warrantyAssets.length };
+    const proformaValue = proformas.filter((p) => !["cancelled", "expired"].includes(String(p.status))).reduce((s, p) => s + Number(p.total_amount ?? 0), 0);
+    return { openQuoteCount: openQuotes.length, openQuoteValue, acceptedValue, invoicedTotal, outstanding, projectCount: projects.length, orderValue, receivedTotal, proformaValue, openTickets, deliveryCount: deliveries.length, waybillCount: waybills.length, warrantyCount: warrantyAssets.length };
 
-  }, [quotations, invoices, projects, salesOrders, receipts, serviceTickets, deliveries, warrantyAssets]);
+  }, [quotations, proformas, invoices, projects, salesOrders, receipts, serviceTickets, deliveries, waybills, warrantyAssets]);
 
   const resolveServiceTicket = async () => {
     if (!resolutionTarget || !resolutionText.trim()) return;
@@ -228,15 +268,17 @@ export const ClientDetailDialog = ({
       { header: "Date", value: (r) => String(r.date ?? "") },
     ], [
       ...quotations.map((q) => ({ kind: "Quotation", reference: q.quotation_number, status: q.status, amount: Number(q.total_amount ?? 0), date: q.created_at })),
+      ...proformas.map((p) => ({ kind: "Proforma Invoice", reference: p.proforma_number, status: p.status, amount: Number(p.total_amount ?? 0), date: p.issue_date })),
       ...invoices.map((i) => ({ kind: "Invoice", reference: i.document_number, status: i.status, amount: Number(i.total_amount ?? 0), date: i.invoice_date })),
       ...projects.map((p) => ({ kind: "Project", reference: p.name, status: p.status, amount: Number(p.budget ?? 0), date: p.start_date })),
       ...salesOrders.map((o) => ({ kind: "Sales Order", reference: o.order_number, status: o.status, amount: Number(o.total_amount ?? 0), date: o.order_date })),
       ...receipts.map((r) => ({ kind: "Receipt", reference: r.document_number, status: "received", amount: Number(r.amount_received ?? 0), date: r.payment_date })),
+      ...waybills.map((w) => ({ kind: "Waybill", reference: w.document_number, status: w.status, amount: 0, date: w.waybill_date })),
       ...serviceTickets.map((t) => ({ kind: "Service Ticket", reference: t.ticket_number, status: t.status, amount: 0, date: t.created_at })),
     ]);
   };
 
-  const loading = loadingQuotations || loadingInvoices || loadingProjects || loadingOrders || loadingDeliveries || loadingReceipts || loadingService || loadingWarranty;
+  const loading = loadingQuotations || loadingProformas || loadingInvoices || loadingProjects || loadingOrders || loadingDeliveries || loadingWaybills || loadingReceipts || loadingService || loadingWarranty;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -310,9 +352,11 @@ export const ClientDetailDialog = ({
                 <Card className="border-border/50"><CardContent className="p-3"><p className="text-[10px] text-muted-foreground font-medium">Open Quotations</p><p className="text-lg font-bold truncate">{stats.openQuoteCount} · {formatCurrency(stats.openQuoteValue)}</p></CardContent></Card>
                 <Card className="border-border/50"><CardContent className="p-3"><p className="text-[10px] text-muted-foreground font-medium">Accepted Value</p><p className="text-lg font-bold text-primary truncate">{formatCurrency(stats.acceptedValue)}</p></CardContent></Card>
                 <Card className="border-border/50"><CardContent className="p-3"><p className="text-[10px] text-muted-foreground font-medium">Invoiced</p><p className="text-lg font-bold truncate">{formatCurrency(stats.invoicedTotal)}</p></CardContent></Card>
+                <Card className="border-border/50"><CardContent className="p-3"><p className="text-[10px] text-muted-foreground font-medium">Proformas</p><p className="text-lg font-bold truncate">{formatCurrency(stats.proformaValue)}</p></CardContent></Card>
                 <Card className="border-border/50"><CardContent className="p-3"><p className="text-[10px] text-muted-foreground font-medium">Outstanding</p><p className="text-lg font-bold text-warning truncate">{formatCurrency(stats.outstanding)}</p></CardContent></Card>
                 <Card className="border-border/50"><CardContent className="p-3"><p className="text-[10px] text-muted-foreground font-medium">Orders</p><p className="text-lg font-bold truncate">{salesOrders.length} · {formatCurrency(stats.orderValue)}</p></CardContent></Card>
                 <Card className="border-border/50"><CardContent className="p-3"><p className="text-[10px] text-muted-foreground font-medium">Collected</p><p className="text-lg font-bold text-emerald-600 truncate">{formatCurrency(stats.receivedTotal)}</p></CardContent></Card>
+                <Card className="border-border/50"><CardContent className="p-3"><p className="text-[10px] text-muted-foreground font-medium">Waybills</p><p className="text-lg font-bold truncate">{stats.waybillCount}</p></CardContent></Card>
                 <Card className="border-border/50"><CardContent className="p-3"><p className="text-[10px] text-muted-foreground font-medium">Service / Warranty</p><p className="text-lg font-bold truncate">{stats.openTickets} / {stats.warrantyCount}</p></CardContent></Card>
               </div>
             )}
@@ -343,6 +387,11 @@ export const ClientDetailDialog = ({
                     })}
                   </div>
                 )}
+              </section>
+
+              <section>
+                <div className="flex items-center justify-between mb-2"><h3 className="text-sm font-semibold flex items-center gap-2"><FileText className="h-4 w-4 text-amber-500" /> Proforma Invoices <Badge variant="outline">{proformas.length}</Badge></h3><Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { onOpenChange(false); navigate("/quotations"); }}>Open quotations <ArrowUpRight className="h-3 w-3 ml-1" /></Button></div>
+                {proformas.length === 0 ? <p className="text-xs text-muted-foreground">No proforma invoices recorded against this client yet.</p> : <div className="space-y-1.5">{proformas.map((p) => <div key={p.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/50 px-3 py-2 text-sm"><span className="font-medium truncate">{p.proforma_number ?? "—"}</span><span className="flex items-center gap-2 shrink-0"><Badge variant={p.status === "accepted" ? "default" : p.status === "cancelled" ? "destructive" : "outline"} className="text-[10px]">{p.status ?? "—"}</Badge><span className="font-semibold">{formatCurrency(Number(p.total_amount ?? 0))}</span>{p.invoice_id && <span className="text-[10px] text-muted-foreground">converted</span>}</span></div>)}</div>}
               </section>
 
               <section>
@@ -408,6 +457,11 @@ export const ClientDetailDialog = ({
               <section>
                 <div className="flex items-center justify-between mb-2"><h3 className="text-sm font-semibold flex items-center gap-2"><Truck className="h-4 w-4 text-primary" /> Deliveries <Badge variant="outline">{deliveries.length}</Badge></h3></div>
                 {deliveries.length === 0 ? <p className="text-xs text-muted-foreground">No deliveries are linked to this client.</p> : <div className="space-y-1.5">{deliveries.map((d) => <div key={d.id} className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-sm"><span className="truncate">{String(d.destination ?? "—")}</span><Badge variant="outline" className="text-[10px]">{String(d.status ?? "—")}</Badge></div>)}</div>}
+              </section>
+
+              <section>
+                <div className="flex items-center justify-between mb-2"><h3 className="text-sm font-semibold flex items-center gap-2"><Truck className="h-4 w-4 text-orange-600" /> Waybills <Badge variant="outline">{waybills.length}</Badge></h3><Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { onOpenChange(false); navigate("/documents"); }}>Open registry <ArrowUpRight className="h-3 w-3 ml-1" /></Button></div>
+                {waybills.length === 0 ? <p className="text-xs text-muted-foreground">No waybills are linked to this client yet.</p> : <div className="space-y-1.5">{waybills.map((w) => <div key={w.id} className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-sm"><span className="truncate">{String(w.document_number ?? "—")} · {String(w.destination ?? "—")}</span><Badge variant="outline" className="text-[10px]">{String(w.status ?? "—")}</Badge></div>)}</div>}
               </section>
 
               <section>

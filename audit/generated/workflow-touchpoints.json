@@ -1,0 +1,1383 @@
+{
+  "root": "/home/ubuntu/work/nifhdpe-github",
+  "entities": [
+    {
+      "entity": "clients",
+      "source_reads": [
+        {
+          "file": "src/components/dashboards/SalesDashboard.tsx",
+          "line": 40,
+          "method": "select"
+        },
+        {
+          "file": "src/components/finance/InvoiceDialog.tsx",
+          "line": 110,
+          "method": "select"
+        },
+        {
+          "file": "src/components/hr/HRCommercialOperationsPanel.tsx",
+          "line": 25,
+          "method": "select"
+        },
+        {
+          "file": "src/components/logistics/WaybillDialog.tsx",
+          "line": 43,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Clients.tsx",
+          "line": 55,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Projects.tsx",
+          "line": 146,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 211,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [
+        {
+          "file": "src/pages/Clients.tsx",
+          "line": 98,
+          "method": "update"
+        },
+        {
+          "file": "src/pages/Clients.tsx",
+          "line": 102,
+          "method": "insert"
+        },
+        {
+          "file": "src/pages/Clients.tsx",
+          "line": 119,
+          "method": "delete"
+        }
+      ],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260212122252_acba5fa2-d167-4667-ad08-2821fda4a743.sql",
+        "supabase/migrations/20260214070355_50a99a7f-1c7b-42ba-9ebe-c4acfe1a0031.sql",
+        "supabase/migrations/20260217153438_a13056bd-1227-47bd-b937-78a2b8c33e54.sql",
+        "supabase/migrations/20260217154119_9eca24c6-13c0-43ab-9cd1-8bf10fe01f02.sql",
+        "supabase/migrations/20260222223028_1fbf2ee6-d040-4b3b-8941-68cafac398e0.sql",
+        "supabase/migrations/20260302150430_e5a636f2-6a59-4a70-941f-97236540e57a.sql",
+        "supabase/migrations/20260303084608_6b8bbb72-8dce-4058-b9bc-ffaae4f1fc00.sql",
+        "supabase/migrations/20260304154641_d5b39646-a876-48e5-811e-aa9552e5f16b.sql",
+        "supabase/migrations/20260305180235_14ababa7-b99f-4a9a-b6be-76fabd9ae505.sql",
+        "supabase/migrations/20260312044754_2f33c034-ce5b-427d-9717-b8d1b055e818.sql",
+        "supabase/migrations/20260405150300_fix_all_triggers.sql",
+        "supabase/migrations/20260406133126_7fea5f37-50ca-413d-9f4a-7c0601d2ac45.sql",
+        "supabase/migrations/20260406133707_e0b1512e-e722-42e0-8fea-101f142f9bc1.sql",
+        "supabase/migrations/20260409064254_fc45409c-e046-490e-83d0-b7f68e074179.sql",
+        "supabase/migrations/20260813090000_industrial_workflow_foundations.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150311_9cf7ed19-bd3d-41d5-8dd9-0ed12594d0b8.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql",
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql",
+        "supabase/migrations/20260815130000_invoice_waybill_reactive_workflows.sql"
+      ]
+    },
+    {
+      "entity": "opportunities",
+      "source_reads": [
+        {
+          "file": "src/components/dashboards/AdminDashboard.tsx",
+          "line": 220,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Opportunities.tsx",
+          "line": 58,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 178,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [
+        {
+          "file": "src/pages/Opportunities.tsx",
+          "line": 150,
+          "method": "insert"
+        }
+      ],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260212210659_2b7ff22a-dc68-4b9f-a636-23c97c971dea.sql",
+        "supabase/migrations/20260214070355_50a99a7f-1c7b-42ba-9ebe-c4acfe1a0031.sql",
+        "supabase/migrations/20260217153438_a13056bd-1227-47bd-b937-78a2b8c33e54.sql",
+        "supabase/migrations/20260217154119_9eca24c6-13c0-43ab-9cd1-8bf10fe01f02.sql",
+        "supabase/migrations/20260222223028_1fbf2ee6-d040-4b3b-8941-68cafac398e0.sql",
+        "supabase/migrations/20260302150430_e5a636f2-6a59-4a70-941f-97236540e57a.sql",
+        "supabase/migrations/20260303084608_6b8bbb72-8dce-4058-b9bc-ffaae4f1fc00.sql",
+        "supabase/migrations/20260304154641_d5b39646-a876-48e5-811e-aa9552e5f16b.sql",
+        "supabase/migrations/20260305180235_14ababa7-b99f-4a9a-b6be-76fabd9ae505.sql",
+        "supabase/migrations/20260312044754_2f33c034-ce5b-427d-9717-b8d1b055e818.sql",
+        "supabase/migrations/20260405150300_fix_all_triggers.sql",
+        "supabase/migrations/20260406133126_7fea5f37-50ca-413d-9f4a-7c0601d2ac45.sql",
+        "supabase/migrations/20260406133707_e0b1512e-e722-42e0-8fea-101f142f9bc1.sql",
+        "supabase/migrations/20260409064254_fc45409c-e046-490e-83d0-b7f68e074179.sql",
+        "supabase/migrations/20260812000005_fix_cron_jobs.sql",
+        "supabase/migrations/20260812051953_17c5bd3c-5f8e-47ea-9410-f3b0ed01014d.sql",
+        "supabase/migrations/20260813090000_industrial_workflow_foundations.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150000_commercial_finance_completeness.sql",
+        "supabase/migrations/20260813150311_9cf7ed19-bd3d-41d5-8dd9-0ed12594d0b8.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql",
+        "supabase/migrations/20260813150738_4b7ba3e5-cd2d-456b-be3f-f5e000bbaca2.sql"
+      ]
+    },
+    {
+      "entity": "quotations",
+      "source_reads": [
+        {
+          "file": "src/components/clients/ClientDetailDialog.tsx",
+          "line": 104,
+          "method": "select"
+        },
+        {
+          "file": "src/components/dashboards/SalesDashboard.tsx",
+          "line": 25,
+          "method": "select"
+        },
+        {
+          "file": "src/components/hr/HRCommercialOperationsPanel.tsx",
+          "line": 35,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Analytics.tsx",
+          "line": 76,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/DocumentRegistry.tsx",
+          "line": 92,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Opportunities.tsx",
+          "line": 84,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 167,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 282,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 339,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 289,
+          "method": "update"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 311,
+          "method": "insert"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 345,
+          "method": "update"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 355,
+          "method": "insert"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 372,
+          "method": "update"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 472,
+          "method": "delete"
+        }
+      ],
+      "source_related_rpcs": [
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 423,
+          "rpc": "create_sales_order_from_quotation"
+        }
+      ],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260212122252_acba5fa2-d167-4667-ad08-2821fda4a743.sql",
+        "supabase/migrations/20260214070355_50a99a7f-1c7b-42ba-9ebe-c4acfe1a0031.sql",
+        "supabase/migrations/20260217153438_a13056bd-1227-47bd-b937-78a2b8c33e54.sql",
+        "supabase/migrations/20260217154119_9eca24c6-13c0-43ab-9cd1-8bf10fe01f02.sql",
+        "supabase/migrations/20260222223028_1fbf2ee6-d040-4b3b-8941-68cafac398e0.sql",
+        "supabase/migrations/20260302150430_e5a636f2-6a59-4a70-941f-97236540e57a.sql",
+        "supabase/migrations/20260303084608_6b8bbb72-8dce-4058-b9bc-ffaae4f1fc00.sql",
+        "supabase/migrations/20260304154641_d5b39646-a876-48e5-811e-aa9552e5f16b.sql",
+        "supabase/migrations/20260305180235_14ababa7-b99f-4a9a-b6be-76fabd9ae505.sql",
+        "supabase/migrations/20260312044754_2f33c034-ce5b-427d-9717-b8d1b055e818.sql",
+        "supabase/migrations/20260405150300_fix_all_triggers.sql",
+        "supabase/migrations/20260406133707_e0b1512e-e722-42e0-8fea-101f142f9bc1.sql",
+        "supabase/migrations/20260409064254_fc45409c-e046-490e-83d0-b7f68e074179.sql",
+        "supabase/migrations/20260812000008_finance_audit_triggers.sql",
+        "supabase/migrations/20260812051953_17c5bd3c-5f8e-47ea-9410-f3b0ed01014d.sql",
+        "supabase/migrations/20260813090000_industrial_workflow_foundations.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150000_commercial_finance_completeness.sql",
+        "supabase/migrations/20260813150311_9cf7ed19-bd3d-41d5-8dd9-0ed12594d0b8.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql",
+        "supabase/migrations/20260813150738_4b7ba3e5-cd2d-456b-be3f-f5e000bbaca2.sql",
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql",
+        "supabase/migrations/20260815130000_invoice_waybill_reactive_workflows.sql"
+      ]
+    },
+    {
+      "entity": "quotation_items",
+      "source_reads": [
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 260,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 391,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 486,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 298,
+          "method": "delete"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 301,
+          "method": "insert"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 318,
+          "method": "insert"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 471,
+          "method": "delete"
+        }
+      ],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260212122252_acba5fa2-d167-4667-ad08-2821fda4a743.sql",
+        "supabase/migrations/20260214070355_50a99a7f-1c7b-42ba-9ebe-c4acfe1a0031.sql",
+        "supabase/migrations/20260222223028_1fbf2ee6-d040-4b3b-8941-68cafac398e0.sql",
+        "supabase/migrations/20260405150300_fix_all_triggers.sql",
+        "supabase/migrations/20260813090000_industrial_workflow_foundations.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150311_9cf7ed19-bd3d-41d5-8dd9-0ed12594d0b8.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql",
+        "supabase/migrations/20260815130000_invoice_waybill_reactive_workflows.sql"
+      ]
+    },
+    {
+      "entity": "proforma_invoices",
+      "source_reads": [],
+      "source_mutations": [
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 393,
+          "method": "insert"
+        }
+      ],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql"
+      ]
+    },
+    {
+      "entity": "sales_orders",
+      "source_reads": [
+        {
+          "file": "src/components/clients/ClientDetailDialog.tsx",
+          "line": 133,
+          "method": "select"
+        },
+        {
+          "file": "src/components/finance/InvoiceDialog.tsx",
+          "line": 100,
+          "method": "select"
+        },
+        {
+          "file": "src/components/hr/HRCommercialOperationsPanel.tsx",
+          "line": 45,
+          "method": "select"
+        },
+        {
+          "file": "src/components/logistics/WaybillDialog.tsx",
+          "line": 44,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/BOQ.tsx",
+          "line": 66,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Logistics.tsx",
+          "line": 115,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Opportunities.tsx",
+          "line": 85,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Projects.tsx",
+          "line": 156,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Projects.tsx",
+          "line": 167,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 189,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [],
+      "source_related_rpcs": [
+        {
+          "file": "src/pages/Logistics.tsx",
+          "line": 201,
+          "rpc": "create_delivery_from_sales_order"
+        },
+        {
+          "file": "src/pages/Projects.tsx",
+          "line": 182,
+          "rpc": "create_project_from_sales_order"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 423,
+          "rpc": "create_sales_order_from_quotation"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 436,
+          "rpc": "confirm_sales_order"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 449,
+          "rpc": "create_invoice_from_sales_order"
+        }
+      ],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260813090000_industrial_workflow_foundations.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150000_commercial_finance_completeness.sql",
+        "supabase/migrations/20260813150311_9cf7ed19-bd3d-41d5-8dd9-0ed12594d0b8.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql",
+        "supabase/migrations/20260813150738_4b7ba3e5-cd2d-456b-be3f-f5e000bbaca2.sql",
+        "supabase/migrations/20260813150811_f6bbabea-0caa-445a-8f07-1155c7b114e0.sql",
+        "supabase/migrations/20260813160000_boq_specification_connectors.sql",
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql",
+        "supabase/migrations/20260815130000_invoice_waybill_reactive_workflows.sql"
+      ]
+    },
+    {
+      "entity": "sales_order_items",
+      "source_reads": [],
+      "source_mutations": [],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260813090000_industrial_workflow_foundations.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150000_commercial_finance_completeness.sql",
+        "supabase/migrations/20260813150311_9cf7ed19-bd3d-41d5-8dd9-0ed12594d0b8.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql",
+        "supabase/migrations/20260813150738_4b7ba3e5-cd2d-456b-be3f-f5e000bbaca2.sql",
+        "supabase/migrations/20260815130000_invoice_waybill_reactive_workflows.sql"
+      ]
+    },
+    {
+      "entity": "invoices",
+      "source_reads": [
+        {
+          "file": "src/components/clients/ClientDetailDialog.tsx",
+          "line": 120,
+          "method": "select"
+        },
+        {
+          "file": "src/components/dashboards/AdminDashboard.tsx",
+          "line": 246,
+          "method": "select"
+        },
+        {
+          "file": "src/components/dashboards/AdminDashboard.tsx",
+          "line": 264,
+          "method": "select"
+        },
+        {
+          "file": "src/components/dashboards/NeedsAttentionPanel.tsx",
+          "line": 61,
+          "method": "select"
+        },
+        {
+          "file": "src/components/hr/HRCommercialOperationsPanel.tsx",
+          "line": 55,
+          "method": "select"
+        },
+        {
+          "file": "src/components/projects/ProjectPnL.tsx",
+          "line": 24,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Analytics.tsx",
+          "line": 96,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/DocumentRegistry.tsx",
+          "line": 87,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Finance.tsx",
+          "line": 161,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [],
+      "source_related_rpcs": [
+        {
+          "file": "src/components/finance/InvoiceDialog.tsx",
+          "line": 158,
+          "rpc": "create_invoice_with_metadata"
+        },
+        {
+          "file": "src/components/finance/RecordPaymentDialog.tsx",
+          "line": 59,
+          "rpc": "record_invoice_payment"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 449,
+          "rpc": "create_invoice_from_sales_order"
+        }
+      ],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260504055245_dc1725a9-dc28-4a95-a926-95ff8239b1b5.sql",
+        "supabase/migrations/20260812000001_harden_storage_policies.sql",
+        "supabase/migrations/20260812000008_finance_audit_triggers.sql",
+        "supabase/migrations/20260812051953_17c5bd3c-5f8e-47ea-9410-f3b0ed01014d.sql",
+        "supabase/migrations/20260812051954_harden_legacy_claims_proof.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150000_commercial_finance_completeness.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql",
+        "supabase/migrations/20260813150738_4b7ba3e5-cd2d-456b-be3f-f5e000bbaca2.sql",
+        "supabase/migrations/20260814130000_payment_date_connector.sql",
+        "supabase/migrations/20260814194714_41c9d389-ff6e-47aa-9f7c-be9bd8270a54.sql",
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql",
+        "supabase/migrations/20260815130000_invoice_waybill_reactive_workflows.sql"
+      ]
+    },
+    {
+      "entity": "invoice_items",
+      "source_reads": [
+        {
+          "file": "src/pages/Finance.tsx",
+          "line": 725,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260504055245_dc1725a9-dc28-4a95-a926-95ff8239b1b5.sql",
+        "supabase/migrations/20260812000008_finance_audit_triggers.sql",
+        "supabase/migrations/20260812051953_17c5bd3c-5f8e-47ea-9410-f3b0ed01014d.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150000_commercial_finance_completeness.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql",
+        "supabase/migrations/20260813150738_4b7ba3e5-cd2d-456b-be3f-f5e000bbaca2.sql",
+        "supabase/migrations/20260815130000_invoice_waybill_reactive_workflows.sql"
+      ]
+    },
+    {
+      "entity": "receipts",
+      "source_reads": [
+        {
+          "file": "src/components/clients/ClientDetailDialog.tsx",
+          "line": 145,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Analytics.tsx",
+          "line": 106,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/DocumentRegistry.tsx",
+          "line": 97,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Finance.tsx",
+          "line": 171,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260504055245_dc1725a9-dc28-4a95-a926-95ff8239b1b5.sql",
+        "supabase/migrations/20260812000001_harden_storage_policies.sql",
+        "supabase/migrations/20260812000008_finance_audit_triggers.sql",
+        "supabase/migrations/20260812051953_17c5bd3c-5f8e-47ea-9410-f3b0ed01014d.sql",
+        "supabase/migrations/20260812051954_harden_legacy_claims_proof.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150000_commercial_finance_completeness.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql",
+        "supabase/migrations/20260813150738_4b7ba3e5-cd2d-456b-be3f-f5e000bbaca2.sql",
+        "supabase/migrations/20260814130000_payment_date_connector.sql",
+        "supabase/migrations/20260814194714_41c9d389-ff6e-47aa-9f7c-be9bd8270a54.sql",
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql",
+        "supabase/migrations/20260815130000_invoice_waybill_reactive_workflows.sql"
+      ]
+    },
+    {
+      "entity": "deliveries",
+      "source_reads": [
+        {
+          "file": "src/components/clients/ClientDetailDialog.tsx",
+          "line": 139,
+          "method": "select"
+        },
+        {
+          "file": "src/components/finance/InvoiceDialog.tsx",
+          "line": 120,
+          "method": "select"
+        },
+        {
+          "file": "src/components/hr/HRCommercialOperationsPanel.tsx",
+          "line": 65,
+          "method": "select"
+        },
+        {
+          "file": "src/components/logistics/WaybillDialog.tsx",
+          "line": 46,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/DocumentRegistry.tsx",
+          "line": 102,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Logistics.tsx",
+          "line": 104,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [
+        {
+          "file": "src/pages/Logistics.tsx",
+          "line": 240,
+          "method": "update"
+        },
+        {
+          "file": "src/pages/Logistics.tsx",
+          "line": 244,
+          "method": "insert"
+        },
+        {
+          "file": "src/pages/Logistics.tsx",
+          "line": 313,
+          "method": "update"
+        },
+        {
+          "file": "src/pages/Logistics.tsx",
+          "line": 327,
+          "method": "update"
+        },
+        {
+          "file": "src/pages/Logistics.tsx",
+          "line": 344,
+          "method": "update"
+        },
+        {
+          "file": "src/pages/Logistics.tsx",
+          "line": 357,
+          "method": "delete"
+        }
+      ],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260217153410_04813f0d-fa2a-4c7a-ad01-006119ddf769.sql",
+        "supabase/migrations/20260217153438_a13056bd-1227-47bd-b937-78a2b8c33e54.sql",
+        "supabase/migrations/20260217154119_9eca24c6-13c0-43ab-9cd1-8bf10fe01f02.sql",
+        "supabase/migrations/20260222223028_1fbf2ee6-d040-4b3b-8941-68cafac398e0.sql",
+        "supabase/migrations/20260302150430_e5a636f2-6a59-4a70-941f-97236540e57a.sql",
+        "supabase/migrations/20260303084608_6b8bbb72-8dce-4058-b9bc-ffaae4f1fc00.sql",
+        "supabase/migrations/20260304154641_d5b39646-a876-48e5-811e-aa9552e5f16b.sql",
+        "supabase/migrations/20260305180235_14ababa7-b99f-4a9a-b6be-76fabd9ae505.sql",
+        "supabase/migrations/20260312044754_2f33c034-ce5b-427d-9717-b8d1b055e818.sql",
+        "supabase/migrations/20260405150300_fix_all_triggers.sql",
+        "supabase/migrations/20260406133126_7fea5f37-50ca-413d-9f4a-7c0601d2ac45.sql",
+        "supabase/migrations/20260406133707_e0b1512e-e722-42e0-8fea-101f142f9bc1.sql",
+        "supabase/migrations/20260409064254_fc45409c-e046-490e-83d0-b7f68e074179.sql",
+        "supabase/migrations/20260813090000_industrial_workflow_foundations.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150311_9cf7ed19-bd3d-41d5-8dd9-0ed12594d0b8.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql",
+        "supabase/migrations/20260814150000_logistics_fleet_and_delivery_traceability.sql",
+        "supabase/migrations/20260814194748_2396bb70-c7e6-4ed1-8126-0176da6cb7ea.sql",
+        "supabase/migrations/20260815130000_invoice_waybill_reactive_workflows.sql"
+      ]
+    },
+    {
+      "entity": "delivery_items",
+      "source_reads": [
+        {
+          "file": "src/pages/Logistics.tsx",
+          "line": 136,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql"
+      ]
+    },
+    {
+      "entity": "waybills",
+      "source_reads": [
+        {
+          "file": "src/pages/DocumentRegistry.tsx",
+          "line": 107,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [],
+      "source_related_rpcs": [
+        {
+          "file": "src/lib/generateWaybill.ts",
+          "line": 120,
+          "rpc": "issue_waybill"
+        },
+        {
+          "file": "src/lib/generateWaybill.ts",
+          "line": 147,
+          "rpc": "mark_waybill_printed"
+        },
+        {
+          "file": "src/lib/generateWaybill.ts",
+          "line": 151,
+          "rpc": "mark_waybill_generation_failed"
+        },
+        {
+          "file": "src/lib/generateWaybill.ts",
+          "line": 159,
+          "rpc": "mark_waybill_printed"
+        },
+        {
+          "file": "src/lib/generateWaybill.ts",
+          "line": 163,
+          "rpc": "mark_waybill_generation_failed"
+        }
+      ],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260815130000_invoice_waybill_reactive_workflows.sql"
+      ]
+    },
+    {
+      "entity": "purchase_orders",
+      "source_reads": [
+        {
+          "file": "src/pages/DocumentRegistry.tsx",
+          "line": 113,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Finance.tsx",
+          "line": 341,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Procurement.tsx",
+          "line": 89,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [],
+      "source_related_rpcs": [
+        {
+          "file": "src/pages/Procurement.tsx",
+          "line": 151,
+          "rpc": "create_purchase_order_with_metadata"
+        },
+        {
+          "file": "src/pages/Procurement.tsx",
+          "line": 221,
+          "rpc": "receive_purchase_order_partial"
+        }
+      ],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260504055245_dc1725a9-dc28-4a95-a926-95ff8239b1b5.sql",
+        "supabase/migrations/20260813090000_industrial_workflow_foundations.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150311_9cf7ed19-bd3d-41d5-8dd9-0ed12594d0b8.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql",
+        "supabase/migrations/20260814100000_procurement_line_item_connectors.sql",
+        "supabase/migrations/20260814194557_507950cc-8b5d-488e-8540-ce29ff0d3510.sql",
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql"
+      ]
+    },
+    {
+      "entity": "purchase_order_items",
+      "source_reads": [
+        {
+          "file": "src/pages/Procurement.tsx",
+          "line": 109,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Procurement.tsx",
+          "line": 439,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260504055245_dc1725a9-dc28-4a95-a926-95ff8239b1b5.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql",
+        "supabase/migrations/20260814100000_procurement_line_item_connectors.sql",
+        "supabase/migrations/20260814194557_507950cc-8b5d-488e-8540-ce29ff0d3510.sql"
+      ]
+    },
+    {
+      "entity": "goods_received_notes",
+      "source_reads": [
+        {
+          "file": "src/pages/DocumentRegistry.tsx",
+          "line": 121,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Finance.tsx",
+          "line": 349,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260504055245_dc1725a9-dc28-4a95-a926-95ff8239b1b5.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql"
+      ]
+    },
+    {
+      "entity": "inventory",
+      "source_reads": [
+        {
+          "file": "src/components/InventoryFinder.tsx",
+          "line": 30,
+          "method": "select"
+        },
+        {
+          "file": "src/components/clients/ClientDetailDialog.tsx",
+          "line": 88,
+          "method": "select"
+        },
+        {
+          "file": "src/components/dashboards/WarehouseDashboard.tsx",
+          "line": 20,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Analytics.tsx",
+          "line": 86,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Inventory.tsx",
+          "line": 76,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Projects.tsx",
+          "line": 70,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [
+        {
+          "file": "src/pages/Inventory.tsx",
+          "line": 144,
+          "method": "update"
+        },
+        {
+          "file": "src/pages/Inventory.tsx",
+          "line": 148,
+          "method": "insert"
+        }
+      ],
+      "source_related_rpcs": [
+        {
+          "file": "src/pages/Inventory.tsx",
+          "line": 184,
+          "rpc": "delete_inventory_item_safely"
+        }
+      ],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260212122252_acba5fa2-d167-4667-ad08-2821fda4a743.sql",
+        "supabase/migrations/20260214070355_50a99a7f-1c7b-42ba-9ebe-c4acfe1a0031.sql",
+        "supabase/migrations/20260217153438_a13056bd-1227-47bd-b937-78a2b8c33e54.sql",
+        "supabase/migrations/20260217154119_9eca24c6-13c0-43ab-9cd1-8bf10fe01f02.sql",
+        "supabase/migrations/20260222223028_1fbf2ee6-d040-4b3b-8941-68cafac398e0.sql",
+        "supabase/migrations/20260302150430_e5a636f2-6a59-4a70-941f-97236540e57a.sql",
+        "supabase/migrations/20260303084608_6b8bbb72-8dce-4058-b9bc-ffaae4f1fc00.sql",
+        "supabase/migrations/20260304154641_d5b39646-a876-48e5-811e-aa9552e5f16b.sql",
+        "supabase/migrations/20260305180235_14ababa7-b99f-4a9a-b6be-76fabd9ae505.sql",
+        "supabase/migrations/20260312044754_2f33c034-ce5b-427d-9717-b8d1b055e818.sql",
+        "supabase/migrations/20260405150300_fix_all_triggers.sql",
+        "supabase/migrations/20260406133126_7fea5f37-50ca-413d-9f4a-7c0601d2ac45.sql",
+        "supabase/migrations/20260406133707_e0b1512e-e722-42e0-8fea-101f142f9bc1.sql",
+        "supabase/migrations/20260407143045_0084b72a-aac8-45e9-b8ec-dcd01b05acae.sql",
+        "supabase/migrations/20260409064254_fc45409c-e046-490e-83d0-b7f68e074179.sql",
+        "supabase/migrations/20260504055245_dc1725a9-dc28-4a95-a926-95ff8239b1b5.sql",
+        "supabase/migrations/20260812000008_finance_audit_triggers.sql",
+        "supabase/migrations/20260813090000_industrial_workflow_foundations.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150311_9cf7ed19-bd3d-41d5-8dd9-0ed12594d0b8.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql",
+        "supabase/migrations/20260814110000_service_parts_resolution_complete.sql",
+        "supabase/migrations/20260814120000_safe_inventory_deletion.sql",
+        "supabase/migrations/20260814194624_3b2c3164-627a-4782-93f3-4983d85c056e.sql",
+        "supabase/migrations/20260814194644_3badde54-6420-494e-8883-40f7bd9e937f.sql"
+      ]
+    },
+    {
+      "entity": "stock_movements",
+      "source_reads": [],
+      "source_mutations": [],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260813090000_industrial_workflow_foundations.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150311_9cf7ed19-bd3d-41d5-8dd9-0ed12594d0b8.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql",
+        "supabase/migrations/20260814120000_safe_inventory_deletion.sql",
+        "supabase/migrations/20260814194644_3badde54-6420-494e-8883-40f7bd9e937f.sql"
+      ]
+    },
+    {
+      "entity": "expenses",
+      "source_reads": [
+        {
+          "file": "src/components/dashboards/AdminDashboard.tsx",
+          "line": 206,
+          "method": "select"
+        },
+        {
+          "file": "src/components/dashboards/AdminDashboard.tsx",
+          "line": 265,
+          "method": "select"
+        },
+        {
+          "file": "src/components/dashboards/FinanceDashboard.tsx",
+          "line": 20,
+          "method": "select"
+        },
+        {
+          "file": "src/components/projects/ProjectPnL.tsx",
+          "line": 28,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Analytics.tsx",
+          "line": 66,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Finance.tsx",
+          "line": 151,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [
+        {
+          "file": "src/pages/Finance.tsx",
+          "line": 410,
+          "method": "update"
+        },
+        {
+          "file": "src/pages/Finance.tsx",
+          "line": 414,
+          "method": "insert"
+        }
+      ],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260212210659_2b7ff22a-dc68-4b9f-a636-23c97c971dea.sql",
+        "supabase/migrations/20260214070355_50a99a7f-1c7b-42ba-9ebe-c4acfe1a0031.sql",
+        "supabase/migrations/20260217153438_a13056bd-1227-47bd-b937-78a2b8c33e54.sql",
+        "supabase/migrations/20260217154119_9eca24c6-13c0-43ab-9cd1-8bf10fe01f02.sql",
+        "supabase/migrations/20260222223028_1fbf2ee6-d040-4b3b-8941-68cafac398e0.sql",
+        "supabase/migrations/20260302150430_e5a636f2-6a59-4a70-941f-97236540e57a.sql",
+        "supabase/migrations/20260303084608_6b8bbb72-8dce-4058-b9bc-ffaae4f1fc00.sql",
+        "supabase/migrations/20260304154641_d5b39646-a876-48e5-811e-aa9552e5f16b.sql",
+        "supabase/migrations/20260305180235_14ababa7-b99f-4a9a-b6be-76fabd9ae505.sql",
+        "supabase/migrations/20260312044754_2f33c034-ce5b-427d-9717-b8d1b055e818.sql",
+        "supabase/migrations/20260405150300_fix_all_triggers.sql",
+        "supabase/migrations/20260406133126_7fea5f37-50ca-413d-9f4a-7c0601d2ac45.sql",
+        "supabase/migrations/20260409064254_fc45409c-e046-490e-83d0-b7f68e074179.sql",
+        "supabase/migrations/20260503111525_1d2cc982-7941-4c75-853b-0b9c17931be8.sql",
+        "supabase/migrations/20260813150000_commercial_finance_completeness.sql",
+        "supabase/migrations/20260813150738_4b7ba3e5-cd2d-456b-be3f-f5e000bbaca2.sql",
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql"
+      ]
+    },
+    {
+      "entity": "worker_payments",
+      "source_reads": [
+        {
+          "file": "src/components/hr/hooks/useHRData.ts",
+          "line": 121,
+          "method": "select"
+        },
+        {
+          "file": "src/components/dashboards/AdminDashboard.tsx",
+          "line": 207,
+          "method": "select"
+        },
+        {
+          "file": "src/components/dashboards/FinanceDashboard.tsx",
+          "line": 35,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Analytics.tsx",
+          "line": 56,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/DocumentRegistry.tsx",
+          "line": 143,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Finance.tsx",
+          "line": 139,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/HR.tsx",
+          "line": 240,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [
+        {
+          "file": "src/components/hr/hooks/useHRMutations.ts",
+          "line": 247,
+          "method": "insert"
+        },
+        {
+          "file": "src/pages/Finance.tsx",
+          "line": 376,
+          "method": "update"
+        },
+        {
+          "file": "src/pages/Finance.tsx",
+          "line": 380,
+          "method": "insert"
+        }
+      ],
+      "source_related_rpcs": [
+        {
+          "file": "src/components/hr/HRFinanceWorkspace.tsx",
+          "line": 174,
+          "rpc": "create_worker_payment_from_salary_schedule"
+        },
+        {
+          "file": "src/components/hr/HRFinanceWorkspace.tsx",
+          "line": 176,
+          "rpc": "create_worker_payment_from_overtime"
+        },
+        {
+          "file": "src/pages/WorkerClaims.tsx",
+          "line": 212,
+          "rpc": "create_worker_payment_from_claim"
+        }
+      ],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260214070355_50a99a7f-1c7b-42ba-9ebe-c4acfe1a0031.sql",
+        "supabase/migrations/20260217153438_a13056bd-1227-47bd-b937-78a2b8c33e54.sql",
+        "supabase/migrations/20260217154119_9eca24c6-13c0-43ab-9cd1-8bf10fe01f02.sql",
+        "supabase/migrations/20260222223028_1fbf2ee6-d040-4b3b-8941-68cafac398e0.sql",
+        "supabase/migrations/20260302150430_e5a636f2-6a59-4a70-941f-97236540e57a.sql",
+        "supabase/migrations/20260305180235_14ababa7-b99f-4a9a-b6be-76fabd9ae505.sql",
+        "supabase/migrations/20260405150300_fix_all_triggers.sql",
+        "supabase/migrations/20260406133126_7fea5f37-50ca-413d-9f4a-7c0601d2ac45.sql",
+        "supabase/migrations/20260406133707_e0b1512e-e722-42e0-8fea-101f142f9bc1.sql",
+        "supabase/migrations/20260504055105_30cff7a0-6cc4-437a-9a17-fa282c5fdf33.sql",
+        "supabase/migrations/20260813150000_commercial_finance_completeness.sql",
+        "supabase/migrations/20260813150738_4b7ba3e5-cd2d-456b-be3f-f5e000bbaca2.sql",
+        "supabase/migrations/20260814140000_worker_claim_payment_connectors.sql",
+        "supabase/migrations/20260814194748_2396bb70-c7e6-4ed1-8126-0176da6cb7ea.sql",
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql"
+      ]
+    },
+    {
+      "entity": "bank_transactions",
+      "source_reads": [
+        {
+          "file": "src/components/hr/HRFinanceAuditWorkspace.tsx",
+          "line": 37,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/Finance.tsx",
+          "line": 181,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [
+        {
+          "file": "src/components/hr/HRFinanceAuditWorkspace.tsx",
+          "line": 43,
+          "method": "insert"
+        }
+      ],
+      "source_related_rpcs": [
+        {
+          "file": "src/components/hr/HRFinanceAuditWorkspace.tsx",
+          "line": 47,
+          "rpc": "review_bank_transaction"
+        },
+        {
+          "file": "src/components/hr/HRFinanceAuditWorkspace.tsx",
+          "line": 48,
+          "rpc": "link_bank_transaction"
+        },
+        {
+          "file": "src/pages/Finance.tsx",
+          "line": 281,
+          "rpc": "link_bank_transaction"
+        }
+      ],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql"
+      ]
+    },
+    {
+      "entity": "finance_transaction_links",
+      "source_reads": [
+        {
+          "file": "src/pages/Finance.tsx",
+          "line": 192,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql"
+      ]
+    },
+    {
+      "entity": "vat_schedule_entries",
+      "source_reads": [
+        {
+          "file": "src/components/hr/HRFinanceWorkspace.tsx",
+          "line": 131,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql"
+      ]
+    },
+    {
+      "entity": "hr_salary_schedules",
+      "source_reads": [
+        {
+          "file": "src/components/hr/HRFinanceWorkspace.tsx",
+          "line": 91,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [
+        {
+          "file": "src/pages/HR.tsx",
+          "line": 396,
+          "method": "insert"
+        }
+      ],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql"
+      ]
+    },
+    {
+      "entity": "hr_overtime_entries",
+      "source_reads": [
+        {
+          "file": "src/components/hr/HRFinanceWorkspace.tsx",
+          "line": 101,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql"
+      ]
+    },
+    {
+      "entity": "hr_staff_loans",
+      "source_reads": [
+        {
+          "file": "src/components/hr/HRFinanceWorkspace.tsx",
+          "line": 111,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql"
+      ]
+    },
+    {
+      "entity": "hr_loan_repayments",
+      "source_reads": [],
+      "source_mutations": [],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql"
+      ]
+    },
+    {
+      "entity": "leave_requests",
+      "source_reads": [
+        {
+          "file": "src/components/hr/hooks/useHRData.ts",
+          "line": 51,
+          "method": "select"
+        },
+        {
+          "file": "src/components/dashboards/HRDashboard.tsx",
+          "line": 34,
+          "method": "select"
+        },
+        {
+          "file": "src/components/dashboards/NeedsAttentionPanel.tsx",
+          "line": 82,
+          "method": "select"
+        },
+        {
+          "file": "src/components/dashboards/NeedsAttentionPanel.tsx",
+          "line": 175,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/HR.tsx",
+          "line": 228,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [
+        {
+          "file": "src/components/hr/hooks/useHRMutations.ts",
+          "line": 20,
+          "method": "insert"
+        },
+        {
+          "file": "src/components/hr/hooks/useHRMutations.ts",
+          "line": 39,
+          "method": "update"
+        },
+        {
+          "file": "src/pages/HR.tsx",
+          "line": 251,
+          "method": "insert"
+        }
+      ],
+      "source_related_rpcs": [
+        {
+          "file": "src/pages/HR.tsx",
+          "line": 262,
+          "rpc": "review_leave_request"
+        },
+        {
+          "file": "src/pages/HR.tsx",
+          "line": 263,
+          "rpc": "decide_leave_request"
+        }
+      ],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260214070355_50a99a7f-1c7b-42ba-9ebe-c4acfe1a0031.sql",
+        "supabase/migrations/20260217153438_a13056bd-1227-47bd-b937-78a2b8c33e54.sql",
+        "supabase/migrations/20260217154119_9eca24c6-13c0-43ab-9cd1-8bf10fe01f02.sql",
+        "supabase/migrations/20260302150430_e5a636f2-6a59-4a70-941f-97236540e57a.sql",
+        "supabase/migrations/20260303084608_6b8bbb72-8dce-4058-b9bc-ffaae4f1fc00.sql",
+        "supabase/migrations/20260304154641_d5b39646-a876-48e5-811e-aa9552e5f16b.sql",
+        "supabase/migrations/20260305180235_14ababa7-b99f-4a9a-b6be-76fabd9ae505.sql",
+        "supabase/migrations/20260312044754_2f33c034-ce5b-427d-9717-b8d1b055e818.sql",
+        "supabase/migrations/20260405150300_fix_all_triggers.sql",
+        "supabase/migrations/20260405150301_add_delete_policies.sql",
+        "supabase/migrations/20260406133126_7fea5f37-50ca-413d-9f4a-7c0601d2ac45.sql",
+        "supabase/migrations/20260409064254_fc45409c-e046-490e-83d0-b7f68e074179.sql",
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql"
+      ]
+    },
+    {
+      "entity": "disciplinary_records",
+      "source_reads": [
+        {
+          "file": "src/components/hr/hooks/useHRData.ts",
+          "line": 101,
+          "method": "select"
+        },
+        {
+          "file": "src/pages/HR.tsx",
+          "line": 233,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [
+        {
+          "file": "src/components/hr/hooks/useHRMutations.ts",
+          "line": 165,
+          "method": "update"
+        },
+        {
+          "file": "src/components/hr/hooks/useHRMutations.ts",
+          "line": 168,
+          "method": "insert"
+        },
+        {
+          "file": "src/pages/HR.tsx",
+          "line": 335,
+          "method": "update"
+        },
+        {
+          "file": "src/pages/HR.tsx",
+          "line": 338,
+          "method": "insert"
+        }
+      ],
+      "source_related_rpcs": [
+        {
+          "file": "src/pages/HR.tsx",
+          "line": 274,
+          "rpc": "review_disciplinary_record"
+        },
+        {
+          "file": "src/pages/HR.tsx",
+          "line": 275,
+          "rpc": "decide_disciplinary_record"
+        }
+      ],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260302150430_e5a636f2-6a59-4a70-941f-97236540e57a.sql",
+        "supabase/migrations/20260303084608_6b8bbb72-8dce-4058-b9bc-ffaae4f1fc00.sql",
+        "supabase/migrations/20260304154641_d5b39646-a876-48e5-811e-aa9552e5f16b.sql",
+        "supabase/migrations/20260305180235_14ababa7-b99f-4a9a-b6be-76fabd9ae505.sql",
+        "supabase/migrations/20260312044754_2f33c034-ce5b-427d-9717-b8d1b055e818.sql",
+        "supabase/migrations/20260405150300_fix_all_triggers.sql",
+        "supabase/migrations/20260406133126_7fea5f37-50ca-413d-9f4a-7c0601d2ac45.sql",
+        "supabase/migrations/20260406133707_e0b1512e-e722-42e0-8fea-101f142f9bc1.sql",
+        "supabase/migrations/20260409064254_fc45409c-e046-490e-83d0-b7f68e074179.sql",
+        "supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql"
+      ]
+    },
+    {
+      "entity": "document_revisions",
+      "source_reads": [
+        {
+          "file": "src/pages/DocumentRegistry.tsx",
+          "line": 151,
+          "method": "select"
+        }
+      ],
+      "source_mutations": [],
+      "source_related_rpcs": [
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 283,
+          "rpc": "create_document_revision"
+        },
+        {
+          "file": "src/pages/Quotations.tsx",
+          "line": 340,
+          "rpc": "create_document_revision"
+        }
+      ],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260813090000_industrial_workflow_foundations.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150311_9cf7ed19-bd3d-41d5-8dd9-0ed12594d0b8.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql"
+      ]
+    },
+    {
+      "entity": "business_audit_events",
+      "source_reads": [],
+      "source_mutations": [],
+      "source_related_rpcs": [],
+      "migration_files_mentioning_entity": [
+        "supabase/migrations/20260813090000_industrial_workflow_foundations.sql",
+        "supabase/migrations/20260813100000_complete_transaction_connectors.sql",
+        "supabase/migrations/20260813150000_commercial_finance_completeness.sql",
+        "supabase/migrations/20260813150311_9cf7ed19-bd3d-41d5-8dd9-0ed12594d0b8.sql",
+        "supabase/migrations/20260813150645_58b1904e-716f-4c61-9088-1ac143a130ed.sql",
+        "supabase/migrations/20260813150738_4b7ba3e5-cd2d-456b-be3f-f5e000bbaca2.sql",
+        "supabase/migrations/20260814110000_service_parts_resolution_complete.sql",
+        "supabase/migrations/20260814130000_payment_date_connector.sql",
+        "supabase/migrations/20260814140000_worker_claim_payment_connectors.sql",
+        "supabase/migrations/20260814194624_3b2c3164-627a-4782-93f3-4983d85c056e.sql",
+        "supabase/migrations/20260814194714_41c9d389-ff6e-47aa-9f7c-be9bd8270a54.sql",
+        "supabase/migrations/20260814194748_2396bb70-c7e6-4ed1-8126-0176da6cb7ea.sql",
+        "supabase/migrations/20260815130000_invoice_waybill_reactive_workflows.sql"
+      ]
+    }
+  ]
+}

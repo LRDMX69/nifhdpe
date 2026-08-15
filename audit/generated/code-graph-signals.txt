@@ -1,0 +1,824 @@
+=== TABLE MUTATION REFERENCES ===
+      2 from ai_intelligence_logs
+      8 from ai_summaries
+      9 from attendance
+      1 from audit_logs
+      4 from auto_mode_settings
+      2 from avatars
+      1 from bank_statements
+      3 from bank_transactions
+      3 from boq_items
+      5 from boqs
+      1 from claim
+      1 from client_purchase_orders
+     10 from clients
+      2 from compliance
+      7 from compliance_documents
+     12 from deliveries
+      1 from delivery_items
+      1 from director_account_entries
+      6 from disciplinary_records
+      1 from document_revisions
+      6 from employee_skills
+      6 from equipment
+      7 from equipment_requests
+      8 from expenses
+      2 from field_report_photos
+      5 from field_reports
+      4 from finance_accounts
+      1 from finance_reconciliations
+      1 from finance_transaction_links
+      2 from fuel_logs
+      2 from fusion_joints
+      2 from goods_received_notes
+      4 from holidays
+      1 from hr_hmo_enrolments
+      1 from hr_overtime_entries
+      2 from hr_salary_schedules
+      1 from hr_staff_loans
+      3 from hr_workflow_settings
+      4 from hse_incidents
+      8 from inventory
+      1 from invoice_items
+      9 from invoices
+      2 from learning_reflections
+      8 from leave_requests
+      4 from management_configuration
+      3 from material_requisitions
+     17 from messages
+      1 from mr_items
+      4 from opportunities
+     10 from organization_memberships
+      6 from organizations
+      6 from performance_logs
+      5 from product_specifications
+     23 from profiles
+      1 from proforma_invoices
+      1 from project_handover_records
+      2 from project_qa_records
+      3 from project_work_packages
+     19 from projects
+      6 from promotions
+      2 from purchase_order_items
+      3 from purchase_orders
+      7 from quotation_items
+     15 from quotations
+      4 from receipts
+      6 from recruitment
+      4 from role_assignment_requests
+     10 from sales_orders
+      1 from service_tickets
+      2 from site
+      2 from storage_boxes
+      2 from storage_locations
+      2 from system_maintenance_accounts
+      2 from toolbox_talks
+      6 from training_logs
+      4 from user_feedback
+      1 from vat_schedule_entries
+      3 from vehicles
+      4 from vendors
+      1 from warranty_assets
+      1 from waybills
+      9 from worker_claims
+     10 from worker_payments
+      1 rpc approve_overtime_entry
+      1 rpc approve_salary_schedule
+      1 rpc assign_equipment_to_project
+      1 rpc complete_delivery
+      1 rpc confirm_sales_order
+      1 rpc create_delivery_from_sales_order
+      2 rpc create_document_revision
+      1 rpc create_invoice_from_sales_order
+      1 rpc create_invoice_with_metadata
+      1 rpc create_material_requisition_with_items
+      1 rpc create_project_from_sales_order
+      1 rpc create_purchase_order_with_metadata
+      1 rpc create_sales_order_from_quotation
+      1 rpc create_vat_schedule_entry
+      1 rpc create_worker_payment_from_claim
+      1 rpc create_worker_payment_from_overtime
+      1 rpc create_worker_payment_from_salary_schedule
+      1 rpc decide_disciplinary_record
+      1 rpc decide_leave_request
+      1 rpc delete_inventory_item_safely
+      3 rpc get_finance_period_report
+      1 rpc get_maintenance_alerts
+      1 rpc get_operational_dashboard
+      1 rpc get_org_payroll_profiles
+      3 rpc get_visible_members
+      1 rpc issue_waybill
+      2 rpc link_bank_transaction
+      2 rpc mark_waybill_generation_failed
+      2 rpc mark_waybill_printed
+      4 rpc next_doc_number
+      1 rpc receive_purchase_order_partial
+      1 rpc record_invoice_payment
+      1 rpc record_project_material_consumption
+      1 rpc record_staff_loan_repayment
+      1 rpc resolve_service_ticket
+      1 rpc review_bank_transaction
+      1 rpc review_disciplinary_record
+      1 rpc review_leave_request
+      1 rpc submit_project_handover
+\n=== DIRECT MUTATION CALLS ===
+src/components/CheckInWidget.tsx:251:      const { error } = await supabase.from("attendance").insert({
+src/components/CheckInWidget.tsx:298:        .update({ check_out: new Date().toISOString() })
+src/components/HolidayManager.tsx:48:      const { error } = await supabase.from("holidays").insert({
+src/components/HolidayManager.tsx:69:    const { error } = await supabase.from("holidays").delete().eq("id", id);
+src/components/dashboards/AdminDashboard.tsx:118:        await supabase.from("auto_mode_settings").update({ enabled, updated_by: user.id, updated_at: new Date().toISOString() }).eq("id", existing.id);
+src/components/dashboards/AdminDashboard.tsx:120:        await supabase.from("auto_mode_settings").insert({ organization_id: orgId, enabled, updated_by: user.id });
+src/components/dashboards/AdminDashboard.tsx:308:      const { error } = await supabase.from("worker_claims").update({ status, reviewed_by: user?.id }).eq("id", id);
+src/components/dashboards/AdminDashboard.tsx:316:      const { error } = await supabase.from("equipment_requests").update({ status, reviewed_by: user?.id }).eq("id", id);
+src/components/dashboards/IntelligenceFeed.tsx:59:      await supabase.from("ai_intelligence_logs").update({ is_reviewed: true }).eq("id", id);
+src/components/dashboards/TraineeDashboard.tsx:55:      const { error } = await supabase.from("learning_reflections").insert({
+src/components/feedback/FeedbackButton.tsx:64:      const { error } = await (supabase as any).from("user_feedback").insert({
+src/components/feedback/FeedbackInbox.tsx:49:      const { error } = await (supabase as any).from("user_feedback").update(patch).eq("id", id);
+src/components/hr/hooks/useHRMutations.ts:20:      const { error } = await supabase.from("leave_requests").insert({
+src/components/hr/hooks/useHRMutations.ts:39:      const { error } = await supabase.from("leave_requests").update({ status, approved_by: userId }).eq("id", id);
+src/components/hr/hooks/useHRMutations.ts:68:        const { error } = await supabase.from("recruitment").update(payload).eq("id", values.editingRecruit.id);
+src/components/hr/hooks/useHRMutations.ts:71:        const { error } = await supabase.from("recruitment").insert({ ...payload, created_by: userId });
+src/components/hr/hooks/useHRMutations.ts:102:        const { error } = await supabase.from("training_logs").update(payload).eq("id", values.editingTraining.id);
+src/components/hr/hooks/useHRMutations.ts:105:        const { error } = await supabase.from("training_logs").insert({ ...payload, created_by: userId });
+src/components/hr/hooks/useHRMutations.ts:133:        const { error } = await supabase.from("employee_skills").update(payload).eq("id", values.editingSkill.id);
+src/components/hr/hooks/useHRMutations.ts:136:        const { error } = await supabase.from("employee_skills").insert(payload);
+src/components/hr/hooks/useHRMutations.ts:165:        const { error } = await supabase.from("disciplinary_records").update(payload).eq("id", values.editingDisc.id);
+src/components/hr/hooks/useHRMutations.ts:168:        const { error } = await supabase.from("disciplinary_records").insert({ ...payload, issued_by: userId });
+src/components/hr/hooks/useHRMutations.ts:199:        const { error } = await supabase.from("promotions").update(payload).eq("id", values.editingPromo.id);
+src/components/hr/hooks/useHRMutations.ts:202:        const { error } = await supabase.from("promotions").insert({ ...payload, approved_by: userId });
+src/components/hr/hooks/useHRMutations.ts:230:        const { error } = await supabase.from("performance_logs").update(payload).eq("id", values.editingPerf.id);
+src/components/hr/hooks/useHRMutations.ts:233:        const { error } = await supabase.from("performance_logs").insert({ ...payload, created_by: userId });
+src/components/hr/hooks/useHRMutations.ts:247:      const { error } = await supabase.from("worker_payments").insert({
+src/components/hr/hooks/useHRMutations.ts:267:      const { error } = await supabase.from(table as "recruitment" | "training_logs" | "employee_skills" | "disciplinary_records" | "promotions" | "performance_logs").delete().eq("id", id);
+src/components/hr/HRFinanceWorkspace.tsx:141:      const { error } = await industrialDb.from("hr_workflow_settings").upsert({ organization_id: orgId, md_approver_id: mdApprover || null, working_days_per_month: workingDays ? Number(workingDays) : null, updated_by: userId });
+src/components/hr/HRFinanceWorkspace.tsx:150:      const { error } = await industrialDb.from(table).insert({ organization_id: orgId, ...payload });
+src/components/hr/HRFinanceAuditWorkspace.tsx:42:  const save = useMutation({ mutationFn: async ({ table, payload }: { table: string; payload: Record<string, unknown> }) => { if (!orgId || !userId) throw new Error("Organization session is not ready"); const { data, error } = await industrialDb.from(table).insert({ organization_id: orgId, ...payload }).select().single(); if (error) throw error; return data; }, onError: (error) => toast({ title: "Could not save finance audit record", description: humanizeError(error), variant: "destructive" }) });
+src/components/hr/HRFinanceAuditWorkspace.tsx:43:  const saveStatement = async () => { const created = await save.mutateAsync({ table: "bank_statements", payload: { account_id: statement.account, statement_reference: statement.reference.trim() || null, period_start: statement.start, period_end: statement.end, opening_balance: Number(statement.opening || 0), closing_balance: Number(statement.closing || 0), status: "imported", imported_by: userId } }).catch(() => null); if (!created) return; const rows = statement.csv.split("\n").map((line) => line.split(",").map((part) => part.trim())).filter((parts) => parts.length >= 4 && parts[0] !== "date"); if (rows.length > 0) { const { error } = await industrialDb.from("bank_transactions").insert(rows.map(([date, description, reference, amount, direction = "debit", folio = ""]) => ({ organization_id: orgId, statement_id: created.id, account_id: statement.account, transaction_date: date, description, reference: reference || null, amount: Math.abs(Number(amount)), direction: direction === "credit" ? "credit" : "debit", folio: folio || null, review_status: "pending_review" }))); if (error) { toast({ title: "Statement saved but lines failed", description: humanizeError(error), variant: "destructive" }); } } toast({ title: "Bank statement imported", description: `${rows.length} transaction line(s) queued for review.` }); setStatementOpen(false); setStatement({ account: "", reference: "", start: today(), end: today(), opening: "", closing: "", csv: "" }); refresh(); };
+src/components/layout/NotificationBell.tsx:123:    const { error } = await supabase.from("messages").update({ is_read: true }).eq("id", m.id);
+src/components/layout/NotificationBell.tsx:139:    const { error } = await supabase.from("messages").update({ is_read: true }).in("id", ids);
+src/components/messaging/BroadcastView.tsx:27:      supabase.from("messages").update({ is_read: true }).in("id", unread.map(b => b.id)).then(() => {
+src/components/messaging/ChatView.tsx:55:      supabase.from("messages").update({ is_read: true }).in("id", ids).then(() => {
+src/components/messaging/ChatView.tsx:83:      const { error } = await supabase.from("messages").insert({
+src/components/messaging/ChatView.tsx:101:      const { error } = await supabase.from("messages").delete().eq("id", msgId);
+src/components/messaging/ContextMessages.tsx:54:      const { error } = await supabase.from("messages").insert({
+src/hooks/use-toast.ts:61:    toastTimeouts.delete(toastId);
+src/lib/pushNotifications.ts:38:      await (supabase as unknown as SupabaseWithPush).from('push_subscriptions').upsert({
+src/pages/AppSettings.tsx:114:    const { error } = await supabase.from("organizations").update({ office_lat: latN, office_lng: lngN }).eq("id", orgId);
+src/pages/AppSettings.tsx:194:      const { error: saveError } = await industrialDb.from("management_configuration").upsert({
+src/pages/AppSettings.tsx:216:      const { error: updateError } = await industrialDb.from("management_configuration").update({
+src/pages/AppSettings.tsx:396:      const { error } = await supabase.from("organization_memberships").insert(rows);
+src/pages/AppSettings.tsx:401:          .update({ status: "approved", reviewed_at: new Date().toISOString(), reviewed_by: user?.id ?? null })
+src/pages/AppSettings.tsx:417:      const { error } = await supabase.from("organization_memberships").delete().eq("id", membershipId);
+src/pages/AppSettings.tsx:458:      const { error: updateError } = await supabase.from("profiles").update({ avatar_url: urlData.signedUrl }).eq("user_id", user.id);
+src/pages/AppSettings.tsx:508:                const { error } = await supabase.from("organizations").update({
+src/pages/AppSettings.tsx:703:                const { error } = await supabase.from("profiles").update({
+src/pages/BOQ.tsx:87:      const { error } = await supabase.from("boqs").insert({
+src/pages/BOQ.tsx:109:    const { error } = await supabase.from("boqs").delete().eq("id", deleteTarget.id).eq("organization_id", orgId);
+src/pages/BOQ.tsx:235:    await supabase.from("boqs").update({ total_amount: newTotal }).eq("id", boq.id).eq("organization_id", orgId);
+src/pages/BOQ.tsx:248:      const { error } = await industrialDb.from("boq_items").insert({
+src/pages/BOQ.tsx:266:    const { error } = await supabase.from("boq_items").delete().eq("id", item.id).eq("organization_id", orgId);
+src/pages/BOQ.tsx:274:    const { error } = await supabase.from("boqs").update({ status: newStatus }).eq("id", boq.id).eq("organization_id", orgId);
+src/pages/Clients.tsx:98:        const { error } = await supabase.from("clients").update(payload as Database["public"]["Tables"]["clients"]["Update"]).eq("id", editingClient.id);
+src/pages/Clients.tsx:102:        const { error } = await supabase.from("clients").insert(payload);
+src/pages/Clients.tsx:119:      const { error } = await supabase.from("clients").delete().eq("id", deleteTarget.id);
+src/pages/Compliance.tsx:116:        const { error } = await supabase.from("compliance_documents").update(payload).eq("id", editingDoc.id);
+src/pages/Compliance.tsx:121:        const { error } = await supabase.from("compliance_documents").insert(insertRow);
+src/pages/Compliance.tsx:134:      const { error } = await supabase.from("compliance_documents").update({ status: status as Database["public"]["Enums"]["compliance_status"] }).eq("id", id);
+src/pages/Compliance.tsx:147:      const { error } = await supabase.from("compliance_documents").delete().eq("id", deleteTarget.id);
+src/pages/Equipment.tsx:131:        const { error } = await supabase.from("equipment").update(payload).eq("id", editingEquip.id);
+src/pages/Equipment.tsx:134:        const { error } = await supabase.from("equipment").insert(payload);
+src/pages/Equipment.tsx:149:      const { error } = await supabase.from("equipment").delete().eq("id", deleteTarget.id);
+src/pages/Equipment.tsx:162:      const { error } = await supabase.from("equipment").update({ status: status as "available" | "in_use" | "maintenance" | "retired" }).eq("id", id);
+src/pages/Equipment.tsx:175:      const { error } = await supabase.from("equipment_requests").insert({
+src/pages/Equipment.tsx:203:      const { error } = await supabase.from("equipment_requests").update({ status, reviewed_by: user?.id }).eq("id", id).eq("organization_id", orgId);
+src/pages/FieldReports.tsx:148:          const { data: report, error } = await supabase.from("field_reports").insert({
+src/pages/FieldReports.tsx:164:            const { error: photoError } = await supabase.from("field_report_photos").insert({ field_report_id: report.id, photo_url: url });
+src/pages/FieldReports.tsx:383:        .insert({
+src/pages/FieldReports.tsx:401:        await supabase.from("field_report_photos").insert({ field_report_id: report.id, photo_url: url });
+src/pages/Finance.tsx:107:      next.delete("new");
+src/pages/Finance.tsx:114:      next.delete("record");
+src/pages/Finance.tsx:376:        const { error } = await supabase.from("worker_payments").update(payload as Database["public"]["Tables"]["worker_payments"]["Update"]).eq("id", editingPayment.id).eq("organization_id", orgId);
+src/pages/Finance.tsx:380:        const { error } = await supabase.from("worker_payments").insert(payload);
+src/pages/Finance.tsx:410:        const { error } = await supabase.from("expenses").update(payload as Database["public"]["Tables"]["expenses"]["Update"]).eq("id", editingExpense.id).eq("organization_id", orgId);
+src/pages/Finance.tsx:414:        const { error } = await supabase.from("expenses").insert(payload);
+src/pages/Finance.tsx:433:      const { error } = await supabase.from(table).delete().eq("id", deleteTarget.id).eq("organization_id", orgId);
+src/pages/HR.tsx:251:      const { error } = await supabase.from("leave_requests").insert({ organization_id: orgId, user_id: user.id, leave_type: leaveType, start_date: startDate, end_date: endDate, reason: leaveReason || null });
+src/pages/HR.tsx:287:        const { error } = await supabase.from("recruitment").update(payload).eq("id", editingRecruit.id);
+src/pages/HR.tsx:290:        const { error } = await supabase.from("recruitment").insert({ ...payload, created_by: user.id });
+src/pages/HR.tsx:303:        const { error } = await supabase.from("training_logs").update(payload).eq("id", editingTraining.id);
+src/pages/HR.tsx:306:        const { error } = await supabase.from("training_logs").insert({ ...payload, created_by: user.id });
+src/pages/HR.tsx:319:        const { error } = await supabase.from("employee_skills").update(payload).eq("id", editingSkill.id);
+src/pages/HR.tsx:322:        const { error } = await supabase.from("employee_skills").insert(payload);
+src/pages/HR.tsx:335:        const { error } = await supabase.from("disciplinary_records").update(payload).eq("id", editingDisc.id);
+src/pages/HR.tsx:338:        const { error } = await supabase.from("disciplinary_records").insert({ ...payload, issued_by: user.id });
+src/pages/HR.tsx:356:        const { error } = await supabase.from("promotions").update(payload).eq("id", editingPromo.id);
+src/pages/HR.tsx:359:        const { error } = await supabase.from("promotions").insert({ ...payload, approved_by: user.id });
+src/pages/HR.tsx:378:        const { error } = await supabase.from("performance_logs").update(payload).eq("id", editingPerf.id);
+src/pages/HR.tsx:381:        const { error } = await supabase.from("performance_logs").insert({ ...payload, created_by: user.id });
+src/pages/HR.tsx:396:      const { error } = await industrialDb.from("hr_salary_schedules").insert({
+src/pages/HR.tsx:418:      const { error } = await supabase.from(table as "recruitment" | "training_logs" | "employee_skills" | "disciplinary_records" | "promotions" | "performance_logs").delete().eq("id", id);
+src/pages/HSE.tsx:77:      const { error } = await supabase.from("hse_incidents").insert({
+src/pages/HSE.tsx:106:      const { error } = await supabase.from("toolbox_talks").insert({
+src/pages/Inventory.tsx:144:        const { error } = await supabase.from("inventory").update(payload as Database["public"]["Tables"]["inventory"]["Update"]).eq("id", editingItem.id);
+src/pages/Inventory.tsx:148:        const { error } = await supabase.from("inventory").insert(payload);
+src/pages/Inventory.tsx:166:    const { error } = await supabase.from("storage_locations").insert({ organization_id: orgId, name: locName.trim(), description: locDesc || null });
+src/pages/Inventory.tsx:175:    const { error } = await supabase.from("storage_boxes").insert({ organization_id: orgId, box_code: boxCode.trim(), label: boxLabel || null, location_id: boxLocId });
+src/pages/Logistics.tsx:79:      next.delete("new");
+src/pages/Logistics.tsx:190:  const saveVehicle = async () => { if (!orgId || !vehicleName.trim() || !vehiclePlate.trim()) return; setSaving(true); try { const payload = { organization_id: orgId, name: vehicleName.trim(), plate_number: vehiclePlate.trim().toUpperCase(), make: vehicleMake.trim() || null, model: vehicleModel.trim() || null, year: vehicleYear ? Number(vehicleYear) : null, status: vehicleStatus }; const { error } = editingVehicle ? await industrialDb.from("vehicles").update(payload).eq("id", editingVehicle.id).eq("organization_id", orgId) : await industrialDb.from("vehicles").insert(payload); if (error) throw error; toast({ title: editingVehicle ? "Vehicle updated" : "Vehicle added" }); setVehicleDialogOpen(false); resetVehicleForm(); await refetchVehicles(); } catch (error) { toast({ title: "Could not save vehicle", description: humanizeError(error), variant: "destructive" }); } finally { setSaving(false); } };
+src/pages/Logistics.tsx:191:  const deleteVehicle = async () => { if (!orgId || !vehicleDeleteTarget) return; setSaving(true); try { const { error } = await industrialDb.from("vehicles").delete().eq("id", vehicleDeleteTarget.id).eq("organization_id", orgId); if (error) throw error; toast({ title: "Vehicle removed" }); setVehicleDeleteTarget(null); await refetchVehicles(); } catch (error) { toast({ title: "Could not remove vehicle", description: humanizeError(error), variant: "destructive" }); } finally { setSaving(false); } };
+src/pages/Logistics.tsx:193:  const saveFuelLog = async () => { if (!orgId || !user || !fuelVehicleId || Number(fuelLiters) <= 0 || Number(fuelCost) < 0) return; setSaving(true); try { const { error } = await industrialDb.from("fuel_logs").insert({ organization_id: orgId, vehicle_id: fuelVehicleId, log_date: fuelDate, liters: Number(fuelLiters), cost: Number(fuelCost), odometer: fuelOdometer ? Number(fuelOdometer) : null, notes: fuelNotes.trim() || null, logged_by: user.id }); if (error) throw error; toast({ title: "Fuel log recorded" }); setFuelDialogOpen(false); await Promise.all([refetchFuelLogs(), refetchVehicles()]); } catch (error) { toast({ title: "Could not record fuel log", description: humanizeError(error), variant: "destructive" }); } finally { setSaving(false); } };
+src/pages/Logistics.tsx:240:        const { error } = await supabase.from("deliveries").update(payload as Database["public"]["Tables"]["deliveries"]["Update"]).eq("id", editingDelivery.id);
+src/pages/Logistics.tsx:244:        const { error } = await supabase.from("deliveries").insert(payload);
+src/pages/Logistics.tsx:313:                const { error } = await supabase.from("deliveries").update({ ...payload, delivered_lat: userLat, delivered_lng: userLng }).eq("id", id);
+src/pages/Logistics.tsx:327:                const { error } = await supabase.from("deliveries").update(payload).eq("id", id);
+src/pages/Logistics.tsx:344:      const { error } = await supabase.from("deliveries").update(payload).eq("id", id);
+src/pages/Logistics.tsx:357:      const { error } = await supabase.from("deliveries").delete().eq("id", deleteTarget.id);
+src/pages/Messages.tsx:100:          .update({ is_read: true })
+src/pages/Messages.tsx:197:      const { error } = await supabase.from("messages").insert({
+src/pages/Messages.tsx:225:      const { error } = await supabase.from("messages").insert({
+src/pages/Opportunities.tsx:150:      await supabase.from("opportunities").insert({
+src/pages/Procurement.tsx:126:      const { error } = await supabase.from("vendors").insert({ ...newVendor, organization_id: orgId });
+src/pages/Projects.tsx:80:  const createWorkPackage = async () => { if (!orgId || !project || !workPackageName.trim()) return; setCreatingWorkPackage(true); try { const { error } = await industrialDb.from("project_work_packages").insert({ organization_id: orgId, project_id: project.id, name: workPackageName.trim(), description: workPackageDescription.trim() || null, status: "planned", sequence_no: (workPackages[workPackages.length - 1]?.sequence_no ?? 0) + 1, planned_start: plannedStart || null, planned_end: plannedEnd || null, budget_amount: Number(workPackageBudget) || 0 }); if (error) throw error; toast({ title: "Work package added", description: "The execution sequence is available for material consumption and field records." }); setWorkPackageName(""); setWorkPackageDescription(""); setPlannedStart(""); setPlannedEnd(""); setWorkPackageBudget(""); await refetchWorkPackages(); } catch (error) { toast({ title: "Could not add work package", description: humanizeError(error), variant: "destructive" }); } finally { setCreatingWorkPackage(false); } };
+src/pages/Projects.tsx:81:  const recordFusionJoint = async () => { if (!orgId || !project || !user || !jointId.trim()) return; setQualitySaving(true); try { const { error } = await industrialDb.from("fusion_joints").insert({ organization_id: orgId, project_id: project.id, work_package_id: workPackageId || null, joint_id: jointId.trim(), joint_type: jointType, location: jointLocation.trim() || null, material_lot: jointLot.trim() || null, operator_user_id: user.id, equipment_id: jointEquipmentId || null, performed_at: new Date().toISOString(), fusion_parameters: { summary: jointNotes.trim() || null }, inspection: { recorded_by: user.id }, test_result: { result: jointResult }, result: jointResult, notes: jointNotes.trim() || null, created_by: user.id }); if (error) throw error; toast({ title: "Fusion joint recorded" }); setJointId(""); setJointLocation(""); setJointLot(""); setJointEquipmentId(""); setJointResult("awaiting_configuration"); setJointNotes(""); await refetchFusionJoints(); } catch (error) { toast({ title: "Could not record fusion joint", description: humanizeError(error), variant: "destructive" }); } finally { setQualitySaving(false); } };
+src/pages/Projects.tsx:82:  const recordQaInspection = async () => { if (!orgId || !project || !user || !qaInspectionType.trim()) return; setQualitySaving(true); try { const { error } = await industrialDb.from("project_qa_records").insert({ organization_id: orgId, project_id: project.id, work_package_id: workPackageId || null, field_report_id: fieldReportId || null, inspection_type: qaInspectionType.trim(), criteria: { summary: qaCriteria.trim() || null }, result: qaResult, evidence: fieldReportId ? [{ field_report_id: fieldReportId }] : [], inspected_by: user.id, inspected_at: new Date().toISOString(), notes: qaNotes.trim() || null }); if (error) throw error; toast({ title: "QA inspection recorded" }); setQaInspectionType(""); setQaCriteria(""); setQaResult("awaiting_configuration"); setQaNotes(""); await refetchQaRecords(); } catch (error) { toast({ title: "Could not record QA inspection", description: humanizeError(error), variant: "destructive" }); } finally { setQualitySaving(false); } };
+src/pages/Projects.tsx:255:        const { error } = await supabase.from("projects").update(payload as Database["public"]["Tables"]["projects"]["Update"]).eq("id", editingProject.id);
+src/pages/Projects.tsx:259:        const { data, error } = await supabase.from("projects").insert(payload).select("id").single();
+src/pages/Projects.tsx:273:          await supabase.from("messages").insert({
+src/pages/Projects.tsx:296:      const { error } = await supabase.from("projects").delete().eq("id", deleteTarget.id);
+src/pages/Projects.tsx:309:      const { error } = await supabase.from("projects").update({ status: status as "planning" | "in_progress" | "on_hold" | "completed" | "cancelled" }).eq("id", id);
+src/pages/Quotations.tsx:80:      const { error } = await industrialDb.from("product_specifications").insert({
+src/pages/Quotations.tsx:107:    const { error } = await industrialDb.from("product_specifications").update({ is_active: product.is_active === false }).eq("id", product.id).eq("organization_id", orgId);
+src/pages/Quotations.tsx:289:        const { error } = await industrialDb.from("quotations").update({
+src/pages/Quotations.tsx:298:        const { error: delItemsError } = await supabase.from("quotation_items").delete().eq("quotation_id", editingQuotation.id);
+src/pages/Quotations.tsx:301:          const { error: insItemsError } = await supabase.from("quotation_items").insert(items.map(i => ({
+src/pages/Quotations.tsx:311:        const { data: quotation, error } = await industrialDb.from("quotations").insert({
+src/pages/Quotations.tsx:318:          const { error: itemError } = await industrialDb.from("quotation_items").insert(items.map(i => ({
+src/pages/Quotations.tsx:345:        const { error } = await industrialDb.from("quotations").update({
+src/pages/Quotations.tsx:355:        const { error } = await supabase.from("quotations").insert({
+src/pages/Quotations.tsx:372:      const { error } = await supabase.from("quotations").update({ status: status as Database["public"]["Enums"]["quotation_status"] }).eq("id", id);
+src/pages/Quotations.tsx:393:      const { error } = await industrialDb.from("proforma_invoices").insert({
+src/pages/Quotations.tsx:471:      await supabase.from("quotation_items").delete().eq("quotation_id", deleteTarget.id);
+src/pages/Quotations.tsx:472:      const { error } = await supabase.from("quotations").delete().eq("id", deleteTarget.id);
+src/pages/WorkerClaims.tsx:168:        const { error } = await supabase.from("worker_claims").insert({
+src/pages/WorkerClaims.tsx:194:      const { error } = await supabase.from("worker_claims").update({ status, reviewed_by: user?.id } as Database["public"]["Tables"]["worker_claims"]["Update"]).eq("id", id).eq("organization_id", orgId);
+\n=== RPC CALLS ===
+      4 next_doc_number
+      3 get_visible_members
+      3 get_finance_period_report
+      2 mark_waybill_printed
+      2 mark_waybill_generation_failed
+      2 link_bank_transaction
+      2 create_document_revision
+      1 submit_project_handover
+      1 review_leave_request
+      1 review_disciplinary_record
+      1 review_bank_transaction
+      1 resolve_service_ticket
+      1 record_staff_loan_repayment
+      1 record_project_material_consumption
+      1 record_invoice_payment
+      1 receive_purchase_order_partial
+      1 issue_waybill
+      1 get_org_payroll_profiles
+      1 get_operational_dashboard
+      1 get_maintenance_alerts
+      1 delete_inventory_item_safely
+      1 decide_leave_request
+      1 decide_disciplinary_record
+      1 create_worker_payment_from_salary_schedule
+      1 create_worker_payment_from_overtime
+      1 create_worker_payment_from_claim
+      1 create_vat_schedule_entry
+      1 create_sales_order_from_quotation
+      1 create_purchase_order_with_metadata
+      1 create_project_from_sales_order
+      1 create_material_requisition_with_items
+      1 create_invoice_with_metadata
+      1 create_invoice_from_sales_order
+      1 create_delivery_from_sales_order
+      1 confirm_sales_order
+      1 complete_delivery
+      1 assign_equipment_to_project
+      1 approve_salary_schedule
+      1 approve_overtime_entry
+\n=== LIFECYCLE TERMS ===
+src/components/AuditHistoryDialog.tsx:11:  revision_reason: string | null;
+src/components/AuditHistoryDialog.tsx:18:const NOISE_KEYS = new Set(["id", "created_at", "updated_at", "organization_id", "revision_reason"]);
+src/components/AuditHistoryDialog.tsx:42: * (audit_logs). Shows who changed what, when, and why (revision_reason).
+src/components/AuditHistoryDialog.tsx:52:        .select("id, action, created_at, revision_reason, old_data, new_data, profiles(full_name)")
+src/components/AuditHistoryDialog.tsx:79:            No changes recorded for this record yet. Every edit (including the revision reason) will appear here.
+src/components/AuditHistoryDialog.tsx:107:                  {e.revision_reason && (
+src/components/AuditHistoryDialog.tsx:109:                      <span className="font-medium">Reason:</span> {e.revision_reason}
+src/components/CommandPalette.tsx:33:          <CommandItem onSelect={() => go("/finance?tab=invoices&new=1")}><Receipt className="h-4 w-4 mr-2" />New Invoice</CommandItem>
+src/components/CommandPalette.tsx:41:          <CommandItem onSelect={() => go("/logistics?new=waybill")}><Truck className="h-4 w-4 mr-2" />New Waybill</CommandItem>
+src/components/CommandPalette.tsx:42:          <CommandItem onSelect={() => go("/finance?tab=invoices&record=1")}><Receipt className="h-4 w-4 mr-2" />Record Payment</CommandItem>
+src/components/CommandPalette.tsx:48:          <CommandItem onSelect={() => go("/finance?tab=invoices")}><Receipt className="h-4 w-4 mr-2" />Invoices</CommandItem>
+src/components/HelpSheet.tsx:19:  { q: "How do I create an invoice?",        a: "Open Finance → Invoices tab → click the green + New Invoice button at the top right. You can also press ⌘K and search 'invoice'.", action: { label: "Open Invoices", path: "/finance?tab=invoices" }, tags: ["invoice","bill","charge","client"] },
+src/components/HelpSheet.tsx:20:  { q: "How do I record a payment from a client?", a: "Open Finance → Invoices → click the row action menu on any invoice → Record Payment. A numbered receipt PDF is issued automatically.", action: { label: "Open Invoices", path: "/finance?tab=invoices" }, tags: ["payment","receipt","paid","cash"] },
+src/components/HelpSheet.tsx:21:  { q: "How do I create a waybill for the driver?", a: "Open Logistics → click + New Waybill at the top. Add destination, driver, vehicle and items — a printable waybill PDF is generated for the trip.", action: { label: "Open Logistics", path: "/logistics" }, tags: ["waybill","driver","police","checkpoint","dispatch"] },
+src/components/HelpSheet.tsx:22:  { q: "How do I create a quotation?",       a: "Open Quotations → + New Quotation. Add line items (pipes/fittings), labor, transport, profit %. Once accepted, you can convert it directly into an invoice.", action: { label: "Open Quotations", path: "/quotations" }, tags: ["quote","quotation","estimate","price"] },
+src/components/HelpSheet.tsx:23:  { q: "How do I convert a quotation into an invoice?", a: "On any quotation row → row menu → Convert to Invoice. The invoice is pre-filled with the quotation totals.", action: { label: "Open Quotations", path: "/quotations" }, tags: ["convert","invoice","quotation"] },
+src/components/HelpSheet.tsx:24:  { q: "How do I submit a worker claim?",    a: "Open Claims → + New Claim. Always attach the receipt/photo proof — claims without proof get auto-rejected.", action: { label: "Open Claims", path: "/claims" }, tags: ["claim","reimburse","expense","voucher"] },
+src/components/HelpSheet.tsx:29:  { q: "How do I add a new client?",         a: "Clients → + Add Client. Stored centrally so quotations & invoices auto-fill.", action: { label: "Open Clients", path: "/clients" }, tags: ["client","customer","contact"] },
+src/components/HelpSheet.tsx:31:  { q: "How do I see every document we have issued?", a: "Settings → Document Registry — a searchable list of every invoice, quotation, receipt, waybill, PO etc. with their reference numbers.", action: { label: "Open Document Registry", path: "/documents" }, tags: ["registry","number","reference","history"] },
+src/components/HelpSheet.tsx:67:          <Input placeholder="Search e.g. invoice, waybill, claim…" className="pl-9" value={q} onChange={e => setQ(e.target.value)} />
+src/components/clients/ClientDetailDialog.tsx:39:  balance_due: number | null;
+src/components/clients/ClientDetailDialog.tsx:40:  invoice_date: string | null;
+src/components/clients/ClientDetailDialog.tsx:115:  const { data: invoices = [], isLoading: loadingInvoices } = useQuery({
+src/components/clients/ClientDetailDialog.tsx:116:    queryKey: ["client-invoices", orgId, clientId],
+src/components/clients/ClientDetailDialog.tsx:120:        .from("invoices")
+src/components/clients/ClientDetailDialog.tsx:121:        .select("id, document_number, status, total_amount, balance_due, invoice_date")
+src/components/clients/ClientDetailDialog.tsx:124:        .order("invoice_date", { ascending: false });
+src/components/clients/ClientDetailDialog.tsx:133:    queryFn: async () => { if (!clientId) return []; const { data, error } = await industrialDb.from("sales_orders").select("id, order_number, status, total_amount, order_date").eq("organization_id", orgId).eq("client_id", clientId).order("order_date", { ascending: false }); if (error) throw error; return (data ?? []) as LinkedRow[]; },
+src/components/clients/ClientDetailDialog.tsx:139:    queryFn: async () => { if (!clientId) return []; const { data, error } = await industrialDb.from("deliveries").select("id, status, destination, delivery_date, sales_order_id").eq("organization_id", orgId).eq("client_id", clientId).order("delivery_date", { ascending: false }); if (error) throw error; return (data ?? []) as LinkedRow[]; },
+src/components/clients/ClientDetailDialog.tsx:143:  const { data: receipts = [], isLoading: loadingReceipts } = useQuery({
+src/components/clients/ClientDetailDialog.tsx:144:    queryKey: ["client-receipts", orgId, clientId],
+src/components/clients/ClientDetailDialog.tsx:145:    queryFn: async () => { if (!clientId) return []; const { data, error } = await supabase.from("receipts").select("id, document_number, amount_received, payment_date, invoice_id").eq("organization_id", orgId).eq("client_id", clientId).order("payment_date", { ascending: false }); if (error) throw error; return (data ?? []) as LinkedRow[]; },
+src/components/clients/ClientDetailDialog.tsx:182:    const invoicedTotal = invoices.reduce((s, i) => s + Number(i.total_amount ?? 0), 0);
+src/components/clients/ClientDetailDialog.tsx:183:    const outstanding = invoices
+src/components/clients/ClientDetailDialog.tsx:185:      .reduce((s, i) => s + Number(i.balance_due ?? i.total_amount ?? 0), 0);
+src/components/clients/ClientDetailDialog.tsx:187:    const receivedTotal = receipts.reduce((s, receipt) => s + Number(receipt.amount_received ?? 0), 0);
+src/components/clients/ClientDetailDialog.tsx:189:    return { openQuoteCount: openQuotes.length, openQuoteValue, acceptedValue, invoicedTotal, outstanding, projectCount: projects.length, orderValue, receivedTotal, openTickets, deliveryCount: deliveries.length, warrantyCount: warrantyAssets.length };
+src/components/clients/ClientDetailDialog.tsx:191:  }, [quotations, invoices, projects, salesOrders, receipts, serviceTickets, deliveries, warrantyAssets]);
+src/components/clients/ClientDetailDialog.tsx:201:        if (!inventoryItem || !Number.isFinite(quantity) || quantity <= 0 || quantity > Number(inventoryItem.quantity_meters ?? 0)) throw new Error("Each service part needs valid stock, quantity, and available balance.");
+src/components/clients/ClientDetailDialog.tsx:231:      ...invoices.map((i) => ({ kind: "Invoice", reference: i.document_number, status: i.status, amount: Number(i.total_amount ?? 0), date: i.invoice_date })),
+src/components/clients/ClientDetailDialog.tsx:234:      ...receipts.map((r) => ({ kind: "Receipt", reference: r.document_number, status: "received", amount: Number(r.amount_received ?? 0), date: r.payment_date })),
+src/components/clients/ClientDetailDialog.tsx:312:                <Card className="border-border/50"><CardContent className="p-3"><p className="text-[10px] text-muted-foreground font-medium">Invoiced</p><p className="text-lg font-bold truncate">{formatCurrency(stats.invoicedTotal)}</p></CardContent></Card>
+src/components/clients/ClientDetailDialog.tsx:350:                  <h3 className="text-sm font-semibold flex items-center gap-2"><Receipt className="h-4 w-4 text-primary" /> Invoices <Badge variant="outline">{invoices.length}</Badge></h3>
+src/components/clients/ClientDetailDialog.tsx:351:                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { onOpenChange(false); navigate("/finance?tab=invoices"); }}>
+src/components/clients/ClientDetailDialog.tsx:352:                    Open invoices <ArrowUpRight className="h-3 w-3 ml-1" />
+src/components/clients/ClientDetailDialog.tsx:355:                {invoices.length === 0 ? (
+src/components/clients/ClientDetailDialog.tsx:356:                  <p className="text-xs text-muted-foreground">No invoices recorded against this client yet.</p>
+src/components/clients/ClientDetailDialog.tsx:359:                    {invoices.map((i) => {
+src/components/clients/ClientDetailDialog.tsx:367:                            {Number(i.balance_due ?? 0) > 0 && <span className="text-[10px] text-muted-foreground">due {formatCurrency(Number(i.balance_due))}</span>}
+src/components/clients/ClientDetailDialog.tsx:425:          <div className="space-y-2 rounded-lg border p-3"><div className="flex items-center justify-between gap-2"><div><p className="text-sm font-medium">Parts used</p><p className="text-xs text-muted-foreground">Optional, but select stock so aftercare cost and traceability remain auditable.</p></div><Button type="button" size="sm" variant="outline" onClick={() => setResolutionParts((current) => [...current, { id: `service-part-${Date.now()}`, inventoryId: "", quantity: "1", unitCost: "0" }])}>Add part</Button></div>{resolutionParts.map((part) => { const selected = serviceInventory.find((item) => item.id === part.inventoryId); return <div key={part.id} className="grid gap-2 sm:grid-cols-[1fr_100px_120px]"><Select value={part.inventoryId} onValueChange={(value) => setResolutionParts((current) => current.map((candidate) => candidate.id === part.id ? { ...candidate, inventoryId: value, unitCost: String(serviceInventory.find((item) => item.id === value)?.unit_cost ?? candidate.unitCost) } : candidate))}><SelectTrigger><SelectValue placeholder="Select stock item" /></SelectTrigger><SelectContent>{serviceInventory.map((item) => <SelectItem key={item.id} value={item.id}>{item.item_name} · {Number(item.quantity_meters ?? 0).toLocaleString()} available</SelectItem>)}</SelectContent></Select><Input type="number" min="0.01" step="0.01" value={part.quantity} onChange={(event) => setResolutionParts((current) => current.map((candidate) => candidate.id === part.id ? { ...candidate, quantity: event.target.value } : candidate))} placeholder="Qty" /><div className="flex gap-1"><Input type="number" min="0" step="0.01" value={part.unitCost} onChange={(event) => setResolutionParts((current) => current.map((candidate) => candidate.id === part.id ? { ...candidate, unitCost: event.target.value } : candidate))} placeholder="Unit cost" /><Button type="button" size="sm" variant="ghost" className="text-destructive" onClick={() => setResolutionParts((current) => current.filter((candidate) => candidate.id !== part.id))}>×</Button></div>{selected && <p className="text-[11px] text-muted-foreground sm:col-span-3">Selected stock: {selected.item_name}; remaining balance {Number(selected.quantity_meters ?? 0).toLocaleString()}.</p>}</div>; })}</div>
+src/components/dashboards/AdminDashboard.tsx:126:        toast({ title: "Auto-Mode activated", description: "AI will now run department scans automatically." });
+src/components/dashboards/AdminDashboard.tsx:129:        toast({ title: "Auto-Mode deactivated" });
+src/components/dashboards/AdminDashboard.tsx:205:      if (!orgId) return { expenses: 0, payments: 0 };
+src/components/dashboards/AdminDashboard.tsx:207:      const { data: payments } = await supabase.from("worker_payments").select("amount").eq("organization_id", orgId);
+src/components/dashboards/AdminDashboard.tsx:210:        payments: (payments ?? []).reduce((s, p) => s + Number(p.amount), 0),
+src/components/dashboards/AdminDashboard.tsx:236:  // --- CEO Visibility: Overdue invoices, 30-day cashflow forecast, risk projects ---
+src/components/dashboards/AdminDashboard.tsx:242:    queryKey: ["ceo-overdue-invoices", orgId, todayIso],
+src/components/dashboards/AdminDashboard.tsx:246:        .from("invoices")
+src/components/dashboards/AdminDashboard.tsx:247:        .select("id, document_number, due_date, balance_due, status, clients(name)")
+src/components/dashboards/AdminDashboard.tsx:250:        .gt("balance_due", 0)
+src/components/dashboards/AdminDashboard.tsx:254:      return (data ?? []) as unknown as Array<{ id: string; document_number: string; due_date: string; balance_due: number; status: string; clients: { name: string } | null }>;
+src/components/dashboards/AdminDashboard.tsx:264:        supabase.from("invoices").select("balance_due").eq("organization_id", orgId).gte("due_date", todayIso).lte("due_date", in30Iso).neq("status", "paid"),
+src/components/dashboards/AdminDashboard.tsx:267:      const expectedInflow = (inflow.data ?? []).reduce((s, r: { balance_due: number | null }) => s + Number(r.balance_due ?? 0), 0);
+src/components/dashboards/AdminDashboard.tsx:381:                    `Worker Payments (all time): ${fmt(financeSummary?.payments ?? 0)}`,
+src/components/dashboards/AdminDashboard.tsx:405:                      bullets: overdueInvoices.map((inv) => `${inv.document_number} — ${inv.clients?.name ?? "Unknown client"} · ${fmt(Number(inv.balance_due ?? 0))} outstanding (due ${inv.due_date})`),
+src/components/dashboards/AdminDashboard.tsx:611:                  <p className="text-xs text-muted-foreground">No overdue invoices. Receivables are current.</p>
+src/components/dashboards/AdminDashboard.tsx:625:                          <span className="text-sm font-bold text-destructive shrink-0">{formatCurrency(inv.balance_due)}</span>
+src/components/dashboards/DashboardRouter.tsx:40:      { actor: "Today", action: "review pending role requests, AI anomaly flags and overdue invoices." },
+src/components/dashboards/DashboardRouter.tsx:46:    summary: "You own the people lifecycle: attendance, leaves, payroll, ID cards, recruitment and training.",
+src/components/dashboards/DashboardRouter.tsx:48:      { actor: "Today", action: "approve leave requests, review attendance exceptions and check holiday settings." },
+src/components/dashboards/DashboardRouter.tsx:49:      { actor: "Weekly", action: "run payroll preview, issue ID cards for new hires, follow up on disciplinary cases." },
+src/components/dashboards/DashboardRouter.tsx:54:    summary: "You control money in and money out: invoices, receipts, vendor payments, expenses and worker claims.",
+src/components/dashboards/DashboardRouter.tsx:56:      { actor: "Daily", action: "post receipts against open invoices and review AI-flagged expense anomalies." },
+src/components/dashboards/DashboardRouter.tsx:57:      { actor: "Weekly", action: "match GRNs to Purchase Orders before releasing vendor payments." },
+src/components/dashboards/DashboardRouter.tsx:65:      { actor: "Per delivery", action: "verify on-site receipt within the 300m geofence to mark Delivered." },
+src/components/dashboards/DashboardRouter.tsx:86:    summary: "You drive the revenue pipeline: clients, opportunities and quotations that become invoices.",
+src/components/dashboards/FinanceDashboard.tsx:30:  const { data: payments } = useQuery({
+src/components/dashboards/FinanceDashboard.tsx:31:    queryKey: ["finance-payments", orgId],
+src/components/dashboards/FinanceDashboard.tsx:35:        .from("worker_payments")
+src/components/dashboards/FinanceDashboard.tsx:63:  const totalPayments = payments?.reduce((sum, p) => sum + Number(p.amount), 0) ?? 0;
+src/components/dashboards/HRDashboard.tsx:30:    queryKey: ["hr-pending-leaves", orgId],
+src/components/dashboards/HRDashboard.tsx:34:        .from("leave_requests")
+src/components/dashboards/HRDashboard.tsx:101:                      <p className="text-sm capitalize">{l.leave_type} leave</p>
+src/components/dashboards/HRDashboard.tsx:109:              <p className="text-sm text-muted-foreground text-center py-4">No pending leave requests.</p>
+src/components/dashboards/NeedsAttentionPanel.tsx:58:        // Overdue invoices — admin & finance
+src/components/dashboards/NeedsAttentionPanel.tsx:61:          .from("invoices")
+src/components/dashboards/NeedsAttentionPanel.tsx:62:          .select("id, document_number, balance_due, due_date, clients(name)")
+src/components/dashboards/NeedsAttentionPanel.tsx:64:          .gt("balance_due", 0)
+src/components/dashboards/NeedsAttentionPanel.tsx:72:            label: `Overdue invoice: ${inv.clients?.name ?? inv.document_number}`,
+src/components/dashboards/NeedsAttentionPanel.tsx:73:            detail: `${days}d late · ₦${Number(inv.balance_due ?? 0).toLocaleString()} outstanding`,
+src/components/dashboards/NeedsAttentionPanel.tsx:74:            to: "/finance?tab=invoices",
+src/components/dashboards/NeedsAttentionPanel.tsx:81:        const { data: leaves } = await client
+src/components/dashboards/NeedsAttentionPanel.tsx:82:          .from("leave_requests")
+src/components/dashboards/NeedsAttentionPanel.tsx:83:          .select("id, leave_type, start_date, status")
+src/components/dashboards/NeedsAttentionPanel.tsx:86:        (leaves ?? []).forEach((l) =>
+src/components/dashboards/NeedsAttentionPanel.tsx:88:            id: `leave-${l.id}`,
+src/components/dashboards/NeedsAttentionPanel.tsx:89:            label: `Leave: ${l.leave_type}`,
+src/components/dashboards/NeedsAttentionPanel.tsx:166:                ? "Approved — finance will process payment"
+src/components/dashboards/NeedsAttentionPanel.tsx:173:        // Own leave requests status
+src/components/dashboards/NeedsAttentionPanel.tsx:175:          .from("leave_requests")
+src/components/dashboards/NeedsAttentionPanel.tsx:176:          .select("id, leave_type, status, start_date")
+src/components/dashboards/NeedsAttentionPanel.tsx:183:            id: `my-leave-${l.id}`,
+src/components/dashboards/NeedsAttentionPanel.tsx:184:            label: `Your leave (${l.leave_type})`,
+src/components/finance/InvoiceDialog.tsx:51:type DeliveryRow = { id: string; document_number?: string | null; delivery_date: string; destination: string; destination_state?: string | null; site_name?: string | null; client_id?: string | null; project_id?: string | null; sales_order_id?: string | null; status: string };
+src/components/finance/InvoiceDialog.tsx:66:  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
+src/components/finance/InvoiceDialog.tsx:74:  const [invoiceKind, setInvoiceKind] = useState("standard");
+src/components/finance/InvoiceDialog.tsx:81:  const [paymentTerms, setPaymentTerms] = useState("");
+src/components/finance/InvoiceDialog.tsx:99:    queryKey: ["orders-for-invoice", orgId],
+src/components/finance/InvoiceDialog.tsx:100:    queryFn: async () => { if (!orgId) return [] as OrderRow[]; const { data, error } = await industrialDb.from("sales_orders").select("id, order_number, client_id, project_id, status, total_amount").eq("organization_id", orgId).not("status", "eq", "cancelled").order("created_at", { ascending: false }).limit(100); if (error) throw error; return (data ?? []) as OrderRow[]; },
+src/components/finance/InvoiceDialog.tsx:104:    queryKey: ["projects-for-invoice", orgId],
+src/components/finance/InvoiceDialog.tsx:109:    queryKey: ["clients-for-invoice", orgId],
+src/components/finance/InvoiceDialog.tsx:114:    queryKey: ["client-pos-for-invoice", orgId],
+src/components/finance/InvoiceDialog.tsx:115:    queryFn: async () => { if (!orgId) return [] as PurchaseOrderRow[]; const { data, error } = await industrialDb.from("client_purchase_orders").select("id, po_number, client_id, status").eq("organization_id", orgId).not("status", "eq", "rejected").order("created_at", { ascending: false }); if (error) throw error; return (data ?? []) as PurchaseOrderRow[]; },
+src/components/finance/InvoiceDialog.tsx:119:    queryKey: ["deliveries-for-invoice", orgId],
+src/components/finance/InvoiceDialog.tsx:120:    queryFn: async () => { if (!orgId) return [] as DeliveryRow[]; const { data, error } = await industrialDb.from("deliveries").select("id, document_number, delivery_date, destination, destination_state, site_name, client_id, project_id, sales_order_id, status").eq("organization_id", orgId).not("status", "eq", "cancelled").order("delivery_date", { ascending: false }).limit(100); if (error) throw error; return (data ?? []) as DeliveryRow[]; },
+src/components/finance/InvoiceDialog.tsx:124:    queryKey: ["products-for-invoice", orgId],
+src/components/finance/InvoiceDialog.tsx:129:    queryKey: ["invoice-finance-accounts", orgId],
+src/components/finance/InvoiceDialog.tsx:151:    if (!clientId) { toast({ title: "Pick a client", description: "Every invoice must belong to a client for numbering and financial history.", variant: "destructive" }); return; }
+src/components/finance/InvoiceDialog.tsx:153:    if (items.some((item) => item.quantity <= 0 || item.unit_price < 0)) { toast({ title: "Invalid invoice line", description: "Quantity must be greater than zero and price cannot be negative.", variant: "destructive" }); return; }
+src/components/finance/InvoiceDialog.tsx:157:      const idempotencyKey = `invoice:${orgId}:${user.id}:${Date.now()}`;
+src/components/finance/InvoiceDialog.tsx:158:      const { data: invoice, error } = await industrialDb.rpc("create_invoice_with_metadata", {
+src/components/finance/InvoiceDialog.tsx:162:          client_id: clientId, sales_order_id: orderId || null, project_id: projectId || null, client_po_id: clientPoId || null, delivery_id: deliveryId || null,
+src/components/finance/InvoiceDialog.tsx:163:          invoice_date: invoiceDate, due_date: dueDate || null, customer_reference: customerReference || null, site_reference: siteReference || null,
+src/components/finance/InvoiceDialog.tsx:165:          invoice_kind: invoiceKind, currency, tax_rate: Number(taxPct) || 0, withholding_tax_rate: Number(withholdingPct) || 0, discount_amount: Number(discountAmount) || 0,
+src/components/finance/InvoiceDialog.tsx:167:          payment_terms: paymentTerms || null, terms_and_conditions: termsAndConditions || null, notes: notes || null,
+src/components/finance/InvoiceDialog.tsx:168:          source_metadata: { source: orderId ? "sales_order" : "manual", created_from: "finance_invoice_dialog", selected_account_id: bankAccountId || null },
+src/components/finance/InvoiceDialog.tsx:173:      toast({ title: "Invoice created", description: `${(invoice as { document_number?: string } | null)?.document_number ?? "Invoice"} saved with client-linked numbering and complete source metadata.` });
+src/components/finance/InvoiceDialog.tsx:176:      toast({ title: "Could not create invoice", description: humanizeError(error), variant: "destructive" });
+src/components/finance/InvoiceDialog.tsx:183:        <DialogHeader><DialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />Create complete invoice</DialogTitle></DialogHeader>
+src/components/finance/InvoiceDialog.tsx:185:          <section className="space-y-3"><div><h3 className="text-sm font-semibold">Customer and source lineage</h3><p className="text-xs text-muted-foreground">The client ID drives numbering, snapshots, client history, payment tracking, and reporting.</p></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+src/components/finance/InvoiceDialog.tsx:187:            <div className="space-y-1.5"><Label>Invoice kind</Label><Select value={invoiceKind} onValueChange={setInvoiceKind}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="standard">Standard invoice</SelectItem><SelectItem value="credit_note">Credit note</SelectItem><SelectItem value="debit_note">Debit note</SelectItem></SelectContent></Select></div>
+src/components/finance/InvoiceDialog.tsx:191:            <div className="space-y-1.5"><Label>Linked delivery / waybill</Label><Select value={deliveryId || "none"} onValueChange={selectDelivery}><SelectTrigger><SelectValue placeholder="Optional delivery" /></SelectTrigger><SelectContent><SelectItem value="none">No delivery yet</SelectItem>{filteredDeliveries.map((delivery) => <SelectItem key={delivery.id} value={delivery.id}>{delivery.document_number ?? "Delivery"} · {delivery.destination} · {delivery.status}</SelectItem>)}</SelectContent></Select></div>
+src/components/finance/InvoiceDialog.tsx:193:            <div className="space-y-1.5"><Label>Invoice date *</Label><Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} /></div>
+src/components/finance/InvoiceDialog.tsx:199:          <section className="space-y-3"><h3 className="text-sm font-semibold">Delivery and tax context</h3><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"><div className="space-y-1.5"><Label>Site reference</Label><Input value={siteReference} onChange={(e) => setSiteReference(e.target.value)} /></div><div className="space-y-1.5"><Label>Delivery state</Label><Input value={deliveryState} onChange={(e) => setDeliveryState(e.target.value)} /></div><div className="space-y-1.5"><Label>Delivery LGA</Label><Input value={deliveryLga} onChange={(e) => setDeliveryLga(e.target.value)} /></div><div className="space-y-1.5"><Label>Delivery contact</Label><Input value={deliveryContact} onChange={(e) => setDeliveryContact(e.target.value)} /></div><div className="space-y-1.5 sm:col-span-2 lg:col-span-4"><Label>Delivery address</Label><Textarea rows={2} value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} /></div><div className="space-y-1.5"><Label>VAT / tax rate (%)</Label><Input type="number" min="0" step="0.01" value={taxPct} onChange={(e) => setTaxPct(e.target.value)} /></div><div className="space-y-1.5"><Label>WHT rate (%)</Label><Input type="number" min="0" step="0.01" value={withholdingPct} onChange={(e) => setWithholdingPct(e.target.value)} /></div><div className="space-y-1.5"><Label>Discount total</Label><Input type="number" min="0" step="0.01" value={discountAmount} onChange={(e) => setDiscountAmount(e.target.value)} /></div><div className="space-y-1.5"><Label>Overhead / site cost</Label><Input type="number" min="0" step="0.01" value={overheadAmount} onChange={(e) => setOverheadAmount(e.target.value)} /></div><div className="space-y-1.5"><Label>Transportation / haulage</Label><Input type="number" min="0" step="0.01" value={transportationCost} onChange={(e) => setTransportationCost(e.target.value)} /></div><div className="space-y-1.5"><Label>Currency</Label><Input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={3} /></div><div className="flex items-center gap-2 pt-6"><Checkbox id="invoice-ftz" checked={freeTradeZone} onCheckedChange={(checked) => setFreeTradeZone(checked === true)} /><Label htmlFor="invoice-ftz">Free Trade Zone</Label></div></div></section>
+src/components/finance/InvoiceDialog.tsx:201:          <section className="space-y-3"><h3 className="text-sm font-semibold">Payment and account context</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><div className="space-y-1.5"><Label>Receiving account</Label><Select value={bankAccountId || "none"} onValueChange={(value) => setBankAccountId(value === "none" ? "" : value)}><SelectTrigger><SelectValue placeholder="Optional account" /></SelectTrigger><SelectContent><SelectItem value="none">Assign during payment</SelectItem>{financeAccounts.map((account) => <SelectItem key={account.id} value={account.id}>{account.account_name}{account.account_number ? ` · ${account.account_number}` : ""}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1.5"><Label>Payment terms</Label><Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} placeholder="e.g. 30 days from invoice" /></div><div className="space-y-1.5 sm:col-span-2"><Label>Terms and conditions</Label><Textarea rows={3} value={termsAndConditions} onChange={(e) => setTermsAndConditions(e.target.value)} placeholder="Delivery, warranty, acceptance, retention, and other approved terms" /></div><div className="space-y-1.5 sm:col-span-2"><Label>Notes</Label><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div></div></section>
+src/components/finance/InvoiceDialog.tsx:204:          <div className="flex gap-2 justify-end"><Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button><Button onClick={handleSubmit} disabled={saving}>{saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Create invoice atomically</Button></div>
+src/components/finance/RecordPaymentDialog.tsx:16:type Invoice = Database["public"]["Tables"]["invoices"]["Row"] & { clients?: { name: string } | null };
+src/components/finance/RecordPaymentDialog.tsx:21:  invoice: Invoice | null;
+src/components/finance/RecordPaymentDialog.tsx:29: * Records a payment against an invoice and immediately prints a numbered
+src/components/finance/RecordPaymentDialog.tsx:32:export const RecordPaymentDialog = ({ open, onOpenChange, invoice, onRecorded, financeAccounts = [] }: Props) => {
+src/components/finance/RecordPaymentDialog.tsx:38:  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
+src/components/finance/RecordPaymentDialog.tsx:47:    } else if (invoice) {
+src/components/finance/RecordPaymentDialog.tsx:48:      setAmount(String(invoice.balance_due ?? invoice.total_amount ?? 0));
+src/components/finance/RecordPaymentDialog.tsx:50:  }, [open, invoice]);
+src/components/finance/RecordPaymentDialog.tsx:53:    if (!invoice || !user) return;
+src/components/finance/RecordPaymentDialog.tsx:56:    if (!bankAccountId || bankAccountId === "none") { toast({ title: "Receiving account is required", description: "Select the bank or cash account so the receipt remains traceable in Bank Analysis.", variant: "destructive" }); return; }
+src/components/finance/RecordPaymentDialog.tsx:59:      const { data: receipt, error } = await industrialDb.rpc("record_invoice_payment", {
+src/components/finance/RecordPaymentDialog.tsx:60:        _org_id: invoice.organization_id,
+src/components/finance/RecordPaymentDialog.tsx:61:        _invoice_id: invoice.id,
+src/components/finance/RecordPaymentDialog.tsx:63:        _payment_method: method,
+src/components/finance/RecordPaymentDialog.tsx:66:        _payment_date: paymentDate,
+src/components/finance/RecordPaymentDialog.tsx:70:      const newBalance = Math.max(0, Number(invoice.balance_due ?? invoice.total_amount ?? 0) - amt);
+src/components/finance/RecordPaymentDialog.tsx:72:      // Generate receipt PDF
+src/components/finance/RecordPaymentDialog.tsx:75:        title: `Payment Receipt — ${receipt.document_number ?? ""}`,
+src/components/finance/RecordPaymentDialog.tsx:76:        documentId: receipt.document_number ?? undefined,
+src/components/finance/RecordPaymentDialog.tsx:85:              `Client: ${invoice.clients?.name ?? "—"}`,
+src/components/finance/RecordPaymentDialog.tsx:86:              `Invoice: ${invoice.document_number ?? invoice.id}`,
+src/components/finance/RecordPaymentDialog.tsx:90:              `Payment Date: ${paymentDate}`,
+src/components/finance/RecordPaymentDialog.tsx:95:          { heading: "Acknowledgement", body: "We hereby acknowledge receipt of the above payment in good faith. Please retain this receipt for your records." },
+src/components/finance/RecordPaymentDialog.tsx:99:      toast({ title: "Payment recorded", description: `Receipt ${receipt.document_number} issued.` });
+src/components/finance/RecordPaymentDialog.tsx:103:      toast({ title: "Could not record payment", description: (err as Error).message, variant: "destructive" });
+src/components/finance/RecordPaymentDialog.tsx:115:        {invoice && (
+src/components/finance/RecordPaymentDialog.tsx:118:              <div className="flex justify-between"><span className="text-muted-foreground">Invoice</span><span className="font-medium">{invoice.document_number}</span></div>
+src/components/finance/RecordPaymentDialog.tsx:119:              <div className="flex justify-between"><span className="text-muted-foreground">Client</span><span>{invoice.clients?.name ?? "—"}</span></div>
+src/components/finance/RecordPaymentDialog.tsx:120:              <div className="flex justify-between"><span className="text-muted-foreground">Outstanding</span><span className="font-bold text-primary">{formatCurrency(invoice.balance_due ?? 0)}</span></div>
+src/components/finance/RecordPaymentDialog.tsx:131:              <div className="space-y-1.5"><Label>Date</Label><Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} /></div>
+src/components/finance/RecordPaymentDialog.tsx:132:              <div className="space-y-1.5 col-span-2"><Label>Receiving bank / cash account *</Label><Select value={bankAccountId} onValueChange={setBankAccountId}><SelectTrigger><SelectValue placeholder="Select the account receiving this payment" /></SelectTrigger><SelectContent><SelectItem value="none">Select an account</SelectItem>{financeAccounts.map((account) => <SelectItem key={account.id} value={account.id}>{account.account_name}{account.account_number ? ` · ${account.account_number}` : ""}</SelectItem>)}</SelectContent></Select><p className="text-[11px] text-muted-foreground">Every receipt must identify its receiving account. You can reconcile the exact bank line later without losing this lineage.</p></div>
+src/components/hr/hooks/useHRData.ts:31:      const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, avatar_url").eq("organization_id", orgId);
+src/components/hr/hooks/useHRData.ts:47:  const { data: leaveRequests = [] } = useQuery({
+src/components/hr/hooks/useHRData.ts:48:    queryKey: ["leave-requests", orgId],
+src/components/hr/hooks/useHRData.ts:51:      const { data } = await supabase.from("leave_requests").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30);
+src/components/hr/hooks/useHRData.ts:97:  const { data: disciplinary = [] } = useQuery({
+src/components/hr/hooks/useHRData.ts:98:    queryKey: ["disciplinary", orgId],
+src/components/hr/hooks/useHRData.ts:101:      const { data } = await supabase.from("disciplinary_records").select("*").eq("organization_id", orgId).order("incident_date", { ascending: false }).limit(20);
+src/components/hr/hooks/useHRData.ts:118:    queryKey: ["salary-payments", orgId],
+src/components/hr/hooks/useHRData.ts:121:      const { data } = await supabase.from("worker_payments").select("*").eq("organization_id", orgId).eq("type", "salary").order("date", { ascending: false }).limit(100);
+src/components/hr/hooks/useHRData.ts:144:    leaveRequests,
+src/components/hr/hooks/useHRData.ts:149:    disciplinary,
+src/components/hr/hooks/useHRMutations.ts:17:    mutationFn: async (values: { leaveType: string; startDate: string; endDate: string; leaveReason: string }) => {
+src/components/hr/hooks/useHRMutations.ts:20:      const { error } = await supabase.from("leave_requests").insert({
+src/components/hr/hooks/useHRMutations.ts:23:        leave_type: values.leaveType,
+src/components/hr/hooks/useHRMutations.ts:26:        reason: values.leaveReason || null,
+src/components/hr/hooks/useHRMutations.ts:32:      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+src/components/hr/hooks/useHRMutations.ts:39:      const { error } = await supabase.from("leave_requests").update({ status, approved_by: userId }).eq("id", id);
+src/components/hr/hooks/useHRMutations.ts:44:      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+src/components/hr/hooks/useHRMutations.ts:149:      editingDisc: Database["public"]["Tables"]["disciplinary_records"]["Row"] | null;
+src/components/hr/hooks/useHRMutations.ts:156:      const payload: Database["public"]["Tables"]["disciplinary_records"]["Insert"] = {
+src/components/hr/hooks/useHRMutations.ts:165:        const { error } = await supabase.from("disciplinary_records").update(payload).eq("id", values.editingDisc.id);
+src/components/hr/hooks/useHRMutations.ts:168:        const { error } = await supabase.from("disciplinary_records").insert({ ...payload, issued_by: userId });
+src/components/hr/hooks/useHRMutations.ts:174:      queryClient.invalidateQueries({ queryKey: ["disciplinary"] });
+src/components/hr/hooks/useHRMutations.ts:247:      const { error } = await supabase.from("worker_payments").insert({
+src/components/hr/hooks/useHRMutations.ts:259:      toast({ title: "Salary payment recorded" });
+src/components/hr/hooks/useHRMutations.ts:260:      queryClient.invalidateQueries({ queryKey: ["salary-payments"] });
+src/components/hr/hooks/useHRMutations.ts:267:      const { error } = await supabase.from(table as "recruitment" | "training_logs" | "employee_skills" | "disciplinary_records" | "promotions" | "performance_logs").delete().eq("id", id);
+src/components/hr/hooks/useHRMutations.ts:275:      queryClient.invalidateQueries({ queryKey: ["disciplinary"] });
+src/components/hr/tabs/AttendanceTab.tsx:2:import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+src/components/hr/tabs/AttendanceTab.tsx:11:  profileMap: Map<string, { full_name: string; avatar_url: string | null }>;
+src/components/hr/tabs/AttendanceTab.tsx:72:                      <Avatar className="h-8 w-8 shrink-0">
+src/components/hr/tabs/AttendanceTab.tsx:73:                        {prof?.avatar_url && <AvatarImage src={prof.avatar_url} />}
+src/components/hr/tabs/AttendanceTab.tsx:74:                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
+src/components/hr/tabs/AttendanceTab.tsx:76:                        </AvatarFallback>
+src/components/hr/tabs/AttendanceTab.tsx:77:                      </Avatar>
+src/components/hr/tabs/DisciplinaryTab.tsx:9:  disciplinary: Database["public"]["Tables"]["disciplinary_records"]["Row"][];
+src/components/hr/tabs/DisciplinaryTab.tsx:12:  onEdit: (record: Database["public"]["Tables"]["disciplinary_records"]["Row"]) => void;
+src/components/hr/tabs/DisciplinaryTab.tsx:17:  disciplinary, 
+src/components/hr/tabs/DisciplinaryTab.tsx:34:        {disciplinary.length > 0 ? (
+src/components/hr/tabs/DisciplinaryTab.tsx:36:            {disciplinary.map((d) => (
+src/components/hr/tabs/DisciplinaryTab.tsx:62:                    onDelete={() => onDelete(d.id, "disciplinary_records", "record")}
+src/components/hr/tabs/DisciplinaryTab.tsx:69:          <p className="text-sm text-muted-foreground">No disciplinary records.</p>
+src/components/hr/tabs/IDCardsTab.tsx:4:import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+src/components/hr/tabs/IDCardsTab.tsx:8:  profileMap: Map<string, { full_name: string; avatar_url: string | null }>;
+src/components/hr/tabs/IDCardsTab.tsx:31:                    <Avatar className="h-9 w-9 shrink-0">
+src/components/hr/tabs/IDCardsTab.tsx:32:                      {prof?.avatar_url && <AvatarImage src={prof.avatar_url} />}
+src/components/hr/tabs/IDCardsTab.tsx:33:                      <AvatarFallback className="text-xs bg-primary/10 text-primary">
+src/components/hr/tabs/IDCardsTab.tsx:35:                      </AvatarFallback>
+src/components/hr/tabs/IDCardsTab.tsx:36:                    </Avatar>
+src/components/hr/tabs/LeavesTab.tsx:11:type LeaveRow = Database["public"]["Tables"]["leave_requests"]["Row"];
+src/components/hr/tabs/LeavesTab.tsx:14:  leaveRequests: LeaveRow[];
+src/components/hr/tabs/LeavesTab.tsx:15:  profileMap: Map<string, { full_name: string; avatar_url: string | null }>;
+src/components/hr/tabs/LeavesTab.tsx:20:export const LeavesTab = ({ leaveRequests, profileMap, isHrOrAdmin, onUpdateLeave }: LeavesTabProps) => {
+src/components/hr/tabs/LeavesTab.tsx:22:  const myLeaves = leaveRequests.filter((l) => l.user_id === user?.id);
+src/components/hr/tabs/LeavesTab.tsx:24:    ? leaveRequests.filter((l) => l.user_id !== user?.id)
+src/components/hr/tabs/LeavesTab.tsx:37:            <p className="text-sm capitalize font-medium">{l.leave_type} leave</p>
+src/components/hr/tabs/LeavesTab.tsx:75:            title="You haven't requested any leave"
+src/components/hr/tabs/LeavesTab.tsx:76:            description="Submit a leave request when you need time off. HR or your administrator will review and respond — you'll see the status update here."
+src/components/hr/tabs/LeavesTab.tsx:96:            title="No leave requests to review"
+src/components/hr/tabs/PayrollTab.tsx:5:import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+src/components/hr/tabs/PayrollTab.tsx:9:  salaryPayments: Database["public"]["Tables"]["worker_payments"]["Row"][];
+src/components/hr/tabs/PayrollTab.tsx:12:    avatar_url: string | null;
+src/components/hr/tabs/PayrollTab.tsx:105:            const groupedByEmployee = new Map<string, Database["public"]["Tables"]["worker_payments"]["Row"][]>();
+src/components/hr/tabs/PayrollTab.tsx:115:                {[...groupedByEmployee.entries()].map(([userId, payments]) => {
+src/components/hr/tabs/PayrollTab.tsx:116:                  const totalAmount = payments.reduce((sum, p) => sum + Number(p.net_pay ?? p.amount), 0);
+src/components/hr/tabs/PayrollTab.tsx:121:                          <Avatar className="h-6 w-6">
+src/components/hr/tabs/PayrollTab.tsx:122:                            {profileMap.get(userId)?.avatar_url && (
+src/components/hr/tabs/PayrollTab.tsx:123:                              <AvatarImage src={profileMap.get(userId)?.avatar_url || ""} />
+src/components/hr/tabs/PayrollTab.tsx:125:                            <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+src/components/hr/tabs/PayrollTab.tsx:127:                            </AvatarFallback>
+src/components/hr/tabs/PayrollTab.tsx:128:                          </Avatar>
+src/components/hr/tabs/PayrollTab.tsx:136:                        {payments.map((p) => (
+src/components/hr/HRFinanceWorkspace.tsx:39:  const [overtimeOpen, setOvertimeOpen] = useState(false);
+src/components/hr/HRFinanceWorkspace.tsx:40:  const [loanOpen, setLoanOpen] = useState(false);
+src/components/hr/HRFinanceWorkspace.tsx:42:  const [vatOpen, setVatOpen] = useState(false);
+src/components/hr/HRFinanceWorkspace.tsx:44:  const [repaymentOpen, setRepaymentOpen] = useState(false);
+src/components/hr/HRFinanceWorkspace.tsx:45:  const [repaymentLoanId, setRepaymentLoanId] = useState("");
+src/components/hr/HRFinanceWorkspace.tsx:46:  const [repaymentAmount, setRepaymentAmount] = useState("");
+src/components/hr/HRFinanceWorkspace.tsx:47:  const [repaymentDate, setRepaymentDate] = useState(today());
+src/components/hr/HRFinanceWorkspace.tsx:48:  const [repaymentNotes, setRepaymentNotes] = useState("");
+src/components/hr/HRFinanceWorkspace.tsx:50:  const [salary, setSalary] = useState(blank({ employee: "", start: today().slice(0, 8) + "01", end: today(), bank: "none", accountNumber: "", gross: "", pension: "", voluntary: "", tax: "", deductions: "", loan: "" }));
+src/components/hr/HRFinanceWorkspace.tsx:51:  const [overtime, setOvertime] = useState(blank({ employee: "", month: today().slice(0, 7) + "-01", gross: "", workingDays: "", days: "", bank: "none", accountNumber: "" }));
+src/components/hr/HRFinanceWorkspace.tsx:52:  const [loan, setLoan] = useState(blank({ employee: "", amount: "", additional: "", months: "", start: today(), bank: "none", notes: "" }));
+src/components/hr/HRFinanceWorkspace.tsx:54:  const [vat, setVat] = useState(blank({ date: today(), clientName: "", tin: "", state: "", lga: "", gross: "", outputVat: "", inputVat: "", withholding: "", vatWithheld: "", vatPaid: "", penalty: "", interest: "", broughtForward: "", lrp: "", freeTradeZone: "false", sourceType: "", sourceId: "", note: "" }));
+src/components/hr/HRFinanceWorkspace.tsx:97:  const { data: overtimeEntries = [] } = useQuery({
+src/components/hr/HRFinanceWorkspace.tsx:98:    queryKey: ["hr-overtime", orgId],
+src/components/hr/HRFinanceWorkspace.tsx:101:      const { data, error } = await industrialDb.from("hr_overtime_entries").select("*").eq("organization_id", orgId).order("period_month", { ascending: false }).limit(30);
+src/components/hr/HRFinanceWorkspace.tsx:107:  const { data: loans = [] } = useQuery({
+src/components/hr/HRFinanceWorkspace.tsx:108:    queryKey: ["hr-staff-loans", orgId],
+src/components/hr/HRFinanceWorkspace.tsx:111:      const { data, error } = await industrialDb.from("hr_staff_loans").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30);
+src/components/hr/HRFinanceWorkspace.tsx:127:  const { data: vatEntries = [] } = useQuery({
+src/components/hr/HRFinanceWorkspace.tsx:128:    queryKey: ["vat-schedule", orgId],
+src/components/hr/HRFinanceWorkspace.tsx:131:      const { data, error } = await industrialDb.from("vat_schedule_entries").select("*").eq("organization_id", orgId).order("entry_date", { ascending: false }).limit(30);
+src/components/hr/HRFinanceWorkspace.tsx:158:  const salaryNet = Math.max(0, Number(salary.gross || 0) - Number(salary.pension || 0) - Number(salary.voluntary || 0) - Number(salary.tax || 0) - Number(salary.deductions || 0) - Number(salary.loan || 0));
+src/components/hr/HRFinanceWorkspace.tsx:159:  const saveSalary = () => saveRecord.mutate({ table: "hr_salary_schedules", payload: { employee_id: salary.employee, period_start: salary.start, period_end: salary.end, bank_account_id: salary.bank === "none" ? null : salary.bank, account_number: salary.accountNumber || null, gross_salary: Number(salary.gross || 0), pension: Number(salary.pension || 0), voluntary_contribution: Number(salary.voluntary || 0), tax: Number(salary.tax || 0), deductions: Number(salary.deductions || 0), loan_repayment: Number(salary.loan || 0), net_pay: salaryNet, status: "submitted", submitted_by: userId } }, { onSuccess: () => { toast({ title: "Salary schedule submitted" }); setSalaryOpen(false); refresh(["hr-salary-schedules"]); } });
+src/components/hr/HRFinanceWorkspace.tsx:160:  const overtimeDaily = Number(overtime.gross || 0) / Math.max(1, Number(overtime.workingDays || 0));
+src/components/hr/HRFinanceWorkspace.tsx:161:  const overtimeEarnings = overtimeDaily * Number(overtime.days || 0);
+src/components/hr/HRFinanceWorkspace.tsx:162:  const saveOvertime = () => saveRecord.mutate({ table: "hr_overtime_entries", payload: { employee_id: overtime.employee, period_month: overtime.month, monthly_gross: Number(overtime.gross || 0), working_days_basis: Number(overtime.workingDays || 0) || null, daily_rate: overtimeDaily, overtime_days: Number(overtime.days || 0), overtime_earnings: overtimeEarnings, bank_account_id: overtime.bank === "none" ? null : overtime.bank, account_number: overtime.accountNumber || null, status: "submitted", submitted_by: userId } }, { onSuccess: () => { toast({ title: "Overtime submitted" }); setOvertimeOpen(false); refresh(["hr-overtime"]); } });
+src/components/hr/HRFinanceWorkspace.tsx:163:  const loanMonthly = (Number(loan.amount || 0) + Number(loan.additional || 0)) / Math.max(1, Number(loan.months || 0));
+src/components/hr/HRFinanceWorkspace.tsx:164:  const saveLoan = () => saveRecord.mutate({ table: "hr_staff_loans", payload: { employee_id: loan.employee, amount: Number(loan.amount || 0), additional_loan: Number(loan.additional || 0), repayment_period_months: Number(loan.months || 0), start_date: loan.start, bank_account_id: loan.bank === "none" ? null : loan.bank, monthly_repayment: loanMonthly, outstanding_balance: Number(loan.amount || 0) + Number(loan.additional || 0), status: "active", approved_by: userId, created_by: userId, notes: loan.notes || null } }, { onSuccess: () => { toast({ title: "Staff loan recorded" }); setLoanOpen(false); refresh(["hr-staff-loans"]); } });
+src/components/hr/HRFinanceWorkspace.tsx:166:  const vatSchedule = calculateVatSchedule({ grossAmount: Number(vat.gross || 0), outputVat: Number(vat.outputVat || 0), inputVat: Number(vat.inputVat || 0), vatWithheld: Number(vat.vatWithheld || vat.withholding || 0), vatPaid: Number(vat.vatPaid || 0), penalty: Number(vat.penalty || 0), interest: Number(vat.interest || 0), broughtForward: Number(vat.broughtForward || 0), lrp: Number(vat.lrp || 0) });
+src/components/hr/HRFinanceWorkspace.tsx:167:  const vatNet = vatSchedule.netAmount;
+src/components/hr/HRFinanceWorkspace.tsx:168:  const vatTotal = vatSchedule.totalCreditPayable;
+src/components/hr/HRFinanceWorkspace.tsx:170:  const saveVatEntry = useMutation({ mutationFn: async () => { if (!orgId) throw new Error("Organization is not ready"); const { error } = await industrialDb.rpc("create_vat_schedule_entry", { _org_id: orgId, _entry_date: vat.date, _client_tin: vat.tin.trim() || null, _client_name: vat.clientName.trim(), _gross_amount: vatSchedule.grossAmount, _output_vat: vatSchedule.outputVat, _input_vat: vatSchedule.inputVat, _withholding_tax: Number(vat.withholding || 0), _vat_withheld: vatSchedule.vatWithheld, _vat_paid: vatSchedule.vatPaid, _penalty: vatSchedule.penalty, _interest: vatSchedule.interest, _brought_forward: vatSchedule.broughtForward, _lrp: vatSchedule.lrp, _state: vat.state || null, _local_government: vat.lga.trim() || null, _free_trade_zone: vat.freeTradeZone === "true", _source_entity_type: vat.sourceType || null, _source_entity_id: vat.sourceId.trim() || null, _note: vat.note.trim() || null }); if (error) throw error; }, onSuccess: () => { toast({ title: "VAT schedule entry saved" }); setVatOpen(false); refresh(["vat-schedule"]); }, onError: (error) => toast({ title: "Could not save VAT entry", description: humanizeError(error), variant: "destructive" }) });
+src/components/hr/HRFinanceWorkspace.tsx:174:  const paySalary = useMutation({ mutationFn: async (id: string) => { if (!orgId) throw new Error("Organization is not ready"); const { error } = await industrialDb.rpc("create_worker_payment_from_salary_schedule", { _org_id: orgId, _schedule_id: id }); if (error) throw error; }, onSuccess: () => { toast({ title: "Salary payment created" }); refresh(["hr-salary-schedules"]); }, onError: (error) => toast({ title: "Could not create salary payment", description: humanizeError(error), variant: "destructive" }) });
+src/components/hr/HRFinanceWorkspace.tsx:175:  const approveOvertime = useMutation({ mutationFn: async (id: string) => { if (!orgId) throw new Error("Organization is not ready"); const { error } = await industrialDb.rpc("approve_overtime_entry", { _org_id: orgId, _entry_id: id }); if (error) throw error; }, onSuccess: () => { toast({ title: "Overtime approved" }); refresh(["hr-overtime"]); }, onError: (error) => toast({ title: "Could not approve overtime", description: humanizeError(error), variant: "destructive" }) });
+src/components/hr/HRFinanceWorkspace.tsx:176:  const payOvertime = useMutation({ mutationFn: async (id: string) => { if (!orgId) throw new Error("Organization is not ready"); const { error } = await industrialDb.rpc("create_worker_payment_from_overtime", { _org_id: orgId, _entry_id: id }); if (error) throw error; }, onSuccess: () => { toast({ title: "Overtime payment created" }); refresh(["hr-overtime"]); }, onError: (error) => toast({ title: "Could not create overtime payment", description: humanizeError(error), variant: "destructive" }) });
+src/components/hr/HRFinanceWorkspace.tsx:177:  const repayLoan = useMutation({ mutationFn: async () => { if (!orgId || !repaymentLoanId) throw new Error("Select a loan"); const { error } = await industrialDb.rpc("record_staff_loan_repayment", { _org_id: orgId, _loan_id: repaymentLoanId, _amount: Number(repaymentAmount), _payment_date: repaymentDate, _notes: repaymentNotes.trim() || null }); if (error) throw error; }, onSuccess: () => { toast({ title: "Loan repayment recorded" }); setRepaymentOpen(false); setRepaymentAmount(""); setRepaymentNotes(""); refresh(["hr-staff-loans"]); }, onError: (error) => toast({ title: "Could not record repayment", description: humanizeError(error), variant: "destructive" }) });
+src/components/hr/HRFinanceWorkspace.tsx:178:  const generatePayslip = (row: { employee_id: string; period_start: string; period_end: string; gross_salary: number; net_pay: number; pension: number; voluntary_contribution: number; tax: number; deductions: number; loan_repayment: number }) => {
+src/components/hr/HRFinanceWorkspace.tsx:179:    generatePdf({ title: "Employee Payslip", documentId: `PAY-${row.employee_id.slice(0, 8)}-${row.period_start}`, companyName: "NIF Technical Company", stampType: "hr", watermark: "PAYSLIP", contentSections: [{ heading: "Employee and period", bullets: [`Employee: ${memberName(row.employee_id)}`, `Period: ${row.period_start} to ${row.period_end}`] }], tableData: { columns: [{ header: "Component", dataKey: "component" }, { header: "Amount", dataKey: "amount" }], rows: [{ component: "Gross salary", amount: formatCurrency(Number(row.gross_salary)) }, { component: "Pension", amount: formatCurrency(Number(row.pension)) }, { component: "Voluntary contribution", amount: formatCurrency(Number(row.voluntary_contribution)) }, { component: "Tax", amount: formatCurrency(Number(row.tax)) }, { component: "Other deductions", amount: formatCurrency(Number(row.deductions)) }, { component: "Loan repayment", amount: formatCurrency(Number(row.loan_repayment)) }], summary: [{ label: "Net payable", value: formatCurrency(Number(row.net_pay)) }] } });
+src/components/hr/HRFinanceWorkspace.tsx:187:    <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Wallet className="h-5 w-5 text-primary" /> Finance & Benefits Workspace</CardTitle><p className="text-xs text-muted-foreground">HR-owned schedules and finance oversight stay connected to Finance, worker payments, documents, and reporting.</p></CardHeader>
+src/components/hr/HRFinanceWorkspace.tsx:191:          <TabsTrigger value="salary">Salary & Overtime</TabsTrigger><TabsTrigger value="loans">Loans</TabsTrigger><TabsTrigger value="benefits">HMO</TabsTrigger><TabsTrigger value="accounts">Accounts</TabsTrigger><TabsTrigger value="vat">VAT Schedule</TabsTrigger>
+src/components/hr/HRFinanceWorkspace.tsx:194:          <div className="flex flex-wrap gap-2"><Dialog open={salaryOpen} onOpenChange={setSalaryOpen}><DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" />Salary schedule</Button></DialogTrigger><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Submit salary schedule row</DialogTitle></DialogHeader><div className="grid gap-3 sm:grid-cols-2">{memberSelect(salary, setSalary)}{accountSelect(salary, setSalary)}{field(salary, setSalary, "start", "Period start", "date")}{field(salary, setSalary, "end", "Period end", "date")}{field(salary, setSalary, "gross", "Gross salary", "number")}{field(salary, setSalary, "pension", "Pension", "number")}{field(salary, setSalary, "voluntary", "Voluntary contribution", "number")}{field(salary, setSalary, "tax", "Tax", "number")}{field(salary, setSalary, "deductions", "Other deductions", "number")}{field(salary, setSalary, "loan", "Loan repayment", "number")}{field(salary, setSalary, "accountNumber", "Employee account number")}</div><p className="text-sm font-semibold text-primary">Net payable: {formatCurrency(salaryNet)}</p><Button onClick={saveSalary} disabled={actionDisabled || !salary.employee || !salary.start || !salary.end || Number(salary.gross) <= 0}>Submit for approval</Button></DialogContent></Dialog><Dialog open={overtimeOpen} onOpenChange={setOvertimeOpen}><DialogTrigger asChild><Button size="sm" variant="outline"><CalendarClock className="h-4 w-4 mr-1" />Overtime</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Submit overtime</DialogTitle></DialogHeader><div className="space-y-3">{memberSelect(overtime, setOvertime)}{field(overtime, setOvertime, "month", "Month", "date")}{field(overtime, setOvertime, "gross", "Monthly gross", "number")}{field(overtime, setOvertime, "workingDays", "Working-day basis", "number", "Configured basis")}{field(overtime, setOvertime, "days", "Overtime days", "number")}{accountSelect(overtime, setOvertime)}{field(overtime, setOvertime, "accountNumber", "Employee account number")}<p className="text-sm font-semibold text-primary">Calculated overtime: {formatCurrency(overtimeEarnings)}</p><Button onClick={saveOvertime} disabled={actionDisabled || !overtime.employee || Number(overtime.days) <= 0 || Number(overtime.workingDays) <= 0}>Submit for approval</Button></div></DialogContent></Dialog></div>
+src/components/hr/HRFinanceWorkspace.tsx:195:          <div className="grid gap-3 sm:grid-cols-2"><Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Submitted salary rows</p><p className="text-2xl font-bold">{salarySchedules.length}</p></CardContent></Card><Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Submitted overtime rows</p><p className="text-2xl font-bold">{overtimeEntries.length}</p></CardContent></Card></div>
+src/components/hr/HRFinanceWorkspace.tsx:196:          {salarySchedules.length === 0 && overtimeEntries.length === 0 ? <EmptyState compact icon={Banknote} title="No HR finance schedules yet" description="Submit a salary or overtime row to begin an auditable approval-to-payment workflow." /> : <div className="space-y-2">{salarySchedules.slice(0, 10).map((row) => <div key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"><div className="min-w-0"><p className="text-sm font-medium">{memberName(row.employee_id)}</p><p className="text-xs text-muted-foreground">Salary · {row.period_start} to {row.period_end}</p></div><div className="flex flex-wrap items-center justify-end gap-1"><Badge variant="outline" className="capitalize">{row.status}</Badge><span className="text-sm font-semibold text-primary">{formatCurrency(Number(row.net_pay))}</span>{canApprove && row.status === "submitted" && <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => approveSalary.mutate(row.id)}>Approve</Button>}{canApprove && row.status === "approved" && <Button size="sm" className="h-7 text-[10px]" onClick={() => paySalary.mutate(row.id)}>Create payment</Button>}{row.status === "paid" && <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => generatePayslip(row)}><FileDown className="mr-1 h-3 w-3" />Payslip</Button>}</div></div>)}</div>}
+src/components/hr/HRFinanceWorkspace.tsx:197:          <div className="space-y-2">{overtimeEntries.slice(0, 10).map((row) => <div key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"><div className="min-w-0"><p className="text-sm font-medium">{memberName(row.employee_id)}</p><p className="text-xs text-muted-foreground">Overtime · {row.period_month}</p></div><div className="flex flex-wrap items-center justify-end gap-1"><Badge variant="outline" className="capitalize">{row.status}</Badge><span className="text-sm font-semibold text-primary">{formatCurrency(Number(row.overtime_earnings))}</span>{canApprove && row.status === "submitted" && <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => approveOvertime.mutate(row.id)}>Approve</Button>}{canApprove && row.status === "approved" && <Button size="sm" className="h-7 text-[10px]" onClick={() => payOvertime.mutate(row.id)}>Create payment</Button>}</div></div>)}</div>
+src/components/hr/HRFinanceWorkspace.tsx:199:        <TabsContent value="loans" className="space-y-4"><Dialog open={loanOpen} onOpenChange={setLoanOpen}><DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" />Staff loan</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Issue staff loan</DialogTitle></DialogHeader><div className="space-y-3">{memberSelect(loan, setLoan)}{accountSelect(loan, setLoan)}{field(loan, setLoan, "amount", "Amount issued", "number")}{field(loan, setLoan, "additional", "Additional loan", "number")}{field(loan, setLoan, "months", "Repayment period (months)", "number")}{field(loan, setLoan, "start", "Start date", "date")}{field(loan, setLoan, "notes", "Notes") }<p className="text-sm font-semibold text-primary">Monthly repayment: {formatCurrency(loanMonthly)}</p><Button onClick={saveLoan} disabled={actionDisabled || !loan.employee || Number(loan.amount) <= 0 || Number(loan.months) <= 0}>Record loan</Button></div></DialogContent></Dialog><Dialog open={repaymentOpen} onOpenChange={setRepaymentOpen}><DialogTrigger asChild><Button size="sm" variant="outline"><ReceiptText className="mr-1 h-4 w-4" />Repayment</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Record loan repayment</DialogTitle></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Loan *</Label><Select value={repaymentLoanId} onValueChange={setRepaymentLoanId}><SelectTrigger><SelectValue placeholder="Select active loan" /></SelectTrigger><SelectContent>{loans.filter((row) => row.status === "active" && Number(row.outstanding_balance) > 0).map((row) => <SelectItem key={row.id} value={row.id}>{memberName(row.employee_id)} · {formatCurrency(Number(row.outstanding_balance))} outstanding</SelectItem>)}</SelectContent></Select></div>{field({ repaymentAmount }, (next) => setRepaymentAmount(next.repaymentAmount), "repaymentAmount", "Amount", "number")}{field({ repaymentDate }, (next) => setRepaymentDate(next.repaymentDate), "repaymentDate", "Date", "date")}{field({ repaymentNotes }, (next) => setRepaymentNotes(next.repaymentNotes), "repaymentNotes", "Notes")}<Button onClick={() => repayLoan.mutate()} disabled={repayLoan.isPending || !repaymentLoanId || Number(repaymentAmount) <= 0}>Record repayment</Button></div></DialogContent></Dialog>{loans.length === 0 ? <EmptyState compact icon={CreditCard} title="No staff loans" description="Issued loans, repayment schedules, payroll deductions, and outstanding balances will appear here." /> : <div className="space-y-2">{loans.map((row) => <div key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"><div><p className="text-sm font-medium">{memberName(row.employee_id)}</p><p className="text-xs text-muted-foreground">Started {row.start_date} · {row.repayment_period_months} months</p></div><div className="flex flex-wrap items-end justify-end gap-1"><div className="text-right"><Badge variant="outline" className="capitalize">{row.status}</Badge><p className="text-sm font-semibold text-primary">Balance {formatCurrency(Number(row.outstanding_balance))}</p></div>{row.status === "active" && <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => { setRepaymentLoanId(row.id); setRepaymentOpen(true); }}>Repay</Button>}</div></div>)}</div>}</TabsContent>
+src/components/hr/HRFinanceWorkspace.tsx:202:<DialogContent><DialogHeader><DialogTitle>Add configured money source</DialogTitle></DialogHeader><div className="space-y-3">{field(account, setAccount, "name", "Account name *", "text", "Access Bank")}{field(account, setAccount, "number", "Account number")}{field(account, setAccount, "currency", "Currency", "text", "NGN")}<div className="space-y-1"><Label>Account type</Label><Select value={account.type} onValueChange={(value) => setAccount({ ...account, type: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="bank">Bank</SelectItem><SelectItem value="domiciliary">Domiciliary</SelectItem><SelectItem value="director">Director account</SelectItem><SelectItem value="cash">Cash</SelectItem><SelectItem value="other">Other</SelectItem></SelectContent></Select></div><Button onClick={saveAccount} disabled={actionDisabled || !account.name.trim()}>Save account</Button></div></DialogContent></Dialog><Dialog open={settingsOpen} onOpenChange={setSettingsOpen}><DialogTrigger asChild><Button size="sm" variant="outline"><Settings2 className="h-4 w-4 mr-1" />Workflow settings</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>HR approval settings</DialogTitle></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Configured MD approver</Label><Select value={mdApprover || "none"} onValueChange={(value) => setMdApprover(value === "none" ? "" : value)}><SelectTrigger><SelectValue placeholder="Select approver" /></SelectTrigger><SelectContent><SelectItem value="none">Not configured</SelectItem>{memberOptions.map((member) => <SelectItem key={member.value} value={member.value}>{member.label}</SelectItem>)}</SelectContent></Select><p className="text-[11px] text-muted-foreground">Leave and disciplinary final decisions remain blocked until an approver is configured.</p></div>{field({ workingDays }, (next) => setWorkingDays(next.workingDays), "workingDays", "Working-day basis per month", "number", "Management input")}<Button onClick={() => saveSettings.mutate()} disabled={saveSettings.isPending || !orgId || !userId}>{saveSettings.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save settings</Button></div></DialogContent></Dialog></div>
+src/components/hr/HRFinanceWorkspace.tsx:204:        <TabsContent value="vat" className="space-y-4"><Dialog open={vatOpen} onOpenChange={setVatOpen}><DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" />VAT entry</Button></DialogTrigger><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Add VAT schedule entry</DialogTitle></DialogHeader><div className="grid gap-3 sm:grid-cols-2">{field(vat, setVat, "date", "Date", "date")}{field(vat, setVat, "clientName", "Client name *")}{field(vat, setVat, "tin", "Client TIN")}{field(vat, setVat, "gross", "Gross amount", "number")}{field(vat, setVat, "outputVat", "Output VAT", "number")}{field(vat, setVat, "inputVat", "Input VAT", "number")}{field(vat, setVat, "withholding", "Withholding tax / 2% WHT", "number")}{field(vat, setVat, "vatWithheld", "VAT withheld", "number")}{field(vat, setVat, "vatPaid", "VAT paid", "number")}{field(vat, setVat, "penalty", "Penalty", "number")}{field(vat, setVat, "interest", "Interest", "number")}{field(vat, setVat, "broughtForward", "Brought forward", "number")}{field(vat, setVat, "lrp", "LRP", "number")}<div className="space-y-1"><Label>State</Label><Select value={vat.state} onValueChange={(value) => setVat({ ...vat, state: value })}><SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger><SelectContent>{NIGERIAN_STATES.map((state) => <SelectItem key={state} value={state}>{state}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1"><Label>Local government</Label><Select value={vat.lga || "none"} onValueChange={(value) => setVat({ ...vat, lga: value === "none" ? "" : value })}><SelectTrigger><SelectValue placeholder={vat.state ? "Select LGA" : "Select state first"} /></SelectTrigger><SelectContent><SelectItem value="none">Not specified</SelectItem>{lgasForState(vat.state).map((lga) => <SelectItem key={lga} value={lga}>{lga}</SelectItem>)}</SelectContent></Select></div>{field(vat, setVat, "note", "Note")}<div className="space-y-1"><Label>Source record type</Label><Select value={vat.sourceType || "none"} onValueChange={(value) => setVat({ ...vat, sourceType: value === "none" ? "" : value })}><SelectTrigger><SelectValue placeholder="Optional source" /></SelectTrigger><SelectContent><SelectItem value="none">No source linked</SelectItem><SelectItem value="invoice">Invoice</SelectItem><SelectItem value="expense">Expense</SelectItem><SelectItem value="purchase_order">Purchase order</SelectItem><SelectItem value="receipt">Receipt</SelectItem><SelectItem value="worker_payment">Worker payment</SelectItem></SelectContent></Select></div>{field(vat, setVat, "sourceId", "Source record ID")}<div className="space-y-1"><Label>Free Trade Zone</Label><Select value={vat.freeTradeZone} onValueChange={(value) => setVat({ ...vat, freeTradeZone: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="false">No</SelectItem><SelectItem value="true">Yes</SelectItem></SelectContent></Select></div></div><p className="text-sm text-muted-foreground">Net amount: {formatCurrency(vatNet)} · VAT payable: {formatCurrency(vatSchedule.vatPayable)} · VAT credit: {formatCurrency(vatSchedule.vatCredit)} · Total: {formatCurrency(vatTotal)}</p><Button onClick={saveVat} disabled={actionDisabled || !vat.clientName.trim()}>Save VAT entry</Button></DialogContent></Dialog>{vatEntries.length === 0 ? <EmptyState compact icon={FileSpreadsheet} title="No VAT schedule entries" description="VAT entries remain linked to client, invoice, expense, or procurement evidence when a source is supplied." /> : <div className="space-y-2">{vatEntries.map((row) => <div key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"><div><p className="text-sm font-medium">{row.client_name}</p><p className="text-xs text-muted-foreground">{row.entry_date} · {row.state ?? "State not set"}{row.local_government ? ` · ${row.local_government}` : ""}</p></div><span className="text-sm font-semibold text-primary">{formatCurrency(Number(row.total_vat_credit_payable))}</span></div>)}</div>}</TabsContent>
+src/components/hr/HRCommercialOperationsPanel.tsx:16:type InvoiceRow = { id: string; document_number: string; status: string; total_amount?: number | null; balance_due?: number | null; clients?: { name: string } | null };
+src/components/hr/HRCommercialOperationsPanel.tsx:45:      const { data, error } = await industrialDb.from("sales_orders").select("id, order_number, status, total_amount, clients(name)").eq("organization_id", orgId).neq("status", "cancelled").order("created_at", { ascending: false }).limit(8);
+src/components/hr/HRCommercialOperationsPanel.tsx:51:  const { data: invoices = [] } = useQuery({
+src/components/hr/HRCommercialOperationsPanel.tsx:52:    queryKey: ["hr-commercial-invoices", orgId],
+src/components/hr/HRCommercialOperationsPanel.tsx:55:      const { data, error } = await industrialDb.from("invoices").select("id, document_number, status, total_amount, balance_due, clients(name)").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(8);
+src/components/hr/HRCommercialOperationsPanel.tsx:73:  const outstanding = invoices.reduce((sum, row) => sum + Number(row.balance_due ?? 0), 0);
+src/components/hr/HRCommercialOperationsPanel.tsx:78:    { label: "Outstanding invoices", value: formatCurrency(outstanding), icon: ReceiptText },
+src/components/hr/HRCommercialOperationsPanel.tsx:88:        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Finance & logistics pulse</CardTitle></CardHeader><CardContent className="space-y-2">{invoices.length === 0 && deliveries.length === 0 ? <EmptyState compact icon={Truck} title="No linked records" description="Invoices and deliveries will appear here as the commercial and dispatch workflows progress." /> : <>{invoices.slice(0, 4).map((row) => <div key={row.id} className="flex items-center justify-between gap-2 rounded-md bg-muted/30 p-2"><div className="min-w-0"><p className="truncate text-xs font-medium">{row.document_number} · {row.clients?.name ?? "Unassigned client"}</p><p className="text-[10px] text-muted-foreground">Invoice · balance {formatCurrency(Number(row.balance_due ?? 0))}</p></div><Badge variant="outline" className="shrink-0 text-[10px] capitalize">{row.status}</Badge></div>)}{deliveries.slice(0, 4).map((row) => <div key={row.id} className="flex items-center justify-between gap-2 rounded-md bg-muted/30 p-2"><div className="min-w-0"><p className="truncate text-xs font-medium">{row.clients?.name ?? "Unassigned client"} · {row.destination}</p><p className="text-[10px] text-muted-foreground">{row.delivery_date}{row.vehicle ? ` · ${row.vehicle}` : ""}</p></div><Badge variant="outline" className="shrink-0 text-[10px] capitalize">{row.status.replace("_", " ")}</Badge></div>)}</>}</CardContent></Card>
+src/components/hr/HRCommercialOperationsPanel.tsx:90:      <Button variant="ghost" size="sm" className="px-0 text-xs text-muted-foreground" onClick={() => navigate("/finance")}><ExternalLink className="mr-1 h-3.5 w-3.5" />Open Finance for full invoice, payment, and expense detail</Button>
+src/components/hr/HRFinanceAuditWorkspace.tsx:26:  const [reconciliationOpen, setReconciliationOpen] = useState(false);
+src/components/hr/HRFinanceAuditWorkspace.tsx:29:  const [linkForm, setLinkForm] = useState({ type: "invoice", entityId: "", amount: "", notes: "" });
+src/components/hr/HRFinanceAuditWorkspace.tsx:32:  const [reconciliation, setReconciliation] = useState({ account: "", statement: "", start: today(), end: today(), expected: "", actual: "", reason: "" });
+src/components/hr/HRFinanceAuditWorkspace.tsx:38:  const { data: reconciliations = [] } = useQuery({ queryKey: ["hr-reconciliations", orgId], queryFn: async () => { if (!orgId) return []; const { data, error } = await industrialDb.from("finance_reconciliations").select("*").eq("organization_id", orgId).order("period_end", { ascending: false }).limit(20); if (error) throw error; return data ?? []; }, enabled: !!orgId });
+src/components/hr/HRFinanceAuditWorkspace.tsx:41:  const refresh = () => { ["hr-bank-statements", "hr-bank-transactions", "hr-reconciliations", "hr-director-account"].forEach((key) => queryClient.invalidateQueries({ queryKey: [key, orgId] })); };
+src/components/hr/HRFinanceAuditWorkspace.tsx:43:  const saveStatement = async () => { const created = await save.mutateAsync({ table: "bank_statements", payload: { account_id: statement.account, statement_reference: statement.reference.trim() || null, period_start: statement.start, period_end: statement.end, opening_balance: Number(statement.opening || 0), closing_balance: Number(statement.closing || 0), status: "imported", imported_by: userId } }).catch(() => null); if (!created) return; const rows = statement.csv.split("\n").map((line) => line.split(",").map((part) => part.trim())).filter((parts) => parts.length >= 4 && parts[0] !== "date"); if (rows.length > 0) { const { error } = await industrialDb.from("bank_transactions").insert(rows.map(([date, description, reference, amount, direction = "debit", folio = ""]) => ({ organization_id: orgId, statement_id: created.id, account_id: statement.account, transaction_date: date, description, reference: reference || null, amount: Math.abs(Number(amount)), direction: direction === "credit" ? "credit" : "debit", folio: folio || null, review_status: "pending_review" }))); if (error) { toast({ title: "Statement saved but lines failed", description: humanizeError(error), variant: "destructive" }); } } toast({ title: "Bank statement imported", description: `${rows.length} transaction line(s) queued for review.` }); setStatementOpen(false); setStatement({ account: "", reference: "", start: today(), end: today(), opening: "", closing: "", csv: "" }); refresh(); };
+src/components/hr/HRFinanceAuditWorkspace.tsx:45:  const saveReconciliation = () => save.mutate({ table: "finance_reconciliations", payload: { account_id: reconciliation.account, statement_id: reconciliation.statement === "none" ? null : reconciliation.statement, period_start: reconciliation.start, period_end: reconciliation.end, expected_balance: Number(reconciliation.expected || 0), actual_balance: Number(reconciliation.actual || 0), difference: Number(reconciliation.actual || 0) - Number(reconciliation.expected || 0), status: Number(reconciliation.actual || 0) === Number(reconciliation.expected || 0) ? "reconciled" : "exception", discrepancy_reason: reconciliation.reason.trim() || null, created_by: userId } }, { onSuccess: () => { toast({ title: "Reconciliation saved" }); setReconciliationOpen(false); refresh(); } });
+src/components/hr/HRFinanceAuditWorkspace.tsx:48:  const linkBank = useMutation({ mutationFn: async () => { if (!orgId || !linkTarget || !linkForm.entityId.trim()) throw new Error("Select a record ID before linking"); const { error } = await industrialDb.rpc("link_bank_transaction", { _org_id: orgId, _transaction_id: linkTarget.id, _entity_type: linkForm.type, _entity_id: linkForm.entityId.trim(), _linked_amount: Number(linkForm.amount || linkTarget.amount), _notes: linkForm.notes.trim() || null }); if (error) throw error; }, onSuccess: () => { toast({ title: "Bank line linked", description: "The ERP record and bank analysis now share an auditable link." }); setLinkTarget(null); setLinkForm({ type: "invoice", entityId: "", amount: "", notes: "" }); refresh(); }, onError: (error) => toast({ title: "Could not link bank line", description: humanizeError(error), variant: "destructive" }) });
+src/components/hr/HRFinanceAuditWorkspace.tsx:50:  const directorBalance = directorEntries.reduce((sum, entry) => sum + (entry.transaction_type === "repayment" ? -Number(entry.amount) : Number(entry.amount)), 0);
+src/components/hr/HRFinanceAuditWorkspace.tsx:53:  return <Card className="border-primary/20 bg-primary/[0.03]"><CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base"><Landmark className="h-5 w-5 text-primary" /> Bank & Reconciliation Oversight</CardTitle><p className="text-xs text-muted-foreground">Statements are captured first; bank lines remain pending until a human reviews and links them to ERP records.</p></CardHeader><CardContent className="space-y-4"><div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><div className="rounded-lg border p-3"><p className="text-[10px] text-muted-foreground">Statements</p><p className="text-lg font-bold">{statements.length}</p></div><div className="rounded-lg border p-3"><p className="text-[10px] text-muted-foreground">Bank lines</p><p className="text-lg font-bold">{transactions.length}</p></div><div className="rounded-lg border p-3"><p className="text-[10px] text-muted-foreground">Pending review</p><p className="text-lg font-bold text-warning">{pendingReview}</p></div><div className="rounded-lg border p-3"><p className="text-[10px] text-muted-foreground">Director balance</p><p className="text-lg font-bold text-primary">{formatCurrency(directorBalance)}</p></div></div><div className="flex flex-wrap gap-2"><Dialog open={statementOpen} onOpenChange={setStatementOpen}><DialogTrigger asChild><Button size="sm"><Plus className="mr-1 h-4 w-4" />Import statement</Button></DialogTrigger><DialogContent className="max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Import bank statement</DialogTitle></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Account *</Label><Select value={statement.account} onValueChange={(value) => setStatement({ ...statement, account: value })}><SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger><SelectContent>{accountOptions}</SelectContent></Select></div><div className="grid grid-cols-2 gap-3"><div className="space-y-1"><Label>Period start</Label><Input type="date" value={statement.start} onChange={(event) => setStatement({ ...statement, start: event.target.value })} /></div><div className="space-y-1"><Label>Period end</Label><Input type="date" value={statement.end} onChange={(event) => setStatement({ ...statement, end: event.target.value })} /></div></div><Input placeholder="Statement reference" value={statement.reference} onChange={(event) => setStatement({ ...statement, reference: event.target.value })} /><div className="grid grid-cols-2 gap-3"><Input type="number" placeholder="Opening balance" value={statement.opening} onChange={(event) => setStatement({ ...statement, opening: event.target.value })} /><Input type="number" placeholder="Closing balance" value={statement.closing} onChange={(event) => setStatement({ ...statement, closing: event.target.value })} /></div><div className="space-y-1"><Label>Optional CSV lines</Label><Textarea rows={6} value={statement.csv} onChange={(event) => setStatement({ ...statement, csv: event.target.value })} placeholder="date,description,reference,amount,direction,folio" /><p className="text-[11px] text-muted-foreground">CSV is parsed into pending-review lines; it never auto-links or posts a payment.</p></div><Button onClick={saveStatement} disabled={save.isPending || !statement.account}>Import statement</Button></div></DialogContent></Dialog><Dialog open={transactionOpen} onOpenChange={setTransactionOpen}><DialogTrigger asChild><Button size="sm" variant="outline"><Plus className="mr-1 h-4 w-4" />Bank line</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Add bank line for review</DialogTitle></DialogHeader><div className="space-y-3"><div className="space-y-1"><Label>Statement *</Label><Select value={transaction.statement} onValueChange={(value) => setTransaction({ ...transaction, statement: value })}><SelectTrigger><SelectValue placeholder="Select statement" /></SelectTrigger><SelectContent>{statements.map((item) => <SelectItem key={item.id} value={item.id}>{item.statement_reference ?? item.id.slice(0, 8)}</SelectItem>)}</SelectContent></Select></div><Input type="date" value={transaction.date} onChange={(event) => setTransaction({ ...transaction, date: event.target.value })} /><Input placeholder="Description" value={transaction.description} onChange={(event) => setTransaction({ ...transaction, description: event.target.value })} /><Input placeholder="Reference" value={transaction.reference} onChange={(event) => setTransaction({ ...transaction, reference: event.target.value })} /><Input type="number" placeholder="Amount" value={transaction.amount} onChange={(event) => setTransaction({ ...transaction, amount: event.target.value })} /><Select value={transaction.direction} onValueChange={(value) => setTransaction({ ...transaction, direction: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="debit">Debit</SelectItem><SelectItem value="credit">Credit</SelectItem></SelectContent></Select><Button onClick={() => saveTransaction()} disabled={save.isPending || !transaction.statement || Number(transaction.amount) <= 0}>Queue for review</Button></div></DialogContent></Dialog><Dialog open={reconciliationOpen} onOpenChange={setReconciliationOpen}><DialogTrigger asChild><Button size="sm" variant="outline"><Scale className="mr-1 h-4 w-4" />Reconcile</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Month-end reconciliation</DialogTitle></DialogHeader><div className="space-y-3"><Select value={reconciliation.account} onValueChange={(value) => setReconciliation({ ...reconciliation, account: value })}><SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger><SelectContent>{accountOptions}</SelectContent></Select><Select value={reconciliation.statement} onValueChange={(value) => setReconciliation({ ...reconciliation, statement: value })}><SelectTrigger><SelectValue placeholder="Optional statement" /></SelectTrigger><SelectContent><SelectItem value="none">No statement link</SelectItem>{statements.map((item) => <SelectItem key={item.id} value={item.id}>{item.statement_reference ?? item.id.slice(0, 8)}</SelectItem>)}</SelectContent></Select><div className="grid grid-cols-2 gap-3"><Input type="date" value={reconciliation.start} onChange={(event) => setReconciliation({ ...reconciliation, start: event.target.value })} /><Input type="date" value={reconciliation.end} onChange={(event) => setReconciliation({ ...reconciliation, end: event.target.value })} /></div><Input type="number" placeholder="Expected balance" value={reconciliation.expected} onChange={(event) => setReconciliation({ ...reconciliation, expected: event.target.value })} /><Input type="number" placeholder="Actual balance" value={reconciliation.actual} onChange={(event) => setReconciliation({ ...reconciliation, actual: event.target.value })} /><Textarea placeholder="Discrepancy reason / review notes" value={reconciliation.reason} onChange={(event) => setReconciliation({ ...reconciliation, reason: event.target.value })} /><Button onClick={() => saveReconciliation()} disabled={save.isPending || !reconciliation.account}>Save reconciliation</Button></div></DialogContent></Dialog><Dialog open={directorOpen} onOpenChange={setDirectorOpen}><DialogTrigger asChild><Button size="sm" variant="outline"><WalletCards className="mr-1 h-4 w-4" />Director account</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Record director-account transaction</DialogTitle></DialogHeader><div className="space-y-3"><Select value={director.account} onValueChange={(value) => setDirector({ ...director, account: value })}><SelectTrigger><SelectValue placeholder="Select director account" /></SelectTrigger><SelectContent>{accountOptions}</SelectContent></Select><Input type="date" value={director.date} onChange={(event) => setDirector({ ...director, date: event.target.value })} /><Select value={director.type} onValueChange={(value) => setDirector({ ...director, type: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="advance">Advance</SelectItem><SelectItem value="repayment">Repayment</SelectItem><SelectItem value="expense">Expense</SelectItem><SelectItem value="other">Other</SelectItem></SelectContent></Select><Input type="number" placeholder="Amount" value={director.amount} onChange={(event) => setDirector({ ...director, amount: event.target.value })} /><Input placeholder="Folio" value={director.folio} onChange={(event) => setDirector({ ...director, folio: event.target.value })} /><Textarea placeholder="Description" value={director.description} onChange={(event) => setDirector({ ...director, description: event.target.value })} /><Button onClick={() => saveDirector()} disabled={save.isPending || !director.account || Number(director.amount) < 0}>Save entry</Button></div></DialogContent></Dialog></div>{transactions.length === 0 && reconciliations.length === 0 && directorEntries.length === 0 ? <EmptyState compact icon={FileSpreadsheet} title="No finance audit records" description="Import statements, queue bank lines for review, reconcile month-end balances, or record director-account entries." /> : <div className="grid gap-4 xl:grid-cols-3"><Card><CardHeader className="pb-2"><CardTitle className="text-sm">Pending bank review</CardTitle></CardHeader><CardContent className="space-y-2">{transactions.slice(0, 5).map((item) => <div key={item.id} className="rounded-md bg-muted/30 p-2"><div className="flex justify-between gap-2"><p className="truncate text-xs font-medium">{item.description || item.reference || "Bank line"}</p><Badge variant="outline" className="text-[10px]">{item.review_status}</Badge></div><p className="text-xs text-primary">{item.direction === "credit" ? "+" : "-"}{formatCurrency(Number(item.amount))}</p>{(item.review_status === "pending_review" || item.review_status === "suggested") && <div className="mt-2 flex flex-wrap gap-1"><Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => reviewBank.mutate({ id: item.id, status: "approved" })}>Approve</Button><Button size="sm" variant="ghost" className="h-7 text-[10px] text-destructive" onClick={() => reviewBank.mutate({ id: item.id, status: "rejected" })}>Reject</Button></div>}{(item.review_status === "approved" || item.review_status === "suggested") && <Button size="sm" variant="ghost" className="mt-1 h-7 px-0 text-[10px] text-primary" onClick={() => { setLinkTarget({ id: item.id, amount: Number(item.amount) }); setLinkForm({ type: "invoice", entityId: "", amount: String(item.amount), notes: "" }); }}>Link ERP record</Button>}</div>)}</CardContent></Card><Card><CardHeader className="pb-2"><CardTitle className="text-sm">Reconciliations</CardTitle></CardHeader><CardContent className="space-y-2">{reconciliations.slice(0, 5).map((item) => <div key={item.id} className="flex justify-between gap-2 rounded-md bg-muted/30 p-2"><div><p className="text-xs font-medium">{item.period_start} to {item.period_end}</p><p className="text-[10px] text-muted-foreground">Difference {formatCurrency(Number(item.difference ?? 0))}</p></div><Badge variant="outline" className="text-[10px] capitalize">{item.status}</Badge></div>)}</CardContent></Card><Card><CardHeader className="pb-2"><CardTitle className="text-sm">Director-account ledger</CardTitle></CardHeader><CardContent className="space-y-2">{directorEntries.slice(0, 5).map((item) => <div key={item.id} className="flex justify-between gap-2 rounded-md bg-muted/30 p-2"><div><p className="text-xs font-medium capitalize">{item.transaction_type}</p><p className="text-[10px] text-muted-foreground">{item.entry_date} · {item.folio ?? "No folio"}</p></div><span className="text-xs font-semibold text-primary">{formatCurrency(Number(item.amount))}</span></div>)}</CardContent></Card></div>}<Dialog open={!!linkTarget} onOpenChange={(open) => !open && setLinkTarget(null)}><DialogContent><DialogHeader><DialogTitle>Link bank line to ERP record</DialogTitle></DialogHeader><div className="space-y-3"><p className="text-xs text-muted-foreground">Approve the bank line first, then link it to the existing invoice, payment, expense, loan, procurement, VAT, or transfer record. The link never creates a duplicate transaction.</p><Select value={linkForm.type} onValueChange={(value) => setLinkForm({ ...linkForm, type: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["invoice","receipt","expense","worker_payment","purchase_order","fuel_log","director_account","staff_loan","loan_repayment","salary_schedule","overtime","vat_entry","external_loan","transfer"].map((type) => <SelectItem key={type} value={type}>{type.replace(/_/g, " ")}</SelectItem>)}</SelectContent></Select><Input placeholder="Existing ERP record UUID" value={linkForm.entityId} onChange={(event) => setLinkForm({ ...linkForm, entityId: event.target.value })} /><Input type="number" placeholder="Linked amount" value={linkForm.amount} onChange={(event) => setLinkForm({ ...linkForm, amount: event.target.value })} /><Textarea placeholder="Link note" value={linkForm.notes} onChange={(event) => setLinkForm({ ...linkForm, notes: event.target.value })} /><Button onClick={() => linkBank.mutate()} disabled={linkBank.isPending || !linkForm.entityId.trim()}>Link record</Button></div></DialogContent></Dialog></CardContent></Card>;
+src/components/layout/AppSidebar.tsx:18:  "Finance": "Corporate Finance & Invoicing: Manage company accounts, review balance sheets, track invoice statuses, and generate CFO financial summaries.",
+src/components/layout/RoleBasedOnboarding.tsx:41:      "Logistics: Plan dispatch routes and log delivery waybills."
+src/components/layout/RoleBasedOnboarding.tsx:48:      "Invoicing: Generate and dispatch invoices from Quotations.",
+src/components/logistics/WaybillDialog.tsx:21:type DeliveryRow = { id: string; document_number?: string | null; destination: string; destination_state?: string | null; site_name?: string | null; client_id?: string | null; project_id?: string | null; sales_order_id?: string | null };
+src/components/logistics/WaybillDialog.tsx:23:/** Standalone or source-linked waybill issuer. Every generated copy is persisted before printing. */
+src/components/logistics/WaybillDialog.tsx:43:  const { data: clients = [] } = useQuery({ queryKey: ["waybill-clients", orgId], queryFn: async () => { if (!orgId) return [] as ClientRow[]; const { data, error } = await industrialDb.from("clients").select("id, name").eq("organization_id", orgId).order("name"); if (error) throw error; return (data ?? []) as ClientRow[]; }, enabled: !!orgId && open });
+src/components/logistics/WaybillDialog.tsx:44:  const { data: orders = [] } = useQuery({ queryKey: ["waybill-orders", orgId], queryFn: async () => { if (!orgId) return [] as OrderRow[]; const { data, error } = await industrialDb.from("sales_orders").select("id, order_number, client_id, project_id, status").eq("organization_id", orgId).not("status", "eq", "cancelled").order("created_at", { ascending: false }); if (error) throw error; return (data ?? []) as OrderRow[]; }, enabled: !!orgId && open });
+src/components/logistics/WaybillDialog.tsx:45:  const { data: projects = [] } = useQuery({ queryKey: ["waybill-projects", orgId], queryFn: async () => { if (!orgId) return [] as ProjectRow[]; const { data, error } = await industrialDb.from("projects").select("id, name, client_id").eq("organization_id", orgId).order("name"); if (error) throw error; return (data ?? []) as ProjectRow[]; }, enabled: !!orgId && open });
+src/components/logistics/WaybillDialog.tsx:46:  const { data: deliveries = [] } = useQuery({ queryKey: ["waybill-deliveries", orgId], queryFn: async () => { if (!orgId) return [] as DeliveryRow[]; const { data, error } = await industrialDb.from("deliveries").select("id, document_number, destination, destination_state, site_name, client_id, project_id, sales_order_id").eq("organization_id", orgId).not("status", "eq", "cancelled").order("delivery_date", { ascending: false }).limit(100); if (error) throw error; return (data ?? []) as DeliveryRow[]; }, enabled: !!orgId && open });
+src/components/logistics/WaybillDialog.tsx:57:  const selectDelivery = (value: string) => { const delivery = deliveries.find((candidate) => candidate.id === value); setDeliveryId(value === "none" ? "" : value); if (delivery) { if (delivery.client_id) setClientId(delivery.client_id); if (delivery.sales_order_id) setOrderId(delivery.sales_order_id); if (delivery.project_id) setProjectId(delivery.project_id); setDestination(delivery.destination); setDestState(delivery.destination_state ?? ""); setSiteName(delivery.site_name ?? ""); } };
+src/components/logistics/WaybillDialog.tsx:67:      const record = await generateAndRecordWaybill({ organizationId: orgId, deliveryId: deliveryId || null, salesOrderId: orderId || null, clientId: clientId || null, projectId: projectId || null, idempotencyKey: `waybill:${orgId}:${user.id}:${Date.now()}`, date, driver: driver.trim(), vehicle: vehicle.trim(), destination: destination.trim(), destinationState: destState.trim() || null, siteName: siteName.trim() || null, projectName: project.trim() || null, notes: notes.trim() || null, items, issuedBy: user.email ?? undefined });
+src/components/logistics/WaybillDialog.tsx:75:  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-3xl max-h-[92dvh] overflow-y-auto"><DialogHeader><DialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />Issue and print waybill</DialogTitle></DialogHeader><div className="space-y-5"><div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">The system first saves a permanent waybill record, then renders the PDF, then marks it printed. Failed rendering stays visible as a retryable document state.</div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"><div className="space-y-1.5"><Label>Source delivery</Label><Select value={deliveryId || "none"} onValueChange={selectDelivery}><SelectTrigger><SelectValue placeholder="Optional delivery" /></SelectTrigger><SelectContent><SelectItem value="none">Standalone waybill</SelectItem>{deliveries.map((delivery) => <SelectItem key={delivery.id} value={delivery.id}>{delivery.document_number ?? "Delivery"} · {delivery.destination}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1.5"><Label>Sales order</Label><Select value={orderId || "none"} onValueChange={selectOrder}><SelectTrigger><SelectValue placeholder="Optional order" /></SelectTrigger><SelectContent><SelectItem value="none">No order link</SelectItem>{orders.map((order) => <SelectItem key={order.id} value={order.id}>{order.order_number} · {order.status}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1.5"><Label>Client</Label><Select value={clientId || "none"} onValueChange={(value) => setClientId(value === "none" ? "" : value)}><SelectTrigger><SelectValue placeholder="Optional client" /></SelectTrigger><SelectContent><SelectItem value="none">No client link</SelectItem>{clients.map((client) => <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1.5"><Label>Project</Label><Select value={projectId || "none"} onValueChange={selectProject}><SelectTrigger><SelectValue placeholder="Optional project" /></SelectTrigger><SelectContent><SelectItem value="none">No project link</SelectItem>{projects.map((candidate) => <SelectItem key={candidate.id} value={candidate.id}>{candidate.name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1.5"><Label>Date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div><div className="space-y-1.5"><Label>Driver *</Label><Input placeholder="Driver full name" value={driver} onChange={(e) => setDriver(e.target.value)} /></div><div className="space-y-1.5"><Label>Vehicle</Label><Input placeholder="Plate number / make" value={vehicle} onChange={(e) => setVehicle(e.target.value)} /></div><div className="space-y-1.5"><Label>Destination State</Label><Input placeholder="e.g. Rivers" value={destState} onChange={(e) => setDestState(e.target.value)} /></div><div className="space-y-1.5 sm:col-span-2 lg:col-span-3"><Label>Destination *</Label><Input placeholder="Full address" value={destination} onChange={(e) => setDestination(e.target.value)} /></div><div className="space-y-1.5"><Label>Site / Recipient</Label><Input value={siteName} onChange={(e) => setSiteName(e.target.value)} /></div><div className="space-y-1.5 sm:col-span-2"><Label>Project label</Label><Input value={project} onChange={(e) => setProject(e.target.value)} placeholder="Shown on the printed waybill" /></div></div><div className="space-y-2"><div className="flex items-center justify-between"><Label>Items being conveyed *</Label><Button type="button" variant="outline" size="sm" onClick={() => setLines((current) => [...current, { description: "", quantity: "", unit: "pcs" }])}><Plus className="h-3.5 w-3.5 mr-1" />Add</Button></div>{lines.map((line, index) => <div key={index} className="grid grid-cols-12 gap-2 items-end"><div className="col-span-12 sm:col-span-7"><Input placeholder="Description (e.g. 110mm HDPE pipe x 6m)" value={line.description} onChange={(e) => update(index, { description: e.target.value })} /></div><div className="col-span-5 sm:col-span-2"><Input placeholder="Qty" value={line.quantity} onChange={(e) => update(index, { quantity: e.target.value })} /></div><div className="col-span-5 sm:col-span-2"><Input placeholder="Unit" value={line.unit} onChange={(e) => update(index, { unit: e.target.value })} /></div><div className="col-span-2 sm:col-span-1 flex justify-end">{lines.length > 1 && <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={() => setLines((current) => current.filter((_, i) => i !== index))}><Trash2 className="h-4 w-4 text-destructive" /></Button>}</div></div>)}</div><div className="space-y-1.5"><Label>Notes</Label><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Special handling instructions, checkpoint info, etc." /></div><div className="flex gap-2 justify-end"><Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Button onClick={submit} disabled={busy}>{busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Generate, save & print waybill</Button></div></div></DialogContent></Dialog>;
+src/components/messaging/ChatView.tsx:4:import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+src/components/messaging/ChatView.tsx:17:  recipientAvatar?: string | null;
+src/components/messaging/ChatView.tsx:23:export const ChatView = ({ recipientId, recipientName, recipientAvatar, recipientRole, orgId, onBack }: ChatViewProps) => {
+src/components/messaging/ChatView.tsx:116:        <Avatar className="h-8 w-8">
+src/components/messaging/ChatView.tsx:117:          {recipientAvatar && <AvatarImage src={recipientAvatar} />}
+src/components/messaging/ChatView.tsx:118:          <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials(recipientName)}</AvatarFallback>
+src/components/messaging/ChatView.tsx:119:        </Avatar>
+src/components/messaging/ContextMessages.tsx:5:import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+src/components/messaging/ContextMessages.tsx:88:                  <Avatar className="h-6 w-6 shrink-0">
+src/components/messaging/ContextMessages.tsx:89:                    <AvatarFallback className="text-[9px] bg-primary/10 text-primary">{getInitials(name)}</AvatarFallback>
+src/components/messaging/ContextMessages.tsx:90:                  </Avatar>
+src/components/messaging/ConversationList.tsx:1:import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+src/components/messaging/ConversationList.tsx:9:  recipientAvatar?: string | null;
+src/components/messaging/ConversationList.tsx:72:            <Avatar className="h-10 w-10 shrink-0">
+src/components/messaging/ConversationList.tsx:73:              {conv.recipientAvatar && <AvatarImage src={conv.recipientAvatar} />}
+src/components/messaging/ConversationList.tsx:74:              <AvatarFallback className="text-xs bg-primary/10 text-primary">{getInitials(conv.recipientName)}</AvatarFallback>
+src/components/messaging/ConversationList.tsx:75:            </Avatar>
+src/components/projects/ProjectPnL.tsx:24:      const { data: invoices } = await (supabase.from("invoices") as any).select("total_amount").eq("project_id", projectId);
+src/components/projects/ProjectPnL.tsx:25:      const totalRevenue = invoices?.reduce((s, i) => s + Number(i.total_amount || 0), 0) || 0;
+src/components/ui/avatar.tsx:2:import * as AvatarPrimitive from "@radix-ui/react-avatar";
+src/components/ui/avatar.tsx:6:const Avatar = React.forwardRef<
+src/components/ui/avatar.tsx:7:  React.ElementRef<typeof AvatarPrimitive.Root>,
+src/components/ui/avatar.tsx:8:  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root>
+src/components/ui/avatar.tsx:10:  <AvatarPrimitive.Root
+src/components/ui/avatar.tsx:16:Avatar.displayName = AvatarPrimitive.Root.displayName;
+src/components/ui/avatar.tsx:18:const AvatarImage = React.forwardRef<
+src/components/ui/avatar.tsx:19:  React.ElementRef<typeof AvatarPrimitive.Image>,
+src/components/ui/avatar.tsx:20:  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
+src/components/ui/avatar.tsx:22:  <AvatarPrimitive.Image ref={ref} className={cn("aspect-square h-full w-full", className)} {...props} />
+src/components/ui/avatar.tsx:24:AvatarImage.displayName = AvatarPrimitive.Image.displayName;
+src/components/ui/avatar.tsx:26:const AvatarFallback = React.forwardRef<
+src/components/ui/avatar.tsx:27:  React.ElementRef<typeof AvatarPrimitive.Fallback>,
+src/components/ui/avatar.tsx:28:  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Fallback>
+src/components/ui/avatar.tsx:30:  <AvatarPrimitive.Fallback
+src/components/ui/avatar.tsx:36:AvatarFallback.displayName = AvatarPrimitive.Fallback.displayName;
+src/components/ui/avatar.tsx:38:export { Avatar, AvatarImage, AvatarFallback };
+src/contexts/AuthContext.tsx:11:  avatar_url: string | null;
+src/hooks/useExecutiveFinancials.ts:5:  invoiced?: number | null;
+src/hooks/useExecutiveFinancials.ts:8:  worker_payments?: number | null;
+src/hooks/useExecutiveFinancials.ts:11:    invoiced?: number | null;
+src/hooks/useExecutiveFinancials.ts:14:    worker_payments?: number | null;
+src/hooks/useExecutiveFinancials.ts:43:      const totalRevenue = Number(report.invoiced ?? 0);
+src/hooks/useExecutiveFinancials.ts:45:      const totalExpenses = Number(report.operating_expenses ?? 0) + Number(report.worker_payments ?? 0);
+src/hooks/useExecutiveFinancials.ts:55:          revenue: Number(row.invoiced ?? 0),
+src/hooks/useExecutiveFinancials.ts:56:          expenses: Number(row.expenses ?? 0) + Number(row.worker_payments ?? 0),
+src/integrations/supabase/types.ts:505:      disciplinary_records: {
+src/integrations/supabase/types.ts:544:            foreignKeyName: "disciplinary_records_organization_id_fkey"
+src/integrations/supabase/types.ts:985:      goods_received_notes: {
+src/integrations/supabase/types.ts:993:          purchase_order_id: string | null
+src/integrations/supabase/types.ts:1006:          purchase_order_id?: string | null
+src/integrations/supabase/types.ts:1019:          purchase_order_id?: string | null
+src/integrations/supabase/types.ts:1027:            foreignKeyName: "goods_received_notes_organization_id_fkey"
+src/integrations/supabase/types.ts:1034:            foreignKeyName: "goods_received_notes_purchase_order_id_fkey"
+src/integrations/supabase/types.ts:1035:            columns: ["purchase_order_id"]
+src/integrations/supabase/types.ts:1037:            referencedRelation: "purchase_orders"
+src/integrations/supabase/types.ts:1041:            foreignKeyName: "goods_received_notes_vendor_id_fkey"
+src/integrations/supabase/types.ts:1056:          purchase_order_item_id: string | null
+src/integrations/supabase/types.ts:1065:          purchase_order_item_id?: string | null
+src/integrations/supabase/types.ts:1074:          purchase_order_item_id?: string | null
+src/integrations/supabase/types.ts:1082:            referencedRelation: "goods_received_notes"
+src/integrations/supabase/types.ts:1086:            foreignKeyName: "grn_items_purchase_order_item_id_fkey"
+src/integrations/supabase/types.ts:1087:            columns: ["purchase_order_item_id"]
+src/integrations/supabase/types.ts:1089:            referencedRelation: "purchase_order_items"
+src/integrations/supabase/types.ts:1267:      invoice_items: {
+src/integrations/supabase/types.ts:1272:          invoice_id: string
+src/integrations/supabase/types.ts:1281:          invoice_id: string
+src/integrations/supabase/types.ts:1290:          invoice_id?: string
+src/integrations/supabase/types.ts:1297:            foreignKeyName: "invoice_items_invoice_id_fkey"
+src/integrations/supabase/types.ts:1298:            columns: ["invoice_id"]
+src/integrations/supabase/types.ts:1300:            referencedRelation: "invoices"
+src/integrations/supabase/types.ts:1305:      invoices: {
+src/integrations/supabase/types.ts:1307:          balance_due: number | null
+src/integrations/supabase/types.ts:1314:          invoice_date: string | null
+src/integrations/supabase/types.ts:1325:          balance_due?: number | null
+src/integrations/supabase/types.ts:1332:          invoice_date?: string | null
+src/integrations/supabase/types.ts:1343:          balance_due?: number | null
+src/integrations/supabase/types.ts:1350:          invoice_date?: string | null
+src/integrations/supabase/types.ts:1362:            foreignKeyName: "invoices_organization_id_fkey"
+src/integrations/supabase/types.ts:1458:      leave_requests: {
+src/integrations/supabase/types.ts:1464:          leave_type: string
+src/integrations/supabase/types.ts:1476:          leave_type?: string
+src/integrations/supabase/types.ts:1488:          leave_type?: string
+src/integrations/supabase/types.ts:1497:            foreignKeyName: "leave_requests_organization_id_fkey"
+src/integrations/supabase/types.ts:1936:          avatar_url: string | null
+src/integrations/supabase/types.ts:1955:          avatar_url?: string | null
+src/integrations/supabase/types.ts:1974:          avatar_url?: string | null
+src/integrations/supabase/types.ts:2137:      purchase_order_items: {
+src/integrations/supabase/types.ts:2143:          purchase_order_id: string
+src/integrations/supabase/types.ts:2155:          purchase_order_id: string
+src/integrations/supabase/types.ts:2167:          purchase_order_id?: string
+src/integrations/supabase/types.ts:2176:            foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
+src/integrations/supabase/types.ts:2177:            columns: ["purchase_order_id"]
+src/integrations/supabase/types.ts:2179:            referencedRelation: "purchase_orders"
+src/integrations/supabase/types.ts:2184:      purchase_orders: {
+src/integrations/supabase/types.ts:2238:            foreignKeyName: "purchase_orders_organization_id_fkey"
+src/integrations/supabase/types.ts:2245:            foreignKeyName: "purchase_orders_vendor_id_fkey"
+src/integrations/supabase/types.ts:2411:      receipts: {
+src/integrations/supabase/types.ts:2418:          invoice_id: string | null
+src/integrations/supabase/types.ts:2421:          payment_date: string | null
+src/integrations/supabase/types.ts:2422:          payment_method: string | null
+src/integrations/supabase/types.ts:2432:          invoice_id?: string | null
+src/integrations/supabase/types.ts:2435:          payment_date?: string | null
+src/integrations/supabase/types.ts:2436:          payment_method?: string | null
+src/integrations/supabase/types.ts:2446:          invoice_id?: string | null
+src/integrations/supabase/types.ts:2449:          payment_date?: string | null
+src/integrations/supabase/types.ts:2450:          payment_method?: string | null
+src/integrations/supabase/types.ts:2456:            foreignKeyName: "receipts_invoice_id_fkey"
+src/integrations/supabase/types.ts:2457:            columns: ["invoice_id"]
+src/integrations/supabase/types.ts:2459:            referencedRelation: "invoices"
+src/integrations/supabase/types.ts:2463:            foreignKeyName: "receipts_organization_id_fkey"
+src/integrations/supabase/types.ts:2914:      worker_payments: {
+src/integrations/supabase/types.ts:2937:          type: Database["public"]["Enums"]["payment_type"]
+src/integrations/supabase/types.ts:2963:          type: Database["public"]["Enums"]["payment_type"]
+src/integrations/supabase/types.ts:2989:          type?: Database["public"]["Enums"]["payment_type"]
+src/integrations/supabase/types.ts:2995:            foreignKeyName: "worker_payments_equipment_id_fkey"
+src/integrations/supabase/types.ts:3002:            foreignKeyName: "worker_payments_organization_id_fkey"
+src/integrations/supabase/types.ts:3009:            foreignKeyName: "worker_payments_project_id_fkey"
+src/integrations/supabase/types.ts:3098:      payment_type:
+src/integrations/supabase/types.ts:3100:        | "overtime"
+src/integrations/supabase/types.ts:3268:      payment_type: [
+src/integrations/supabase/types.ts:3270:        "overtime",
+src/lib/constants.ts:59: * inherits every `finance` capability (invoices, payments, expenses, claims
+src/lib/generateIdCard.ts:11:  avatarUrl?: string | null;
+src/lib/generateIdCard.ts:60:    avatarUrl,
+src/lib/generateIdCard.ts:135:  if (avatarUrl) {
+src/lib/generateIdCard.ts:137:      const photoImg = await loadImageDataUrl(avatarUrl);
+src/lib/generateIdCard.ts:246:    "5. Misuse of this card may result in disciplinary action.",
+src/lib/generateWaybill.ts:13:  waybillId?: string;
+src/lib/generateWaybill.ts:34:  waybill_date: string;
+src/lib/generateWaybill.ts:38:  sales_order_id?: string | null;
+src/lib/generateWaybill.ts:50:    waybillId: record.id,
+src/lib/generateWaybill.ts:53:    salesOrderId: record.sales_order_id ?? null,
+src/lib/generateWaybill.ts:57:    date: record.waybill_date,
+src/lib/generateWaybill.ts:103:        body: "This waybill authorizes the named driver to convey the listed materials to the stated destination. Present on demand to law enforcement or site personnel.",
+src/lib/generateWaybill.ts:119:  if (!data.organizationId) throw new Error("Organization context is required to issue a waybill");
+src/lib/generateWaybill.ts:120:  const { data: record, error } = await industrialDb.rpc("issue_waybill", {
+src/lib/generateWaybill.ts:126:      sales_order_id: data.salesOrderId ?? null,
+src/lib/generateWaybill.ts:147:    const { data: printed, error } = await industrialDb.rpc("mark_waybill_printed", { _org_id: record.organization_id, _waybill_id: record.id, _rendered_at: new Date().toISOString() });
+src/lib/generateWaybill.ts:151:    await industrialDb.rpc("mark_waybill_generation_failed", { _org_id: record.organization_id, _waybill_id: record.id, _error: error instanceof Error ? error.message : "Waybill PDF generation failed" });
+src/lib/generateWaybill.ts:159:    const { data: printed, error } = await industrialDb.rpc("mark_waybill_printed", { _org_id: record.organization_id, _waybill_id: record.id, _rendered_at: new Date().toISOString() });
+src/lib/generateWaybill.ts:163:    await industrialDb.rpc("mark_waybill_generation_failed", { _org_id: record.organization_id, _waybill_id: record.id, _error: error instanceof Error ? error.message : "Waybill reprint failed" });
+src/lib/logger.ts:11:  private isProd = import.meta.env.PROD;
+src/lib/logger.ts:13:  private log(level: LogLevel, message: string, data?: LogPayload) {
+src/lib/navConfig.ts:71:  { label: "Invoices",      icon: Receipt,         path: "/finance?tab=invoices", roles: [...ADMIN, ...ACCOUNTS, ...MARKETING], group: "Accounts" },
+src/lib/tours.ts:68:      { title: "Worker Claims need proof", description: "Every claim must have an uploaded receipt or photo. AI-flagged claims are highlighted in orange." },
+src/lib/financialMath.ts:38:export function calculateOutstandingBalance(total: number, payments: number[]): number {
+src/lib/financialMath.ts:39:  return roundMoney(Math.max(0, Number(total) - payments.reduce((sum, payment) => sum + Math.max(0, Number(payment) || 0), 0)));
+src/lib/financialMath.ts:46:  vatWithheld: number;
+src/lib/financialMath.ts:47:  vatPaid: number;
+src/lib/financialMath.ts:58:  const vatWithheld = roundMoney(Math.max(0, input.vatWithheld));
+src/lib/financialMath.ts:59:  const vatPaid = roundMoney(Math.max(0, input.vatPaid));
+src/lib/financialMath.ts:64:  const netAmount = roundMoney(Math.max(0, grossAmount - vatWithheld));
+src/lib/financialMath.ts:66:  const totalCreditPayable = roundMoney(currentVat - vatWithheld - vatPaid + penalty + interest - broughtForward - lrp);
+src/lib/financialMath.ts:67:  return { grossAmount, outputVat, inputVat, vatWithheld, vatPaid, penalty, interest, broughtForward, lrp, netAmount, vatPayable: Math.max(0, totalCreditPayable), vatCredit: Math.max(0, roundMoney(-totalCreditPayable)), totalCreditPayable };
+src/lib/financialMath.ts:74:export function calculateLoanBalance(principal: number, additionalLoans: number, repayments: number[]): number {
+src/lib/financialMath.ts:75:  return roundMoney(Math.max(0, Math.max(0, principal) + Math.max(0, additionalLoans) - repayments.reduce((sum, repayment) => sum + Math.max(0, repayment), 0)));
+src/pages/Analytics.tsx:18:type PaymentRow = Database["public"]["Tables"]["worker_payments"]["Row"];
+src/pages/Analytics.tsx:20:type InvoiceRow = Database["public"]["Tables"]["invoices"]["Row"];
+src/pages/Analytics.tsx:21:type ReceiptRow = Database["public"]["Tables"]["receipts"]["Row"];
+src/pages/Analytics.tsx:47:    queryFn: async () => { if (!orgId) return null; const { data, error } = await industrialDb.rpc("get_finance_period_report", { _org_id: orgId, _from: reportFrom, _to: reportTo }); if (error) throw error; return data as unknown as { invoiced: number; collected: number; operating_expenses: number; worker_payments: number; monthly: Array<{ month: string; invoiced: number; collected: number; expenses: number; worker_payments: number }> }; },
+src/pages/Analytics.tsx:52:  const { data: payments = [], isLoading: loadingPayments, dataUpdatedAt: paymentsUpdatedAt, refetch: refetchPayments } = useQuery({
+src/pages/Analytics.tsx:53:    queryKey: ["analytics-payments", orgId],
+src/pages/Analytics.tsx:56:      const { data } = await supabase.from("worker_payments").select("amount, date, type").eq("organization_id", orgId).order("date", { ascending: false }).limit(500);
+src/pages/Analytics.tsx:92:  const { data: invoices = [], isLoading: loadingInvoices, refetch: refetchInvoices } = useQuery({
+src/pages/Analytics.tsx:93:    queryKey: ["analytics-invoices", orgId],
+src/pages/Analytics.tsx:96:      const { data } = await supabase.from("invoices").select("total_amount, balance_due, status, created_at, due_date").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(500);
+src/pages/Analytics.tsx:102:  const { data: receipts = [], isLoading: loadingReceipts, refetch: refetchReceipts } = useQuery({
+src/pages/Analytics.tsx:103:    queryKey: ["analytics-receipts", orgId],
+src/pages/Analytics.tsx:106:      const { data } = await supabase.from("receipts").select("amount_received, payment_date").eq("organization_id", orgId).order("payment_date", { ascending: false }).limit(500);
+src/pages/Analytics.tsx:113:    // Money actually on the books (invoices/receipts) — not just accepted quotes.
+src/pages/Analytics.tsx:114:    const billed = Number(financeReport?.invoiced ?? invoices.filter((inv) => inv.status !== "draft").reduce((s: number, inv) => s + Number(inv.total_amount ?? 0), 0));
+src/pages/Analytics.tsx:115:    const collected = Number(financeReport?.collected ?? receipts.reduce((s: number, r) => s + Number(r.amount_received ?? 0), 0));
+src/pages/Analytics.tsx:116:    const outstanding = invoices.reduce((s: number, inv) => s + Number(inv.balance_due ?? 0), 0);
+src/pages/Analytics.tsx:120:    const totalPayments = Number(financeReport?.worker_payments ?? payments.reduce((s: number, p) => s + Number(p.amount ?? 0), 0));
+src/pages/Analytics.tsx:154:    const revenueData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => ({ month: row.month, revenue: Number(row.invoiced ?? 0), expenses: Number(row.expenses ?? 0) })) : Array.from(monthlyMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([month, data]) => ({ month: monthLabel(month), ...data }));
+src/pages/Analytics.tsx:156:    // Cash flow: billed (invoices issued) vs collected (receipts) by month.
+src/pages/Analytics.tsx:158:    invoices.filter((inv) => inv.status !== "draft").forEach((inv) => {
+src/pages/Analytics.tsx:164:    receipts.forEach((r) => {
+src/pages/Analytics.tsx:165:      const month = monthKey(r.payment_date);
+src/pages/Analytics.tsx:170:    const cashFlowData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => ({ month: row.month, billed: Number(row.invoiced ?? 0), collected: Number(row.collected ?? 0) })) : Array.from(cashMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([month, data]) => ({ month: monthLabel(month), ...data }));
+src/pages/Analytics.tsx:200:  }, [payments, expenses, quotations, inventory, invoices, receipts, financeReport]);
+src/pages/Analytics.tsx:209:    { label: "Billed", value: formatCurrency(analytics.billed), icon: DollarSign, sub: `${invoices.filter((i) => i.status !== "draft").length} invoices issued` },
+src/pages/Analytics.tsx:210:    { label: "Collected", value: formatCurrency(analytics.collected), icon: TrendingUp, sub: `${analytics.outstanding > 0 ? `${formatCurrency(analytics.outstanding)} outstanding` : "All invoices settled"}` },
+src/pages/Analytics.tsx:211:    { label: "Net Profit", value: formatCurrency(analytics.netProfit), icon: Percent, sub: `After ${formatCurrency(analytics.totalExpenses)} expenses & payments` },
+src/pages/Analytics.tsx:221:        lastUpdated={paymentsUpdatedAt ? new Date(paymentsUpdatedAt) : null}
+src/pages/Analytics.tsx:228:        {operationalDashboard && <Card className="border-primary/20 bg-primary/5"><CardContent className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 lg:grid-cols-8"><div><p className="text-[10px] text-muted-foreground">Open demands</p><p className="text-lg font-semibold">{operationalDashboard.procurement?.open_demands ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Reserved stock</p><p className="text-lg font-semibold">{operationalDashboard.inventory?.reserved_stock_count ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Overdue invoices</p><p className="text-lg font-semibold">{operationalDashboard.receivables?.overdue_count ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Open service</p><p className="text-lg font-semibold">{operationalDashboard.service?.open_tickets ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">QA attention</p><p className="text-lg font-semibold">{operationalDashboard.quality?.qa_open ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Pending delivery</p><p className="text-lg font-semibold">{operationalDashboard.logistics?.pending_deliveries ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Accepted quotes</p><p className="text-lg font-semibold">{operationalDashboard.pipeline?.quotations_accepted ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">In-progress projects</p><p className="text-lg font-semibold">{operationalDashboard.projects?.in_progress ?? 0}</p></div></CardContent></Card>}
+src/pages/Analytics.tsx:250:            <p className="text-sm text-muted-foreground text-center py-16">Issue invoices and record receipts to see cash flow trends.</p>
+src/pages/AppSettings.tsx:9:import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+src/pages/AppSettings.tsx:152:  { key: "default_payment_terms", label: "Default payment terms", unit: "text", description: "Suggested terms only; quotations remain the source of truth." },
+src/pages/AppSettings.tsx:236:        <CardDescription>Only management-approved values become operational inputs. The ERP does not assume tax, warranty, credit, or payment policies.</CardDescription>
+src/pages/AppSettings.tsx:292:      const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, phone, avatar_url, terminated").in("user_id", userIds);
+src/pages/AppSettings.tsx:293:      const profileMap = new Map((profiles ?? []).map((p: { user_id: string; full_name: string | null; avatar_url: string | null; terminated?: boolean }) => [p.user_id, p]));
+src/pages/AppSettings.tsx:297:        avatar_url: profileMap.get(m.user_id)?.avatar_url,
+src/pages/AppSettings.tsx:310:        .select("user_id, full_name, avatar_url, terminated_at")
+src/pages/AppSettings.tsx:360:      const { data: allProfiles } = await supabase.from("profiles").select("user_id, full_name, avatar_url").eq("organization_id", orgId);
+src/pages/AppSettings.tsx:445:  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+src/pages/AppSettings.tsx:451:      const { data: uploadData, error: uploadError } = await supabase.storage.from("avatars").upload(filePath, file);
+src/pages/AppSettings.tsx:453:      // The avatars bucket is private, so store a long-lived signed URL (1 year).
+src/pages/AppSettings.tsx:455:        .from("avatars")
+src/pages/AppSettings.tsx:458:      const { error: updateError } = await supabase.from("profiles").update({ avatar_url: urlData.signedUrl }).eq("user_id", user.id);
+src/pages/AppSettings.tsx:484:          { actor: "You", action: "manage your own profile, avatar and password in the Profile tab." },
+src/pages/AppSettings.tsx:530:                {unassignedUsers.map((u: { user_id: string; full_name: string | null; avatar_url: string | null }) => {
+src/pages/AppSettings.tsx:536:                      <Avatar className="h-7 w-7">

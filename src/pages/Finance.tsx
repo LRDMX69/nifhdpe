@@ -31,7 +31,7 @@ import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
-import { calculateExpensePaymentStatus, calculateOutstandingBalance } from "@/lib/financialMath";
+import { calculateExpensePaymentStatus, calculateOutstandingBalance, calculateReceivablesFromAging } from "@/lib/financialMath";
 
 type ExpenseItem = Database["public"]["Tables"]["expenses"]["Row"];
 type PaymentItem = Database["public"]["Tables"]["worker_payments"]["Row"];
@@ -42,6 +42,8 @@ type InvoiceLineItem = Database["public"]["Tables"]["invoice_items"]["Row"] & { 
 type QuotationItem = { total_amount: number | null; created_at: string };
 type BankTransactionItem = { id: string; transaction_date: string; description: string | null; reference: string | null; amount: number; direction: "credit" | "debit"; review_status: string; account_id: string; };
 type FinanceTransactionLinkItem = { id: string; bank_transaction_id: string; entity_type: string; entity_id: string; linked_amount: number; notes: string | null; linked_at: string; };
+type FinanceLinkEntityType = "invoice" | "receipt" | "expense" | "worker_payment" | "purchase_order" | "fuel_log" | "director_account" | "staff_loan" | "loan_repayment" | "salary_schedule" | "overtime" | "vat_entry" | "external_loan";
+type FinanceLinkedSource = { id: string; label: string; amount: number };
 
 const PAYMENT_TYPES = ["salary", "overtime", "fuel", "maintenance", "bonus", "transport", "vendor"] as const;
 const EXPENSE_CATEGORIES = ["labor", "fuel", "transport", "materials", "equipment", "other"] as const;
@@ -78,7 +80,7 @@ const Finance = () => {
   const [payAccountId, setPayAccountId] = useState("none");
   const [payOverrideMatch, setPayOverrideMatch] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
-  const [linkEntityType, setLinkEntityType] = useState<"invoice" | "receipt" | "expense" | "worker_payment">("receipt");
+  const [linkEntityType, setLinkEntityType] = useState<FinanceLinkEntityType>("receipt");
   const [linkEntityId, setLinkEntityId] = useState("");
   const [linkBankTransactionId, setLinkBankTransactionId] = useState("");
   const [linkAmount, setLinkAmount] = useState("");
@@ -195,6 +197,38 @@ const Finance = () => {
     },
     enabled: !!orgId,
   });
+  const { data: additionalBankLinkSources = {}, error: additionalBankLinkSourcesError, refetch: refetchAdditionalBankLinkSources } = useQuery({
+    queryKey: ["finance-bank-linkable-sources", orgId],
+    queryFn: async () => {
+      if (!orgId) return {} as Partial<Record<FinanceLinkEntityType, FinanceLinkedSource[]>>;
+      const [purchaseOrders, fuelLogs, directorEntries, staffLoans, loanRepayments, salarySchedules, overtimeEntries, vatEntries, externalLoans] = await Promise.all([
+        industrialDb.from("purchase_orders").select("id, document_number, total_amount, vendor_id, vendors(name)").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(200),
+        industrialDb.from("fuel_logs").select("id, log_date, cost, vehicle_id, notes").eq("organization_id", orgId).order("log_date", { ascending: false }).limit(200),
+        industrialDb.from("director_account_entries").select("id, entry_date, amount, transaction_type, folio, description").eq("organization_id", orgId).order("entry_date", { ascending: false }).limit(200),
+        industrialDb.from("hr_staff_loans").select("id, amount, outstanding_balance, status, employee_id, start_date").eq("organization_id", orgId).order("start_date", { ascending: false }).limit(200),
+        industrialDb.from("hr_loan_repayments").select("id, amount, payment_date, loan_id, notes").eq("organization_id", orgId).order("payment_date", { ascending: false }).limit(200),
+        industrialDb.from("hr_salary_schedules").select("id, net_pay, period_start, period_end, status, employee_id").eq("organization_id", orgId).order("period_end", { ascending: false }).limit(200),
+        industrialDb.from("hr_overtime_entries").select("id, overtime_earnings, period_month, status, employee_id").eq("organization_id", orgId).order("period_month", { ascending: false }).limit(200),
+        industrialDb.from("vat_schedule_entries").select("id, entry_date, client_name, gross_amount, total_vat_credit_payable").eq("organization_id", orgId).order("entry_date", { ascending: false }).limit(200),
+        industrialDb.from("hr_external_loans").select("id, lender, loan_date, principal_amount, remaining_balance, status").eq("organization_id", orgId).order("loan_date", { ascending: false }).limit(200),
+      ]);
+      const responses = [purchaseOrders, fuelLogs, directorEntries, staffLoans, loanRepayments, salarySchedules, overtimeEntries, vatEntries, externalLoans];
+      const failed = responses.find((response) => response.error);
+      if (failed?.error) throw failed.error;
+      return {
+        purchase_order: (purchaseOrders.data ?? []).map((row: any) => ({ id: row.id, label: `${row.document_number ?? "Purchase order"} · ${row.vendors?.name ?? "Vendor"}`, amount: Number(row.total_amount ?? 0) })),
+        fuel_log: (fuelLogs.data ?? []).map((row: any) => ({ id: row.id, label: `${row.log_date} · Fuel${row.notes ? ` · ${row.notes}` : ""}`, amount: Number(row.cost ?? 0) })),
+        director_account: (directorEntries.data ?? []).map((row: any) => ({ id: row.id, label: `${row.entry_date} · ${row.transaction_type}${row.folio ? ` · ${row.folio}` : ""}`, amount: Number(row.amount ?? 0) })),
+        staff_loan: (staffLoans.data ?? []).map((row: any) => ({ id: row.id, label: `${row.start_date} · Staff loan · ${row.status}`, amount: Number(row.amount ?? 0) })),
+        loan_repayment: (loanRepayments.data ?? []).map((row: any) => ({ id: row.id, label: `${row.payment_date} · Loan repayment`, amount: Number(row.amount ?? 0) })),
+        salary_schedule: (salarySchedules.data ?? []).map((row: any) => ({ id: row.id, label: `${row.period_start} → ${row.period_end} · Salary · ${row.status}`, amount: Number(row.net_pay ?? 0) })),
+        overtime: (overtimeEntries.data ?? []).map((row: any) => ({ id: row.id, label: `${row.period_month} · Overtime · ${row.status}`, amount: Number(row.overtime_earnings ?? 0) })),
+        vat_entry: (vatEntries.data ?? []).map((row: any) => ({ id: row.id, label: `${row.entry_date} · VAT · ${row.client_name}`, amount: Number(row.total_vat_credit_payable ?? row.gross_amount ?? 0) })),
+        external_loan: (externalLoans.data ?? []).map((row: any) => ({ id: row.id, label: `${row.loan_date} · ${row.lender} · ${row.status}`, amount: Number(row.principal_amount ?? 0) })),
+      } as Partial<Record<FinanceLinkEntityType, FinanceLinkedSource[]>>;
+    },
+    enabled: !!orgId,
+  });
 
   const { data: financeReport, isLoading: financeReportLoading, refetch: refetchFinanceReport } = useQuery({
     queryKey: ["finance-period-report", orgId, reportFrom, reportTo],
@@ -217,7 +251,10 @@ const Finance = () => {
     const totalExpenses = Number(financeReport?.operating_expenses ?? expenses.reduce((s: number, e: ExpenseItem) => s + Number(e.amount ?? 0), 0));
     const totalPayments = Number(financeReport?.worker_payments ?? payments.reduce((s: number, p: PaymentItem) => s + Number(p.amount ?? 0), 0));
     const netProfit = totalReceived - totalExpenses - totalPayments;
-    const receivables = Math.max(0, totalRevenue - totalReceived);
+    const aging = financeReport?.aging ?? {};
+    const receivables = financeReport
+      ? calculateReceivablesFromAging(aging)
+      : invoices.filter((invoice) => !["paid", "cancelled", "draft"].includes(String(invoice.status))).reduce((sum, invoice) => sum + Number(invoice.balance_due ?? invoice.total_amount ?? 0), 0);
 
     const monthKey = (value: string | null | undefined) => {
       if (!value) return "unknown";
@@ -229,35 +266,46 @@ const Finance = () => {
       return new Date(`${key}-01T00:00:00`).toLocaleString("en", { month: "short", year: "2-digit" });
     };
     const monthlyMap = new Map<string, { revenue: number; expenses: number }>();
-    invoices.forEach((inv) => {
-      const month = monthKey(inv.created_at);
+    const inReportPeriod = (value: string | null | undefined) => {
+      if (!value) return false;
+      const date = value.slice(0, 10);
+      return date >= reportFrom && date <= reportTo;
+    };
+    invoices.filter((invoice) => invoice.status !== "draft" && inReportPeriod(invoice.invoice_date)).forEach((inv) => {
+      const month = monthKey(inv.invoice_date);
       const entry = monthlyMap.get(month) ?? { revenue: 0, expenses: 0 };
       entry.revenue += Number(inv.total_amount ?? 0);
       monthlyMap.set(month, entry);
     });
-    expenses.forEach((e: ExpenseItem) => {
+    expenses.filter((expense: ExpenseItem) => inReportPeriod(expense.date)).forEach((e: ExpenseItem) => {
       const month = monthKey(e.date);
       const entry = monthlyMap.get(month) ?? { revenue: 0, expenses: 0 };
       entry.expenses += Number(e.amount ?? 0);
       monthlyMap.set(month, entry);
     });
-    const chartData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => ({ month: row.month, revenue: Number(row.invoiced ?? 0), expenses: Number(row.expenses ?? 0) })) : Array.from(monthlyMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([month, data]) => ({ month: monthLabel(month), ...data }));
+    payments.filter((payment: PaymentItem) => inReportPeriod(payment.date)).forEach((payment: PaymentItem) => {
+      const month = monthKey(payment.date);
+      const entry = monthlyMap.get(month) ?? { revenue: 0, expenses: 0 };
+      entry.expenses += Number(payment.amount ?? 0);
+      monthlyMap.set(month, entry);
+    });
+    const chartData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => ({ month: row.month, revenue: Number(row.invoiced ?? 0), expenses: Number(row.expenses ?? 0) + Number(row.worker_payments ?? 0) })) : Array.from(monthlyMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([month, data]) => ({ month: monthLabel(month), ...data }));
 
     return { totalRevenue, totalReceived, receivables, totalExpenses: totalExpenses + totalPayments, netProfit, totalPayments, chartData };
-  }, [payments, expenses, invoices, receipts, financeReport]);
+  }, [payments, expenses, invoices, receipts, financeReport, reportFrom, reportTo]);
 
   const getMemberName = (userId: string) => members.find(m => m.value === userId)?.label ?? "Unknown";
   const accountName = (accountId: string) => financeAccounts.find((account) => account.id === accountId)?.account_name ?? "Bank account";
   const calculatedExpenseOutstanding = calculateOutstandingBalance(Number(expAmount || 0), [Number(expPartPayment || 0)]);
   const calculatedExpenseStatus = calculateExpensePaymentStatus(calculatedExpenseOutstanding, Number(expPartPayment || 0));
-  const linkSources = useMemo(() => {
+    const linkSources = useMemo(() => {
     if (linkEntityType === "invoice") return (invoices as InvoiceItem[]).map((item) => ({ id: item.id, label: `${item.document_number ?? "Invoice"} · ${item.clients?.name ?? "Unknown client"}`, amount: Number(item.total_amount ?? 0) }));
     if (linkEntityType === "receipt") return (receipts as ReceiptItem[]).map((item) => ({ id: item.id, label: `${item.document_number ?? "Receipt"} · ${item.clients?.name ?? "Unknown client"}`, amount: Number(item.amount_received ?? 0) }));
     if (linkEntityType === "expense") return (expenses as ExpenseItem[]).map((item) => ({ id: item.id, label: `${item.date} · ${item.category} · ${item.description ?? "Expense"}`, amount: Number(item.amount ?? 0) }));
-    return (payments as PaymentItem[]).map((item) => ({ id: item.id, label: `${item.date} · ${item.type} · ${item.description ?? "Worker payment"}`, amount: Number(item.amount ?? 0) }));
-  }, [linkEntityType, invoices, receipts, expenses, payments]);
-
-  const openBankLinkDialog = (entityType: "invoice" | "receipt" | "expense" | "worker_payment", entityId?: string, amount?: number) => {
+    if (linkEntityType === "worker_payment") return (payments as PaymentItem[]).map((item) => ({ id: item.id, label: `${item.date} · ${item.type} · ${item.description ?? "Worker payment"}`, amount: Number(item.amount ?? 0) }));
+    return additionalBankLinkSources[linkEntityType] ?? [];
+  }, [linkEntityType, invoices, receipts, expenses, payments, additionalBankLinkSources]);
+  const openBankLinkDialog = (entityType: FinanceLinkEntityType, entityId?: string, amount?: number) => {
     setLinkEntityType(entityType);
     setLinkEntityId(entityId ?? "");
     setLinkAmount(amount && amount > 0 ? String(amount) : "");
@@ -380,7 +428,10 @@ const Finance = () => {
         const { error } = await supabase.from("worker_payments").insert(payload);
         if (error) throw error;
         toast({ title: "Payment logged" });
-        supabase.functions.invoke("anomaly-detection", { body: { organization_id: orgId } }).catch((err) => console.error("anomaly-detection invoke failed", err));
+        const { error: anomalyError } = await supabase.functions.invoke("anomaly-detection", { body: { organization_id: orgId } });
+        if (anomalyError) {
+          toast({ title: "Payment logged; anomaly scan unavailable", description: "The payment is saved, but the background anomaly check could not complete. Retry the scan from Finance later.", variant: "destructive" });
+        }
       }
       setPaymentOpen(false); resetPaymentForm(); refetchPayments();
     } catch (err: unknown) {
@@ -483,7 +534,7 @@ const Finance = () => {
         description="Revenue, expenses, payments, and profit tracking"
         executiveSummary={`${invoices.filter((i: any) => i.status !== "paid").length} unpaid invoices · ${payments.length} recent payments tracked`}
         lastUpdated={Math.max(invoicesUpdatedAt || 0, paymentsUpdatedAt || 0) || null}
-        onRefresh={() => { refetchInvoices(); refetchPayments(); refetchExpenses(); refetchReceipts(); refetchFinanceReport(); refetchBankTransactions(); refetchTransactionLinks(); }}
+        onRefresh={() => { refetchInvoices(); refetchPayments(); refetchExpenses(); refetchReceipts(); refetchFinanceReport(); refetchBankTransactions(); refetchTransactionLinks(); refetchAdditionalBankLinkSources(); }}
       >
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => exportCsv(`invoices-${new Date().toISOString().slice(0, 10)}`, [
@@ -579,12 +630,12 @@ const Finance = () => {
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">Only approved or suggested bank lines can be linked. The database validates that the selected record belongs to this organization and writes an auditable connection.</p>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2"><Label>ERP record type *</Label><Select value={linkEntityType} onValueChange={(value) => { const next = value as typeof linkEntityType; setLinkEntityType(next); setLinkEntityId(""); setLinkAmount(""); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="invoice">Invoice</SelectItem><SelectItem value="receipt">Receipt</SelectItem><SelectItem value="expense">Expense</SelectItem><SelectItem value="worker_payment">Worker payment</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label>ERP record type *</Label><Select value={linkEntityType} onValueChange={(value) => { const next = value as FinanceLinkEntityType; setLinkEntityType(next); setLinkEntityId(""); setLinkAmount(""); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="invoice">Invoice</SelectItem><SelectItem value="receipt">Receipt</SelectItem><SelectItem value="expense">Expense</SelectItem><SelectItem value="worker_payment">Worker payment</SelectItem><SelectItem value="purchase_order">Purchase order</SelectItem><SelectItem value="fuel_log">Fuel log</SelectItem><SelectItem value="director_account">Director account</SelectItem><SelectItem value="staff_loan">Staff loan</SelectItem><SelectItem value="loan_repayment">Loan repayment</SelectItem><SelectItem value="salary_schedule">Salary schedule</SelectItem><SelectItem value="overtime">Overtime</SelectItem><SelectItem value="vat_entry">VAT entry</SelectItem><SelectItem value="external_loan">External loan</SelectItem></SelectContent></Select></div>
               <div className="space-y-2"><Label>ERP record *</Label><Select value={linkEntityId} onValueChange={(value) => { setLinkEntityId(value); const source = linkSources.find((item) => item.id === value); if (source) setLinkAmount(String(source.amount)); }}><SelectTrigger><SelectValue placeholder="Select an ERP record" /></SelectTrigger><SelectContent>{linkSources.map((source) => <SelectItem key={source.id} value={source.id}>{source.label}</SelectItem>)}</SelectContent></Select></div>
             </div>
             <div className="space-y-2"><Label>Bank transaction *</Label><Select value={linkBankTransactionId} onValueChange={setLinkBankTransactionId}><SelectTrigger><SelectValue placeholder={bankTransactionsLoading ? "Loading bank lines…" : "Select an approved bank line"} /></SelectTrigger><SelectContent>{bankTransactions.filter((transaction) => transaction.review_status !== "rejected").map((transaction) => <SelectItem key={transaction.id} value={transaction.id}>{transaction.transaction_date} · {transaction.direction === "credit" ? "+" : "−"}{formatCurrency(Number(transaction.amount))} · {accountName(transaction.account_id)} · {transaction.description ?? transaction.reference ?? "Bank transaction"}</SelectItem>)}</SelectContent></Select>{bankTransactions.length === 0 && <p className="text-xs text-muted-foreground">No approved or suggested bank transactions are available. Import and review a statement in HR → Bank & Reconciliation first.</p>}</div>
             <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Linked amount (₦) *</Label><Input type="number" min="0.01" step="0.01" value={linkAmount} onChange={(event) => setLinkAmount(event.target.value)} /></div><div className="space-y-2"><Label>Audit note</Label><Input value={linkNotes} onChange={(event) => setLinkNotes(event.target.value)} placeholder="Reason, reference, or reconciliation note" /></div></div>
-            {(bankTransactionsError || transactionLinksError) && <p className="text-sm text-destructive">Bank analysis could not be loaded. Retry the page before linking.</p>}
+            {(bankTransactionsError || transactionLinksError || additionalBankLinkSourcesError) && <p className="text-sm text-destructive">Bank analysis could not be loaded. Retry the page before linking.</p>}
             <Button className="w-full" onClick={handleLinkBankTransaction} disabled={saving || bankTransactionsLoading}>{saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Link2 className="mr-1 h-4 w-4" />}Save bank link</Button>
           </div>
         </DialogContent>
