@@ -1463,36 +1463,60 @@ export type Database = {
           approved_by: string | null
           created_at: string
           end_date: string
+          hr_review_status: string
+          hr_reviewed_at: string | null
+          hr_reviewed_by: string | null
           id: string
           leave_type: string
+          md_decided_at: string | null
+          md_decided_by: string | null
+          md_decision: string | null
+          md_decision_reason: string | null
           organization_id: string
           reason: string | null
           start_date: string
           status: string
+          updated_at: string
           user_id: string
         }
         Insert: {
           approved_by?: string | null
           created_at?: string
           end_date: string
+          hr_review_status?: string
+          hr_reviewed_at?: string | null
+          hr_reviewed_by?: string | null
           id?: string
           leave_type?: string
+          md_decided_at?: string | null
+          md_decided_by?: string | null
+          md_decision?: string | null
+          md_decision_reason?: string | null
           organization_id: string
           reason?: string | null
           start_date: string
           status?: string
+          updated_at?: string
           user_id: string
         }
         Update: {
           approved_by?: string | null
           created_at?: string
           end_date?: string
+          hr_review_status?: string
+          hr_reviewed_at?: string | null
+          hr_reviewed_by?: string | null
           id?: string
           leave_type?: string
+          md_decided_at?: string | null
+          md_decided_by?: string | null
+          md_decision?: string | null
+          md_decision_reason?: string | null
           organization_id?: string
           reason?: string | null
           start_date?: string
           status?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: [

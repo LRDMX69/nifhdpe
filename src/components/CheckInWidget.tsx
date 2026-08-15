@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { humanizeError } from "@/lib/humanizeError";
@@ -24,6 +24,8 @@ const DEFAULT_RADIUS = 1000; // 1km — generous to tolerate phone GPS drift
 const MIN_ACCEPTABLE_ACCURACY = 200; // metres; warn user above this
 
 /** Check if current Nigeria time is past 5:00 PM */
+export const getNigeriaBusinessDate = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos" }).format(new Date());
+
 const isPast5pmNigeria = () => {
   const now = new Date();
   const nigeriaTime = new Date(now.toLocaleString("en-US", { timeZone: "Africa/Lagos" }));
@@ -44,6 +46,7 @@ interface DebugInfo {
 export const CheckInWidget = () => {
   const { user, memberships } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const orgId = memberships[0]?.organization_id;
   const [loading, setLoading] = useState(false);
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
@@ -87,7 +90,7 @@ export const CheckInWidget = () => {
     queryKey: ["holiday-today", orgId],
     queryFn: async () => {
       if (!orgId) return null;
-      const today = new Date().toISOString().split("T")[0];
+      const today = getNigeriaBusinessDate();
       const { data } = await supabase
         .from("holidays")
         .select("*")
@@ -106,7 +109,7 @@ export const CheckInWidget = () => {
     queryKey: ["attendance-today", orgId, user?.id],
     queryFn: async () => {
       if (!orgId || !user) return null;
-      const today = new Date().toISOString().split("T")[0];
+      const today = getNigeriaBusinessDate();
       const { data } = await supabase
         .from("attendance")
         .select("*")
@@ -202,9 +205,9 @@ export const CheckInWidget = () => {
     if (!orgId || !user) return;
 
     if (!hasAnyLocation) {
-      toast({
-        title: "No check-in location configured",
-        description: "Office coordinates or project site locations must be set by an administrator.",
+        toast({
+        title: "Attendance setup required",
+        description: "An administrator must configure office coordinates or assign a GPS-enabled project before Check In can be used.",
         variant: "destructive",
       });
       return;
@@ -247,7 +250,7 @@ export const CheckInWidget = () => {
         return;
       }
 
-      const today = new Date().toISOString().split("T")[0];
+      const today = getNigeriaBusinessDate();
       const { error } = await supabase.from("attendance").insert({
         organization_id: orgId,
         user_id: user.id,
@@ -264,7 +267,12 @@ export const CheckInWidget = () => {
         }
       } else {
         toast({ title: "Checked in!", description: `${closest.zone} verified (${Math.round(closest.distance)}m).` });
-        refetch();
+        await refetch();
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["attendance-all", orgId] }),
+          queryClient.invalidateQueries({ queryKey: ["attendance-weekly", orgId] }),
+          queryClient.invalidateQueries({ queryKey: ["attendance-today", orgId, user.id] }),
+        ]);
       }
     } catch (err: unknown) {
       const error = err as { code?: number; message?: string };
@@ -301,7 +309,12 @@ export const CheckInWidget = () => {
         toast({ title: "Check-out failed", description: humanizeError(error), variant: "destructive" });
       } else {
         toast({ title: "Checked out!" });
-        refetch();
+        await refetch();
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["attendance-all", orgId] }),
+          queryClient.invalidateQueries({ queryKey: ["attendance-weekly", orgId] }),
+          queryClient.invalidateQueries({ queryKey: ["attendance-today", orgId, user?.id] }),
+        ]);
       }
     } catch (err: unknown) {
       const error = err as { message?: string };
@@ -359,9 +372,9 @@ export const CheckInWidget = () => {
           </div>
           <div className="flex gap-2 shrink-0">
             {!todayAttendance ? (
-              <Button size="sm" onClick={handleCheckIn} disabled={loading || !hasAnyLocation}>
+              <Button size="sm" onClick={handleCheckIn} disabled={loading || !hasAnyLocation} title={!hasAnyLocation ? "Configure office or project GPS coordinates in Settings before checking in" : undefined}>
                 {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <MapPin className="h-4 w-4 mr-1" />}
-                Check In
+                {hasAnyLocation ? "Check In" : "Configure location"}
               </Button>
             ) : !todayAttendance.check_out ? (
               <Button size="sm" variant="outline" onClick={handleCheckOut} disabled={loading}>

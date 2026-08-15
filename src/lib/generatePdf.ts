@@ -104,13 +104,12 @@ function drawLetterheadBackground(doc: jsPDF, dataUrl: string | null) {
   }
 }
 
-function checkPageBreak(doc: jsPDF, y: number, needed: number, margin: number): number {
+function checkPageBreak(doc: jsPDF, y: number, needed: number, margin: number, contentTop = CONTENT_TOP_START, contentBottom = CONTENT_BOTTOM_RESERVE, letterheadDataUrl: string | null = null): number {
   const pageH = doc.internal.pageSize.getHeight();
-  // Reserve space for the footer band and page meta text.
-  if (y + needed > pageH - CONTENT_BOTTOM_RESERVE) {
+  if (y + needed > pageH - contentBottom) {
     doc.addPage();
-    drawPageChrome(doc);
-    return CONTENT_TOP_START;
+    drawPageChrome(doc, letterheadDataUrl);
+    return contentTop;
   }
   return y;
 }
@@ -156,8 +155,8 @@ function drawCircularStamp(doc: jsPDF, x: number, y: number, stampType: string, 
   doc.text(dateStr, x, y + 10, { align: "center" });
 
   doc.setFontSize(6);
-  doc.text("★", x - 14, y + 1.5, { align: "center" });
-  doc.text("★", x + 14, y + 1.5, { align: "center" });
+  doc.text("*", x - 14, y + 1.5, { align: "center" });
+  doc.text("*", x + 14, y + 1.5, { align: "center" });
 }
 
 function parseContentIntoSections(content: string): ContentSection[] {
@@ -222,17 +221,23 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   let logoData: string | null = null;
   if (logoUrl) logoData = await loadImageAsBase64(logoUrl);
 
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const sections = contentSections || (content ? parseContentIntoSections(content) : []);
+  const isCompactDocument = Boolean(
+    tableData && tableData.rows.length <= 8 && sections.length <= 2 &&
+    sections.reduce((total, section) => total + (section.body?.length ?? 0) + (section.bullets?.join(" ").length ?? 0), 0) < 1200,
+  );
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: isCompactDocument ? "a5" : "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const margin = 20;
+  const margin = isCompactDocument ? 12 : 20;
   const contentW = pageW - margin * 2;
+  const contentTop = isCompactDocument ? 45 : CONTENT_TOP_START;
+  const contentBottom = isCompactDocument ? 18 : CONTENT_BOTTOM_RESERVE;
+  const pdfText = (value: string | number) => String(value).replace(/₦/g, "NGN ").replace(/★/g, "*");
 
-  // Branded letterhead background (full-page image; content renders on top).
   const letterheadDataUrl = await getLetterheadDataUrl();
   drawPageChrome(doc, letterheadDataUrl);
-  // Content starts below the visible letterhead artwork.
-  let y = CONTENT_TOP_START;
+  let y = contentTop;
 
   // Structured document header: predictable metadata first, then a strong title hierarchy.
   const docId = documentId || `DOC-${Date.now().toString(36).toUpperCase()}`;
@@ -249,9 +254,10 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   doc.setFillColor(...GREEN);
   doc.roundedRect(margin, y - 4, 3.5, 24, 1.5, 1.5, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
+  doc.setFontSize(isCompactDocument ? 12 : 18);
   doc.setTextColor(...DARK);
-  doc.text(title.toUpperCase(), margin + 10, y + 6);
+  const titleLines = doc.splitTextToSize(pdfText(title.toUpperCase()), contentW - 22);
+  doc.text(titleLines[0], margin + 10, y + 6);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...SLATE);
@@ -282,11 +288,9 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   y += 8;
 
   // Content sections
-  const sections = contentSections || (content ? parseContentIntoSections(content) : []);
-
   for (const section of sections) {
     if (section.heading) {
-      y = checkPageBreak(doc, y, 12, margin);
+      y = checkPageBreak(doc, y, 12, margin, contentTop, contentBottom, letterheadDataUrl);
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(...DARK);
@@ -297,10 +301,10 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(30, 30, 30);
-      const lines = doc.splitTextToSize(section.body, contentW);
+      const lines = doc.splitTextToSize(pdfText(section.body), contentW);
       for (const line of lines) {
-        y = checkPageBreak(doc, y, 6, margin);
-        doc.text(line, margin, y);
+        y = checkPageBreak(doc, y, 6, margin, contentTop, contentBottom, letterheadDataUrl);
+        doc.text(pdfText(line), margin, y);
         y += 5;
       }
       y += 2;
@@ -331,7 +335,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
             imgH = maxH;
             imgW = (imgH * dims.w) / dims.h;
           }
-          y = checkPageBreak(doc, y, imgH + 6, margin);
+          y = checkPageBreak(doc, y, imgH + 6, margin, contentTop, contentBottom, letterheadDataUrl);
           try {
             const fmt = /\.png(\?.*)?$/i.test(imgUrl) ? "PNG" : "JPEG";
             doc.addImage(imgData, fmt, margin, y, imgW, imgH);
@@ -350,13 +354,13 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       doc.setFontSize(9.5);
       doc.setTextColor(40, 40, 40);
       for (const bullet of section.bullets) {
-        y = checkPageBreak(doc, y, 6, margin);
+        y = checkPageBreak(doc, y, 6, margin, contentTop, contentBottom, letterheadDataUrl);
         doc.setFillColor(...GREEN);
         doc.circle(margin + 1.5, y - 1.2, 0.8, "F");
-        const bulletLines = doc.splitTextToSize(bullet, contentW - 8);
+        const bulletLines = doc.splitTextToSize(pdfText(bullet), contentW - 8);
         for (let i = 0; i < bulletLines.length; i++) {
-          if (i > 0) y = checkPageBreak(doc, y, 5, margin);
-          doc.text(bulletLines[i], margin + 5, y);
+          if (i > 0) y = checkPageBreak(doc, y, 5, margin, contentTop, contentBottom, letterheadDataUrl);
+          doc.text(pdfText(bulletLines[i]), margin + 5, y);
           y += 4.5;
         }
       }
@@ -366,12 +370,12 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
 
   // Table data
   if (tableData) {
-    y = checkPageBreak(doc, y, 30, margin);
+    y = checkPageBreak(doc, y, 30, margin, contentTop, contentBottom, letterheadDataUrl);
     autoTable(doc, {
       startY: y,
       head: [tableData.columns.map(c => c.header)],
-      body: tableData.rows.map(row => tableData.columns.map(c => String(row[c.dataKey] ?? ""))),
-      margin: { top: CONTENT_TOP_START, right: margin, bottom: CONTENT_BOTTOM_RESERVE, left: margin },
+      body: tableData.rows.map(row => tableData.columns.map(c => pdfText(row[c.dataKey] ?? ""))),
+      margin: { top: contentTop, right: margin, bottom: contentBottom, left: margin },
       styles: { font: "helvetica", fontSize: 8.3, cellPadding: { top: 2.7, right: 3, bottom: 2.7, left: 3 }, textColor: [35, 45, 55], lineColor: [218, 226, 221], lineWidth: 0.18, valign: "middle", overflow: "linebreak" },
       headStyles: { fillColor: BLUE as [number, number, number], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.2, halign: "left", lineColor: BLUE as [number, number, number] },
       alternateRowStyles: { fillColor: LIGHT_GREEN as [number, number, number] },
@@ -388,7 +392,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
 
     if (tableData.summary) {
       const summaryHeight = Math.max(16, tableData.summary.length * 6 + 8);
-      y = checkPageBreak(doc, y, summaryHeight, margin);
+      y = checkPageBreak(doc, y, summaryHeight, margin, contentTop, contentBottom, letterheadDataUrl);
       const boxX = pageW - margin - 82;
       doc.setFillColor(248, 251, 249);
       doc.setDrawColor(220, 230, 224);
@@ -400,8 +404,8 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
         doc.setFontSize(item.label.toLowerCase().includes("grand") || item.label.toLowerCase().includes("total amount") ? 9.5 : 8.5);
         doc.setFont("helvetica", item.label.toLowerCase().includes("grand") || item.label.toLowerCase().includes("total") ? "bold" : "normal");
         doc.setTextColor(...(item.label.toLowerCase().includes("grand") || item.label.toLowerCase().includes("total amount") ? DARK : SLATE));
-        doc.text(item.label, boxX + 7, y);
-        doc.text(item.value, pageW - margin - 5, y, { align: "right" });
+        doc.text(pdfText(item.label), boxX + 7, y);
+        doc.text(pdfText(item.value), pageW - margin - 5, y, { align: "right" });
         y += 6;
       }
       y += 5;
@@ -411,8 +415,8 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   // Signature block
   if (showSignature) {
     const sigBlockHeight = 20;
-    if (y + sigBlockHeight + 32 > pageH - CONTENT_BOTTOM_RESERVE) { doc.addPage(); drawPageChrome(doc, letterheadDataUrl); y = CONTENT_TOP_START; }
-    y = Math.max(y + 15, pageH - 50);
+    if (y + sigBlockHeight + 22 > pageH - contentBottom) { doc.addPage(); drawPageChrome(doc, letterheadDataUrl); y = contentTop; }
+    y = Math.min(y + 10, pageH - contentBottom - 14);
     doc.setDrawColor(50, 50, 50);
     doc.setLineWidth(0.3);
     const sigW = contentW / 3 - 10;
@@ -429,7 +433,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   // Stamp
   if (stampType) {
     const stampX = pageW - margin - 20;
-    const stampY = Math.min(y + 5, pageH - 36);
+    const stampY = Math.min(y + 5, pageH - contentBottom - 16);
     drawCircularStamp(doc, stampX, stampY, stampType, options.companyName);
     y = stampY + 22;
   }
@@ -443,8 +447,8 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
     doc.setTextColor(...SLATE);
-    doc.text(`${companyName || COMPANY}  •  ${docId}`, margin, pageH - 23);
-    doc.text(`Page ${i} of ${pageCount}`, pageW - margin, pageH - 23, { align: "right" });
+    doc.text(pdfText(`${companyName || COMPANY}  •  ${docId}`), margin, pageH - (isCompactDocument ? 13 : 23));
+    doc.text(`Page ${i} of ${pageCount}`, pageW - margin, pageH - (isCompactDocument ? 13 : 23), { align: "right" });
 
     // Optional diagonal watermark (DRAFT / FINAL / COPY etc.).
     if (watermark) {
