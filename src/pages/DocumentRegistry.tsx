@@ -38,6 +38,7 @@ interface RevisionRow {
   is_current: boolean;
   changed_at: string;
   change_reason: string;
+  changed_by?: string | null;
   profiles?: { full_name: string | null } | null;
 }
 
@@ -155,17 +156,27 @@ const DocumentRegistry = () => {
       const rows: DocRow[] = [];
       const partial: string[] = [];
       const revisionResult = await industrialDb.from("document_revisions")
-        .select("id, entity_type, entity_id, revision_number, is_current, changed_at, change_reason, profiles(full_name)")
+        .select("id, entity_type, entity_id, revision_number, is_current, changed_at, change_reason, changed_by")
         .eq("organization_id", orgId)
         .order("changed_at", { ascending: false })
         .limit(SOURCE_FETCH_LIMIT);
       if (revisionResult.error) partial.push("revisions");
+      let revisions: RevisionRow[] = [];
+      if (!revisionResult.error) {
+        const rawRevisions = (revisionResult.data ?? []) as RevisionRow[];
+        const changedByIds = [...new Set(rawRevisions.map((revision) => revision.changed_by).filter((id): id is string => !!id))];
+        const profileResult = changedByIds.length > 0
+          ? await supabase.from("profiles").select("user_id, full_name").in("user_id", changedByIds)
+          : { data: [] as Array<{ user_id: string; full_name: string | null }> };
+        const profileMap = new Map((profileResult.data ?? []).map((profile) => [profile.user_id, { full_name: profile.full_name }]));
+        revisions = rawRevisions.map((revision) => ({ ...revision, profiles: revision.changed_by ? profileMap.get(revision.changed_by) ?? null : null }));
+      }
       results.forEach((res, i) => {
         if (res.status === "fulfilled") rows.push(...res.value);
         else partial.push(sources[i].key);
       });
       rows.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
-      return { rows, partial, revisions: (revisionResult.data ?? []) as RevisionRow[] };
+      return { rows, partial, revisions };
     },
     enabled: !!orgId,
   });

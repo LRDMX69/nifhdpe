@@ -876,6 +876,7 @@ export type Database = {
           organization_id: string
           pressure_test_result: string | null
           project_id: string | null
+          work_package_id: string | null
           report_date: string
           safety_incidents: string | null
           tasks_completed: string | null
@@ -891,6 +892,7 @@ export type Database = {
           organization_id: string
           pressure_test_result?: string | null
           project_id?: string | null
+          work_package_id?: string | null
           report_date?: string
           safety_incidents?: string | null
           tasks_completed?: string | null
@@ -906,6 +908,7 @@ export type Database = {
           organization_id?: string
           pressure_test_result?: string | null
           project_id?: string | null
+          work_package_id?: string | null
           report_date?: string
           safety_incidents?: string | null
           tasks_completed?: string | null
@@ -2290,6 +2293,7 @@ export type Database = {
           length_meters: number | null
           quantity: number
           quotation_id: string
+          product_specification_id: string | null
           thickness_mm: number | null
           total_price: number
           unit_price: number
@@ -2303,6 +2307,7 @@ export type Database = {
           length_meters?: number | null
           quantity?: number
           quotation_id: string
+          product_specification_id?: string | null
           thickness_mm?: number | null
           total_price?: number
           unit_price?: number
@@ -2316,6 +2321,7 @@ export type Database = {
           length_meters?: number | null
           quantity?: number
           quotation_id?: string
+          product_specification_id?: string | null
           thickness_mm?: number | null
           total_price?: number
           unit_price?: number
@@ -3103,6 +3109,7 @@ export type Database = {
         | "bonus"
         | "transport"
         | "vendor"
+        | "loan_repayment"
       pipe_type: "hdpe" | "pvc" | "custom"
       project_status:
         | "planning"
@@ -3273,6 +3280,7 @@ export const Constants = {
         "bonus",
         "transport",
         "vendor",
+        "loan_repayment",
       ],
       pipe_type: ["hdpe", "pvc", "custom"],
       project_status: [

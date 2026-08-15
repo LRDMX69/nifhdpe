@@ -24,6 +24,11 @@ type VendorRow = Database["public"]["Tables"]["vendors"]["Row"];
 type PoRow = Database["public"]["Tables"]["purchase_orders"]["Row"] & { vendors?: { name: string } | null };
 type MrRow = Database["public"]["Tables"]["material_requisitions"]["Row"];
 type PoItemRow = Database["public"]["Tables"]["purchase_order_items"]["Row"];
+type GrnRow = Database["public"]["Tables"]["goods_received_notes"]["Row"] & {
+  vendors?: { name: string } | null;
+  purchase_orders?: { document_number: string | null } | null;
+  grn_items?: Array<{ item_name: string; quantity_received: number }>;
+};
 type DraftPoItem = { id: string; itemName: string; description: string; quantity: string; unit: string; unitPrice: string };
 type DraftMrItem = { id: string; itemName: string; quantity: string; unit: string; inventoryId: string };
 type GrnDraftItem = { id: string; itemName: string; remaining: number; accepted: string; rejected: string; lotBatch: string };
@@ -111,6 +116,22 @@ const Procurement = () => {
       return (data ?? []) as PoItemRow[];
     },
     enabled: !!orgId && !!grnPoId && grnOpen,
+  });
+
+  const { data: grns = [], isLoading: grnsLoading, error: grnsError, refetch: refetchGrns } = useQuery({
+    queryKey: ["goods-received-notes", orgId],
+    queryFn: async () => {
+      if (!orgId) return [] as GrnRow[];
+      const { data, error } = await supabase
+        .from("goods_received_notes")
+        .select("*, vendors(name), purchase_orders(document_number), grn_items(item_name, quantity_received)")
+        .eq("organization_id", orgId)
+        .order("received_date", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as GrnRow[];
+    },
+    enabled: !!orgId,
   });
 
   useEffect(() => {
@@ -224,6 +245,7 @@ const Procurement = () => {
     onSuccess: () => {
       toast({ title: "Goods received", description: "GRN, inventory, lot, stock movement, remaining quantity, PO status, and audit records were updated." });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["goods-received-notes"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       queryClient.invalidateQueries({ queryKey: ["operations"] });
       setGrnPoId("");
@@ -239,7 +261,7 @@ const Procurement = () => {
         description="Manage vendors, purchase orders, goods receipt, and site requisitions"
         executiveSummary={`${vendors.length} vendors · ${pos.filter((p: any) => p.status !== "closed" && p.status !== "cancelled").length} open POs · ${mrs.filter((m: any) => m.status === "pending").length} pending requisitions`}
         lastUpdated={posUpdatedAt ? new Date(posUpdatedAt) : null}
-        onRefresh={() => { refetchVendors(); refetchPos(); refetchMrs(); }}
+        onRefresh={() => { refetchVendors(); refetchPos(); refetchMrs(); refetchGrns(); }}
       />
 
       <WorkflowBanner
@@ -479,7 +501,7 @@ const Procurement = () => {
                                 size="sm" 
                                 variant="outline" 
                                 className="h-6 text-[10px] px-2 w-full" 
-                                onClick={(e) => { e.stopPropagation(); receiveGoods.mutate(po.id); }}
+                                onClick={(e) => { e.stopPropagation(); setGrnPoId(po.id); setGrnLineItems([]); setGrnOpen(true); }}
                                 disabled={receiveGoods.isPending}
                               >
                                 {receiveGoods.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Receive GRN"}
@@ -526,13 +548,44 @@ const Procurement = () => {
               )}
             </CardHeader>
             <CardContent>
-              <EmptyState
-                icon={PackageCheck}
-                title="No goods received yet"
-                description="A GRN confirms that the items on a Purchase Order arrived in the warehouse. Posting a GRN automatically updates inventory and unlocks vendor payment."
-                ownedBy="Warehouse & Administrators"
-                action={(isAdmin || isWarehouse) && pos.some((p: PoRow) => p.status !== 'received') ? { label: "Receive goods", onClick: () => setGrnOpen(true) } : undefined}
-              />
+              <AsyncBoundary
+                loading={grnsLoading}
+                error={grnsError}
+                onRetry={() => refetchGrns()}
+                isEmpty={grns.length === 0}
+                loadingVariant="list"
+                loadingRows={3}
+                emptyState={{
+                  icon: PackageCheck,
+                  title: "No goods received yet",
+                  description: "A GRN confirms that the items on a Purchase Order arrived in the warehouse. Posting a GRN automatically updates inventory and unlocks vendor payment.",
+                  ownedBy: "Warehouse & Administrators",
+                  action: (isAdmin || isWarehouse) && pos.some((p: PoRow) => p.status !== "received") ? { label: "Receive goods", onClick: () => setGrnOpen(true) } : undefined,
+                }}
+              >
+                <div className="space-y-3">
+                  {(grns as GrnRow[]).map((grn) => (
+                    <Card key={grn.id} className="border-border/50">
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-bold text-sm">{grn.document_number ?? "Goods Received Note"}</span>
+                              <Badge variant="outline" className="text-[10px] capitalize">{grn.status ?? "posted"}</Badge>
+                            </div>
+                            <p className="text-sm">{grn.vendors?.name ?? "Vendor not specified"}</p>
+                            <p className="text-xs text-muted-foreground">PO: {grn.purchase_orders?.document_number ?? "—"} · Received: {grn.received_date ?? "—"}</p>
+                          </div>
+                          <div className="text-right text-xs text-muted-foreground shrink-0">
+                            <p>{grn.grn_items?.length ?? 0} line{(grn.grn_items?.length ?? 0) === 1 ? "" : "s"}</p>
+                            <p className="font-medium text-foreground">{(grn.grn_items ?? []).reduce((sum, item) => sum + Number(item.quantity_received ?? 0), 0).toLocaleString()} received</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </AsyncBoundary>
             </CardContent>
           </Card>
         </TabsContent>

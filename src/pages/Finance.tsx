@@ -23,7 +23,7 @@ import { useGsapAnimation } from "@/hooks/useGsapAnimation";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { industrialDb } from "@/lib/industrialDb";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { stripMarkdown } from "@/lib/stripMarkdown";
@@ -51,6 +51,7 @@ const EXPENSE_CATEGORIES = ["labor", "fuel", "transport", "materials", "equipmen
 const Finance = () => {
   const { user, memberships, activeRole, isMaintenance } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const canViewHistory = activeRole === "administrator" || isFinanceCapable(activeRole) || isMaintenance;
   const orgId = memberships[0]?.organization_id;
   const [searchParams, setSearchParams] = useSearchParams();
@@ -425,7 +426,7 @@ const Finance = () => {
         if (error) throw error;
         toast({ title: "Payment updated" });
       } else {
-        const { error } = await supabase.from("worker_payments").insert(payload);
+        const { error } = await supabase.from("worker_payments").insert(payload as never);
         if (error) throw error;
         toast({ title: "Payment logged" });
         const { error: anomalyError } = await supabase.functions.invoke("anomaly-detection", { body: { organization_id: orgId } });
@@ -462,7 +463,7 @@ const Finance = () => {
         if (error) throw error;
         toast({ title: "Expense updated" });
       } else {
-        const { error } = await supabase.from("expenses").insert(payload);
+        const { error } = await supabase.from("expenses").insert(payload as never);
         if (error) throw error;
         toast({ title: "Expense logged" });
       }
@@ -995,7 +996,13 @@ const Finance = () => {
         onOpenChange={(o) => { if (!o) setPaymentInvoice(null); }}
         invoice={paymentInvoice}
         financeAccounts={financeAccounts as Array<{ id: string; account_name: string; account_number?: string | null }>}
-        onRecorded={() => { refetchInvoices(); refetchReceipts?.(); }}
+        onRecorded={() => {
+          refetchInvoices();
+          refetchReceipts?.();
+          refetchFinanceReport();
+          queryClient.invalidateQueries({ queryKey: ["finance-period-report", orgId] });
+          queryClient.invalidateQueries({ queryKey: ["analytics"] });
+        }}
       />
 
       <AuditHistoryDialog

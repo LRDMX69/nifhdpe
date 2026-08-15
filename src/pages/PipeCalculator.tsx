@@ -39,6 +39,7 @@ const PipeCalculator = () => {
   const [length, setLength] = useState(100);
   const [flowRate, setFlowRate] = useState(5);
   const [calculated, setCalculated] = useState(false);
+  const [validationError, setValidationError] = useState("");
   const resultRef = useGsapFadeUp(0.2);
   const tableRef = useGsapStagger(".gsap-card", 0.03);
 
@@ -52,7 +53,15 @@ const PipeCalculator = () => {
   const headLoss = innerDiameter > 0 ? (10.67 * (flowRate / 1000) ** 1.852) / (C ** 1.852 * innerDiameter ** 4.87) * length : 0;
   const totalWeight = selected ? selected.weightPerM * length : 0;
 
-  const handleCalculate = () => setCalculated(true);
+  const handleCalculate = () => {
+    if (!Number.isFinite(length) || length <= 0 || !Number.isFinite(flowRate) || flowRate <= 0) {
+      setCalculated(false);
+      setValidationError("Length and flow rate must both be greater than zero.");
+      return;
+    }
+    setValidationError("");
+    setCalculated(true);
+  };
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -79,13 +88,14 @@ const PipeCalculator = () => {
             </div>
             <div className="space-y-2">
               <Label>Length (meters)</Label>
-              <Input type="number" value={length} onChange={(e) => { setLength(Number(e.target.value)); setCalculated(false); }} />
+              <Input type="number" min="0.01" step="0.01" value={length} onChange={(e) => { setLength(Number(e.target.value)); setCalculated(false); setValidationError(""); }} aria-invalid={!!validationError} />
             </div>
             <div className="space-y-2">
               <Label>Flow Rate (L/s)</Label>
-              <Input type="number" value={flowRate} onChange={(e) => { setFlowRate(Number(e.target.value)); setCalculated(false); }} step="0.1" />
+              <Input type="number" min="0.01" step="0.1" value={flowRate} onChange={(e) => { setFlowRate(Number(e.target.value)); setCalculated(false); setValidationError(""); }} aria-invalid={!!validationError} />
             </div>
             <Button className="w-full" onClick={handleCalculate}>Calculate</Button>
+            {validationError && <p role="alert" className="text-sm text-destructive">{validationError}</p>}
           </CardContent>
         </Card>
 
