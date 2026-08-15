@@ -222,17 +222,25 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   if (logoUrl) logoData = await loadImageAsBase64(logoUrl);
 
   const sections = contentSections || (content ? parseContentIntoSections(content) : []);
+  const sectionTextLength = sections.reduce((total, section) => total + (section.body?.length ?? 0) + (section.bullets?.join(" ").length ?? 0), 0);
   const isCompactDocument = Boolean(
-    tableData && tableData.rows.length <= 8 && sections.length <= 1 &&
-    sections.reduce((total, section) => total + (section.body?.length ?? 0) + (section.bullets?.join(" ").length ?? 0), 0) < 700,
+    tableData && tableData.rows.length <= 8 && sections.length <= 1 && sectionTextLength < 700,
+  );
+  // Short invoices and similar detailed records need an A4 canvas, but not the
+  // generous spacing used by long reports. This keeps the table, totals, and
+  // approvals together without shrinking a genuinely detailed document.
+  const isDenseDocument = Boolean(
+    tableData && !isCompactDocument && tableData.rows.length <= 3 && sections.length <= 3 &&
+    sectionTextLength < 1200 && (tableData.summary?.length ?? 0) <= 10 &&
+    !sections.some((section) => /attach|proof|verification/i.test(section.heading ?? "")),
   );
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: isCompactDocument ? "a5" : "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const margin = isCompactDocument ? 12 : 20;
+  const margin = isCompactDocument ? 12 : isDenseDocument ? 18 : 20;
   const contentW = pageW - margin * 2;
-  const contentTop = isCompactDocument ? 45 : CONTENT_TOP_START;
-  const contentBottom = isCompactDocument ? 18 : CONTENT_BOTTOM_RESERVE;
+  const contentTop = isCompactDocument ? 45 : isDenseDocument ? 68 : CONTENT_TOP_START;
+  const contentBottom = isCompactDocument ? 18 : isDenseDocument ? 22 : CONTENT_BOTTOM_RESERVE;
   const pdfText = (value: string | number) => String(value).replace(/₦/g, "NGN ").replace(/★/g, "*");
 
   const letterheadDataUrl = await getLetterheadDataUrl();
@@ -249,28 +257,29 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   doc.text(`ISSUED  ${printDate}`, pageW - margin, y, { align: "right" });
   y += 8;
 
+  const titleBoxHeight = isCompactDocument ? 24 : isDenseDocument ? 20 : 24;
   doc.setFillColor(...LIGHT_GREEN);
-  doc.roundedRect(margin, y - 4, contentW, 24, 2, 2, "F");
+  doc.roundedRect(margin, y - 4, contentW, titleBoxHeight, 2, 2, "F");
   doc.setFillColor(...GREEN);
-  doc.roundedRect(margin, y - 4, 3.5, 24, 1.5, 1.5, "F");
+  doc.roundedRect(margin, y - 4, 3.5, titleBoxHeight, 1.5, 1.5, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(isCompactDocument ? 12 : 18);
+  doc.setFontSize(isCompactDocument ? 12 : isDenseDocument ? 15 : 18);
   doc.setTextColor(...DARK);
   const titleLines = doc.splitTextToSize(pdfText(title.toUpperCase()), contentW - 22);
   doc.text(titleLines[0], margin + 10, y + 6);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...SLATE);
-  doc.text(companyName || COMPANY, margin + 10, y + 14);
+  doc.text(companyName || COMPANY, margin + 10, y + (isDenseDocument ? 12 : 14));
   if (watermark) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.setTextColor(...GREEN);
     doc.text(String(watermark).toUpperCase(), pageW - margin - 8, y + 7, { align: "right" });
   }
-  y += 31;
+  y += isCompactDocument ? 31 : isDenseDocument ? 25 : 31;
 
-  if (senderName || senderDepartment) {
+  if ((senderName || senderDepartment) && !isDenseDocument) {
     doc.setDrawColor(220, 230, 224);
     doc.setFillColor(252, 253, 252);
     doc.roundedRect(margin, y - 3, contentW, 14, 1.5, 1.5, "FD");
@@ -285,8 +294,43 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   doc.setDrawColor(...GREEN);
   doc.setLineWidth(0.55);
   doc.line(margin, y, margin + 30, y);
-  y += 8;
+  y += isDenseDocument ? 5 : 8;
 
+  // Content sections. Dense short records use two columns so invoice metadata
+  // does not push a small line-item table onto a second page.
+  if (isDenseDocument) {
+    const columnGap = 10;
+    const columnWidth = (contentW - columnGap) / 2;
+    const columnY = [y, y];
+    sections.forEach((section, sectionIndex) => {
+      const column = sectionIndex % 2;
+      let columnCursor = columnY[column];
+      if (section.heading) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(...DARK);
+        doc.text(pdfText(section.heading), margin + column * (columnWidth + columnGap), columnCursor);
+        columnCursor += 5;
+      }
+      const lines = [
+        ...(section.body ? [section.body] : []),
+        ...(section.bullets ?? []),
+      ];
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(45, 45, 45);
+      for (const line of lines) {
+        const wrapped = doc.splitTextToSize(pdfText(line), columnWidth - 2);
+        for (const wrappedLine of wrapped) {
+          columnCursor = checkPageBreak(doc, columnCursor, 4.5, margin, contentTop, contentBottom, letterheadDataUrl);
+          doc.text(pdfText(wrappedLine), margin + column * (columnWidth + columnGap), columnCursor);
+          columnCursor += 3.8;
+        }
+      }
+      columnY[column] = columnCursor + 2;
+    });
+    y = Math.max(...columnY) + 2;
+  } else {
   // Content sections
   for (const section of sections) {
     if (section.heading) {
@@ -367,6 +411,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       y += 3;
     }
   }
+  }
 
   // Table data
   if (tableData) {
@@ -376,10 +421,10 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       head: [tableData.columns.map(c => pdfText(c.header))],
       body: tableData.rows.map(row => tableData.columns.map(c => pdfText(row[c.dataKey] ?? ""))),
       margin: { top: contentTop, right: margin, bottom: contentBottom, left: margin },
-      styles: { font: "helvetica", fontSize: 8.3, cellPadding: { top: 2.7, right: 3, bottom: 2.7, left: 3 }, textColor: [35, 45, 55], lineColor: [218, 226, 221], lineWidth: 0.18, valign: "middle", overflow: "linebreak" },
-      headStyles: { fillColor: BLUE as [number, number, number], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.2, halign: "left", lineColor: BLUE as [number, number, number] },
+      styles: { font: "helvetica", fontSize: isDenseDocument ? 7.5 : 8.3, cellPadding: isDenseDocument ? { top: 1.8, right: 2.5, bottom: 1.8, left: 2.5 } : { top: 2.7, right: 3, bottom: 2.7, left: 3 }, textColor: [35, 45, 55], lineColor: [218, 226, 221], lineWidth: 0.18, valign: "middle", overflow: "linebreak" },
+      headStyles: { fillColor: BLUE as [number, number, number], textColor: [255, 255, 255], fontStyle: "bold", fontSize: isDenseDocument ? 7.4 : 8.2, halign: "left", lineColor: BLUE as [number, number, number] },
       alternateRowStyles: { fillColor: LIGHT_GREEN as [number, number, number] },
-      bodyStyles: { minCellHeight: 8 },
+      bodyStyles: { minCellHeight: isDenseDocument ? 6 : 8 },
       columnStyles: Object.fromEntries(tableData.columns.map((column, index) => [index, { cellWidth: column.width ?? "auto" }])),
       theme: "grid",
       willDrawPage: ({ doc: tableDoc }) => {
@@ -391,7 +436,8 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
     y += 4;
 
     if (tableData.summary) {
-      const summaryHeight = Math.max(16, tableData.summary.length * 6 + 8);
+      const summaryLineHeight = isDenseDocument ? 4.8 : 6;
+      const summaryHeight = Math.max(isDenseDocument ? 14 : 16, tableData.summary.length * summaryLineHeight + (isDenseDocument ? 6 : 8));
       y = checkPageBreak(doc, y, summaryHeight, margin, contentTop, contentBottom, letterheadDataUrl);
       const boxX = pageW - margin - 82;
       doc.setFillColor(248, 251, 249);
@@ -401,39 +447,39 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       doc.roundedRect(boxX, y - 4, 2.5, summaryHeight, 1, 1, "F");
       y += 2;
       for (const item of tableData.summary) {
-        doc.setFontSize(item.label.toLowerCase().includes("grand") || item.label.toLowerCase().includes("total amount") ? 9.5 : 8.5);
+        doc.setFontSize(item.label.toLowerCase().includes("grand") || item.label.toLowerCase().includes("total amount") ? (isDenseDocument ? 8.5 : 9.5) : (isDenseDocument ? 7.5 : 8.5));
         doc.setFont("helvetica", item.label.toLowerCase().includes("grand") || item.label.toLowerCase().includes("total") ? "bold" : "normal");
         doc.setTextColor(...(item.label.toLowerCase().includes("grand") || item.label.toLowerCase().includes("total amount") ? DARK : SLATE));
         doc.text(pdfText(item.label), boxX + 7, y);
         doc.text(pdfText(item.value), pageW - margin - 5, y, { align: "right" });
-        y += 6;
+        y += summaryLineHeight;
       }
-      y += 5;
+      y += isDenseDocument ? 3 : 5;
     }
   }
 
   // Signature block
   if (showSignature) {
-    const sigBlockHeight = 20;
-    if (y + sigBlockHeight + 22 > pageH - contentBottom) { doc.addPage(); drawPageChrome(doc, letterheadDataUrl); y = contentTop; }
-    y = Math.min(y + 10, pageH - contentBottom - 14);
+    const sigBlockHeight = isDenseDocument ? 16 : 20;
+    if (y + sigBlockHeight + 18 > pageH - contentBottom) { doc.addPage(); drawPageChrome(doc, letterheadDataUrl); y = contentTop; }
+    y = Math.min(y + (isDenseDocument ? 6 : 10), pageH - contentBottom - 14);
     doc.setDrawColor(50, 50, 50);
     doc.setLineWidth(0.3);
     const sigW = contentW / 3 - 10;
     ["Prepared By", "Approved By", "Date"].forEach((label, i) => {
       const x = margin + i * (sigW + 15);
       doc.line(x, y, x + sigW, y);
-      doc.setFontSize(7);
+      doc.setFontSize(isDenseDocument ? 6.2 : 7);
       doc.setTextColor(120, 120, 120);
       doc.text(label, x + sigW / 2, y + 4, { align: "center" });
     });
-    y += 10;
+    y += isDenseDocument ? 8 : 10;
   }
 
   // Stamp
   if (stampType) {
     const stampX = pageW - margin - 20;
-    const stampY = Math.min(y + 5, pageH - contentBottom - 16);
+    const stampY = Math.min(y + (isDenseDocument ? 3 : 5), pageH - contentBottom - 16);
     drawCircularStamp(doc, stampX, stampY, stampType, options.companyName);
     y = stampY + 22;
   }
