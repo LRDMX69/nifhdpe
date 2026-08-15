@@ -12,6 +12,8 @@ interface AuditEntry {
   old_data: Record<string, unknown> | null;
   new_data: Record<string, unknown> | null;
   profiles?: { full_name: string | null } | null;
+  revision_number?: number;
+  is_current?: boolean;
 }
 
 /** Keys that carry no history value (auto-set or structural). */
@@ -28,6 +30,14 @@ const formatValue = (v: unknown): string => {
 const labelOf = (key: string): string =>
   key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
+const revisionEntityType = (tableName: string): string => ({
+  invoices: "invoice",
+  purchase_orders: "purchase_order",
+  deliveries: "delivery",
+  projects: "project",
+  field_reports: "field_report",
+}[tableName] ?? tableName);
+
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -38,23 +48,55 @@ interface Props {
 }
 
 /**
- * Revision history for a single record, read from the audit trail
- * (audit_logs). Shows who changed what, when, and why (revision_reason).
- * Requires admin or finance-capable access — the RLS on audit_logs enforces it.
+ * Revision history for a single record. It prefers the detailed audit_logs trail
+ * and falls back to document_revisions snapshots used by operational documents.
+ * The fallback keeps Finance, Quotations, Procurement, Logistics, and the central
+ * registry on one consistent immutable-history model.
  */
 export const AuditHistoryDialog = ({ open, onOpenChange, tableName, recordId, orgId, title }: Props) => {
   const { data: entries = [], isLoading, error } = useQuery({
     queryKey: ["audit-history", tableName, recordId],
     enabled: open && !!orgId,
     queryFn: async (): Promise<AuditEntry[]> => {
-      const { data } = await supabase
+      const auditResult = await supabase
         .from("audit_logs")
         .select("id, action, created_at, revision_reason, old_data, new_data, profiles(full_name)")
         .eq("table_name", tableName)
         .eq("record_id", recordId)
         .eq("organization_id", orgId)
         .order("created_at", { ascending: false });
-      return (data as unknown as AuditEntry[]) ?? [];
+      const auditEntries = (auditResult.data as unknown as AuditEntry[]) ?? [];
+      if (auditEntries.length > 0) return auditEntries;
+
+      const revisionResult = await (supabase as any)
+        .from("document_revisions")
+        .select("id, revision_number, is_current, snapshot, changed_at, changed_by, change_reason")
+        .eq("organization_id", orgId)
+        .eq("entity_type", revisionEntityType(tableName))
+        .eq("entity_id", recordId)
+        .order("revision_number", { ascending: true });
+      if (revisionResult.error) throw revisionResult.error;
+
+      const revisions = ((revisionResult.data ?? []) as unknown as Array<{
+        id: string;
+        revision_number: number;
+        is_current: boolean;
+        snapshot: Record<string, unknown>;
+        changed_at: string;
+        changed_by: string | null;
+        change_reason: string | null;
+      }>);
+      return revisions.map((revision, index) => ({
+        id: `document-revision-${revision.id}`,
+        action: index === 0 ? "INSERT" : "UPDATE",
+        created_at: revision.changed_at,
+        revision_reason: `${revision.change_reason ?? "Operational revision"} · Snapshot v${revision.revision_number}${revision.is_current ? " · Current" : " · Superseded"}`,
+        old_data: index > 0 ? revisions[index - 1].snapshot : null,
+        new_data: revision.snapshot,
+        revision_number: revision.revision_number,
+        is_current: revision.is_current,
+        profiles: null,
+      }));
     },
   });
 
