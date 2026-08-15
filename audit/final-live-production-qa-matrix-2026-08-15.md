@@ -1,0 +1,237 @@
+# Final live-production QA matrix — NIFHDPE ERP
+
+**Target:** https://nifhdpe.vercel.app  
+**Execution mode:** Real browser interaction against deployed production; every result requires direct evidence.  
+**Status vocabulary:** 🟢 PASS · 🟡 PASS WITH WARNING · 🔴 FAIL · ⚫ BLOCKED / UNTESTED
+
+## Execution rules
+
+Each test follows the chain **open → interact → submit → verify visible result → verify persistence/propagation → test resulting state**. Source inspection may explain a result but does not count as execution evidence. Any unavailable credential, role, configuration, or external dependency is recorded as ⚫ BLOCKED / UNTESTED with the exact reason.
+
+## Route and page matrix
+
+| ID | Area | Route | Required checks | Result | Evidence | Issue | Fix | Retest |
+|---|---|---|---|---|---|---|---|---|
+| P01 | Dashboard | `/dashboard` | Load, KPIs, charts, alerts, links, desktop/mobile, empty/loading/error states | PENDING | | | | |
+| P02 | Quotations | `/quotations` | Create, edit, save, finalize, calculations, PDF, attachments/export, proforma conversion | PENDING | | | | |
+| P03 | Clients | `/clients` | Create/edit, search/filter, propagation to dependent modules, desktop/mobile | PENDING | | | | |
+| P04 | Inventory | `/inventory` | Stock records, purchase/usage/movement, units, balances, filters, propagation | PENDING | | | | |
+| P05 | Projects | `/projects` | Create/edit, assignments, budget, client linkage, status, propagation | PENDING | | | | |
+| P06 | Logistics | `/logistics` | Delivery/waybill creation, invoice inheritance, operational edits, PDF, document registry | PENDING | | | | |
+| P07 | Field Reports | `/field-reports` | Create/edit/submit/review, attachments, geolocation, project linkage, permissions | PENDING | | | | |
+| P08 | Finance | `/finance` | Overview, invoices, receipts, expenses, payments, bank analysis, charts, actions | PENDING | | | | |
+| P09 | Equipment | `/equipment` | Records, allocation, usage, maintenance, actions, PDF, responsive layout | PENDING | | | | |
+| P10 | Compliance | `/compliance` | Load, forms, checklists, status, permissions, empty/error states | PENDING | | | | |
+| P11 | Opportunities | `/opportunities` | Create/edit/search/filter/status, mobile containment, conversion links | PENDING | | | | |
+| P12 | Analytics | `/analytics` | Charts match records, update after transactions, filters, no hardcoded values | PENDING | | | | |
+| P13 | HR | `/hr` | Employees, attendance, leave, HMO, schedules, payroll, loans, overtime, connected oversight, permissions | PENDING | | | | |
+| P14 | Pipe Calculator | `/calculator` | Zero/small/large/decimal/edge validation, independently verified calculations | PENDING | | | | |
+| P15 | Worker Claims | `/claims` | Create/edit/submit/review, categories, amounts, attachments, PDF, permissions | PENDING | | | | |
+| P16 | Messages | `/messages` | Load, search/thread/send if permitted, empty/error states, permissions | PENDING | | | | |
+| P17 | Procurement | `/procurement` | Vendors, local/imported purchases, POs, approvals, payments, stock/finance impact, PDF | PENDING | | | | |
+| P18 | HSE | `/hse` | Create/submit/review, risk fields, project linkage, permissions, responsive layout | PENDING | | | | |
+| P19 | Documents | `/documents` | Registry, generated documents, revisions, printed status, reprint, search/filter | PENDING | | | | |
+| P20 | BOQ | `/boq` | Create/edit, product specifications, calculations, quotation/project linkage, PDF | PENDING | | | | |
+| P21 | Settings | `/settings` | Organization, office GPS, banks, roles, permissions, configuration, error states | PENDING | | | | |
+
+## End-to-end business workflow matrix
+
+| ID | Workflow | Required propagation chain | Result | Evidence | Issue | Fix | Retest |
+|---|---|---|---|---|---|---|---|
+| W01 | Commercial lifecycle | Client → quotation → proforma → acceptance → final invoice → payment → balance → bank/finance/analytics | PENDING | | | | |
+| W02 | Invoice lifecycle | Numbering → client/TIN/dates → lines → taxes/discount/logistics → totals → status/balance → PDF → revisions | PENDING | | | | |
+| W03 | Waybill lifecycle | Invoice → waybill → inherited client/items/quantities → operational edits → PDF → document registry/reprint | PENDING | | | | |
+| W04 | Client propagation | Create/edit client → quotations, proformas, invoices, sales orders, projects, payments, opportunities, reports, finance, analytics | PENDING | | | | |
+| W05 | Finance transactions | Expense/payment/receipt → source account → balances → bank analysis → dashboard/reports/analytics | PENDING | | | | |
+| W06 | Bank ecosystem | Bank transaction ↔ income, invoice, payment, expense, payroll, loans, procurement, claims, petty cash, transfers | PENDING | | | | |
+| W07 | Procurement-to-stock | Vendor/PO/purchase → payment/expense → inventory receipt → stock balance → project/client usage → remaining stock | PENDING | | | | |
+| W08 | Payroll | Salary schedule → deductions/loan/overtime/absence → approval → payment → payslip → finance/bank | PENDING | | | | |
+| W09 | Staff loan | Loan creation → schedule → repayment → balance → completion → payroll and finance connection | PENDING | | | | |
+| W10 | Overtime | Employee/month/days/rate → gross/overtime earnings → bank/account → payroll/finance | PENDING | | | | |
+| W11 | VAT | Entry fields → output/input/WHT/net → state/LGA/FTZ → paid/payable/credit/penalty/interest/LRP → total | PENDING | | | | |
+| W12 | HR approvals | Leave/disciplinary/attendance/employee records → HR visibility → MD approval → downstream schedule/payroll | PENDING | | | | |
+
+## Document and version-history matrix
+
+| ID | Document/record | Required checks | Result | Evidence | Issue | Fix | Retest |
+|---|---|---|---|---|---|---|---|
+| D01 | Quotation PDF | Logo/company/TIN/client/dates/number/calculations/signature/page breaks/tables/attachments | PENDING | | | | |
+| D02 | Proforma PDF | Distinct proforma status/lifecycle, linked quotation, no premature final invoice semantics | PENDING | | | | |
+| D03 | Invoice PDF | A4/A5 sizing by content, typography, totals, NGN, signatures, accounts, attachments, pagination | PENDING | | | | |
+| D04 | Waybill PDF | Serial/description/unit/quantity/delivery person/client/invoice, document registry, reprint | PENDING | | | | |
+| D05 | Payment receipt PDF | Receipt number, payer/client, invoice linkage, amount, bank/account, status, signatures | PENDING | | | | |
+| D06 | Purchase order PDF | Vendor, PO number, quantities, prices, totals, approval/status | PENDING | | | | |
+| D07 | Claims PDF | Claim details, amount, status, signatures, attachment handling | PENDING | | | | |
+| D08 | Equipment/report PDFs | Complete data, layout, page breaks, signature/stamp where applicable | PENDING | | | | |
+| D09 | Invoice revision | Finalized record edit → immutable original/version → audit who/when/old/new values | PENDING | | | | |
+| D10 | Quotation/PO/expense/payment revisions | Same non-destructive history and audit requirements | PENDING | | | | |
+
+## Calculation and data-integrity matrix
+
+| ID | Calculation/integrity area | Required independent checks | Result | Evidence | Issue | Fix | Retest |
+|---|---|---|---|---|---|---|---|
+| C01 | Invoice totals | zero, small, large, decimal, VAT, WHT, discount, overhead, transport, subtotal, net, balance | PENDING | | | | |
+| C02 | VAT | output/input/withholding/net/credit/payable/penalty/interest/brought-forward/LRP/FTZ | PENDING | | | | |
+| C03 | Payroll | gross, pension, voluntary contribution, PAYE/tax, loan, absenteeism, suspension, deductions | PENDING | | | | |
+| C04 | Overtime | days × daily rate, overtime days/earnings, payroll relationship | PENDING | | | | |
+| C05 | Loans | principal, schedule, repayments, balance, zero completion, additional loan | PENDING | | | | |
+| C06 | Inventory | purchase, receipt, usage, movement, units, remaining stock, financial implication | PENDING | | | | |
+| C07 | Forex/bank | conversion, bank balances, transfers, linked movements | PENDING | | | | |
+| C08 | Dashboard/analytics | charts/tables equal source records and update after transactions | PENDING | | | | |
+| C09 | Data integrity | duplicates, orphans, stale cache, race/double submit, foreign keys, status transitions | PENDING | | | | |
+
+## Role and permission matrix
+
+| ID | Role | See | Create/edit | Approve | Must not access | Result | Evidence | Issue | Fix | Retest |
+|---|---|---|---|---|---|---|---|---|---|---|
+| R01 | Administrator | All authorized modules | All permitted | All permitted | None outside policy | PENDING | | | | |
+| R02 | HR | HR plus agreed clients/quotations/logistics/finance oversight | HR and agreed operational records | HR/leave as assigned | Unassigned admin controls | PENDING | | | | |
+| R03 | MD/approver | Approval queues and oversight | As assigned | MD approvals | Operational editing outside scope | PENDING | | | | |
+| R04 | Finance | Finance/procurement/claims as assigned | Financial records | Financial approvals as assigned | HR/admin controls outside scope | PENDING | | | | |
+| R05 | Engineer/technician | Projects/reports/HSE as assigned | Field/project records | No unassigned approvals | Finance/admin/HR sensitive data | PENDING | | | | |
+| R06 | Warehouse | Inventory/equipment/logistics as assigned | Stock/dispatch records | No unassigned approvals | Payroll/HR sensitive data | PENDING | | | | |
+| R07 | Reception/sales | Opportunities/quotations/clients | Commercial records | No unassigned approvals | Payroll/bank/admin controls | PENDING | | | | |
+| R08 | Unauthorized action tests | Deliberate blocked create/edit/approve/navigation actions | Must fail clearly and safely | N/A | Protected records | PENDING | | | | |
+
+## UI, reliability, and failure matrix
+
+| ID | Surface | Checks | Result | Evidence | Issue | Fix | Retest |
+|---|---|---|---|---|---|---|---|
+| U01 | Desktop | No overflow, usable tables/modals/dropdowns, icons/images, navigation | PENDING | | | | |
+| U02 | Tablet | Same interaction and readable responsive layout | PENDING | | | | |
+| U03 | Mobile | No horizontal overflow, cards/tables/modals/buttons accessible | PENDING | | | | |
+| U04 | Loading/empty/error | Understandable states, no infinite loading, useful API errors | PENDING | | | | |
+| U05 | Validation | Empty, invalid amount/date, duplicate, missing required fields | PENDING | | | | |
+| U06 | Reliability | Network/API failure, duplicate submissions, stale cache, race conditions | PENDING | | | | |
+| U07 | Repo hygiene | TODO/FIXME/MOCK/demo/placeholder/fake calculations/dead buttons/unfinished handlers/unused routes | PENDING | | | | |
+| U08 | Console/API | No runtime errors, broken calls, 404s, broken assets during live use | PENDING | | | | |
+
+## Final totals to calculate
+
+| Metric | Value |
+|---|---:|
+| Total tests run | PENDING |
+| Total passed | PENDING |
+| Total failed | PENDING |
+| Total fixed | PENDING |
+| Total blocked/untested | PENDING |
+| Production readiness score | PENDING |
+| Final verdict | PENDING |
+
+## Evidence convention
+
+Every completed row must cite the exact production URL, action sequence, entered values, expected result, observed result, persistence/propagation verification, and any downloaded artifact or screenshot path. A blocked row must state the exact missing role, configuration, credential, external service, or business approval preventing execution.
+
+## Live sweep evidence — first routes
+
+### P01 Dashboard
+
+**Observed:** `/dashboard` loaded in production with navigation, role switcher, KPI cards, charts, critical alerts, AI department intelligence, and Check In action. No blank screen was observed. The live page displayed `Opportunities 643`, `Total Expenses ₦0.00` in the KPI card while the page narrative displayed `Total Expenses ₦1,000.00`; this is a **data consistency issue to reproduce and fix**, not a pass. Attendance displayed `Not checked in` and Check In was present.
+
+### P02 Quotations
+
+**Observed:** `/quotations` loaded in production with one sent quotation and an accepted proforma linked to a final invoice. The page exposed Export CSV, Proforma, New Quotation, catalogue, search, and Open invoice controls. The visible lifecycle record was `QUOTATIONS/2026/0001` → `PROFORMA_INVOICES/2026/0001` → linked invoice, with an accepted status and amount `₦236,768.75`. Create/edit/finalize/PDF actions remain to be exercised in a controlled test record.
+
+### P03 Clients
+
+**Observed:** `/clients` loaded with one visible UAT client, Add Client, search, CRM AI panel, and no blank/loading failure. The visible client is explicitly marked `UAT QA - Do not use for production`, so it is suitable for test tracing but not production business data. Create/edit and downstream propagation remain to be exercised.
+
+### P05 Projects
+
+**Observed:** `/projects` loaded with a clear empty state, New Project and Create First Project actions, search, status filter, and explanatory workflow guidance. The page reported `0 active · 0 completed of 0 total`. No blank screen or dead empty state was observed. Project creation and downstream linkage remain to be exercised.
+
+### P04 Inventory
+
+**Observed:** `/inventory` loaded with one SKU (`UAT HDPE Pipe 110mm SDR11`), quantity 8, minimum 10, unit price `₦15,000`, total value `₦120,000`, and a visible low-stock count of 1. Search, type filter, Add Item, Location, Box, and item action controls were present. The displayed total value agrees with 8 × ₦15,000. Purchase/usage propagation remains to be exercised.
+
+### P06 Logistics
+
+**Observed:** `/logistics` loaded with Deliveries, Fleet, and Fuel Log tabs; New Waybill, New Delivery, Schedule delivery, search, and status filter controls; and a clear empty state reporting `0 in transit · 0 delivered · 0 vehicles`. The page explicitly describes dispatch, reserved stock, project lineage, and GPS completion. Actual invoice-to-waybill creation and document registry propagation remain to be exercised.
+
+### P07 Field Reports
+
+**Observed:** `/field-reports` loaded with two reports on file, zero awaiting review, report metrics, and two visible General Report records. The workflow guidance states technicians/engineers submit notes and photos and reports route for review. The visible records contain low-quality test-like prose (`We were just chilling in the block`), which should be treated as UAT/test data and reviewed for production data hygiene. Creation/edit/submission and attachment tests remain pending.
+
+### P18 HSE
+
+**Observed:** `/hse` loaded with Incidents and Toolbox Talks tabs, Report Incident action, and an explicit clean empty state showing `0 open incidents · 0 toolbox talks logged`. No blank or infinite-loading state was observed. Incident and toolbox-talk creation/review remain pending.
+
+### P10 Compliance
+
+**Observed:** `/compliance` loaded with Add Document, Upload first document, expiry summary cards, and a clear empty state showing zero tracked, valid, pending, and expired documents. No blank or infinite-loading behavior was observed. Actual upload/expiry tracking remains pending.
+
+### P14 Pipe Calculator
+
+**Observed:** `/calculator` loaded with HDPE and 110mm defaults, length `100`, flow `5`, Calculate action, and HDPE specification table. The valid baseline form rendered without runtime failure. The previously completed zero-input live retest remains recorded separately: zero values now show an explanatory validation error and do not display a false zero result. Additional independent calculations and edge values remain pending in this QA pass.
+
+### P11 Opportunities
+
+**Observed:** `/opportunities` loaded with zero live opportunities, pipeline value `₦0.00`, tabs for All/Identified/Bidding/Won/Lost, Export CSV, Refresh, Print, Add, and AI Intelligence content. The page rendered a skeleton-like empty area beneath the tabs while the markdown reported zero records; mobile containment still requires a dedicated viewport check. The AI text claims `3 new opportunities identified` while the live KPI says zero tracked; this requires reconciliation before accepting the dashboard as consistent.
+
+### P12 Analytics
+
+**Observed:** `/analytics` loaded with date filters, Billed `₦205,518.79`, Collected `₦205,518.79`, Net Profit `₦-64,481.21`, Inventory Value `₦120,000.00`, and charts for cash flow, revenue/expenses, inventory by pipe size, quotation conversion, and top clients. The charts rendered visibly. The page states `0 accepted quotes feeding pipeline` and `1 inventory SKUs in scope`; cross-checks against source tables and date-filter updates remain pending. The chart tooltip observed a zero billed/collected month while the aggregate totals were non-zero, which is expected only if the hovered month has no activity and must be checked against the selected range.
+
+### P13 HR
+
+**Observed:** `/hr` loaded with Request Leave, Check In, ten HR tabs, date selection, attendance metrics, a clear attendance empty state, holidays Add action, and the redesigned Connected operations entry point. The first-use view is readable and not an inline multi-panel cluster. Attendance remains untestable for actual check-in until office GPS coordinates are configured; this must be recorded as ⚫ BLOCKED / UNTESTED rather than PASS. Leave/payroll/loan/overtime/HMO and permission workflows remain to be exercised.
+
+### P09 Equipment
+
+**Observed:** `/equipment` loaded with Add, CSV, PDF, equipment metrics, and a clear empty state showing zero total/in-use/available/maintenance. No blank or infinite-loading state was observed. Asset creation, allocation, maintenance, request approval, and PDF generation remain pending.
+
+### P17 Procurement
+
+**Observed:** `/procurement` loaded with Vendors, Purchase Orders, Goods Received, and Requisitions tabs. It reported 1 vendor, 2 open POs, and zero pending requisitions. A UAT vendor was visible. Purchase Orders showed `PURCHASE_ORDERS/2026/0002` in draft for `₦30,000` with New PO, PDF, and Receive GRN actions, and `PURCHASE_ORDERS/2026/0001` received for `₦120,000` with PDF. The procurement lifecycle is visibly connected to GRN and inventory guidance. Actual creation/approval/payment/stock propagation remains pending.
+
+### P15 Worker Claims
+
+**Observed:** `/claims` loaded with Inbox and My Submissions tabs, zero pending/approved/flagged claims, and a clear Inbox is clear state. Claim creation/review, amount validation, attachments, and PDF generation remain pending.
+
+### P16 Messages
+
+**Observed:** `/messages` loaded with one in-scope message, zero unread, Search conversations, New Chat, Broadcast, and explanatory privacy/role guidance. A visible message from Oluwakemi Hassan rendered correctly. Sending/search/thread behavior and permissions remain pending.
+
+### P19 Document Registry
+
+**Observed:** `/documents` loaded with search, date filters, CSV export, tabs for every numbered document type, operational revision history, and a zero-state showing `0 numbered documents on file` and `0 revisions`. This is a serious propagation signal because Finance and Procurement visibly contain numbered UAT invoices/POs while the registry currently reports zero. The prior revision-history retest passed for a historical target, but this live state requires reconciliation and likely indicates stale/mismatched organization data or incomplete document registration.
+
+### P20 BOQ
+
+**Observed:** `/boq` loaded with New BOQ and a clear `0 BOQs · 0 approved` empty state. No blank or infinite-loading state was observed. BOQ creation and linkage to quotations/projects/product specifications remain pending.
+
+### P21 Settings
+
+**Observed:** `/settings` loaded with Organization, Team, Profile, Policy, and User Feedback tabs. Organization contains company details and an Office Coordinates section explicitly used for attendance geofencing. Production currently shows latitude `6.5528` and longitude `3.3878`, with Use current location and Save coordinates actions. This changes the earlier attendance assumption: the office GPS configuration is present, so attendance must be retested; any remaining disablement may be caused by browser geolocation permission or distance, not missing configuration.
+
+**Console:** The normal live browser console showed no console output/errors during the route sweep at the time checked.
+
+### Attendance retest after Settings verification
+
+**Observed:** Settings exposes and displays office coordinates `6.5528, 3.3878`. On `/hr`, the Check In button is present and not disabled (`disabled: false` by live DOM inspection). Clicking it produced the explicit toast `Location required — Please enable GPS/location to check in.` The attendance counters remained zero and no check-in record appeared.
+
+**Result:** ⚫ BLOCKED / UNTESTED for successful check-in, exact reason: the live browser session does not provide usable GPS/location permission or coordinates, despite office coordinates being configured. This is no longer correctly described as “no office GPS configured.” The user-facing error is understandable and no false attendance record was created. A real device/browser with location enabled and within the configured 1 km radius is required for the positive path.
+
+### P08 Finance and W06 Bank Analysis
+
+**Observed:** `/finance?tab=bank-analysis` loaded with real financial aggregates: Total Revenue `₦205,518.79`, Total Received `₦205,518.79`, Receivables `₦0.00`, Net Cash Position `₦-64,481.21`. Bank Analysis reported 1 reviewed bank line, 1 linked line, and 0 awaiting ERP connection. The existing connection was `UAT payment for INVOICES/2026/0001`, ERP type invoice, linked amount `₦205,518.79`. The Link bank line action opened a form with ERP record type, ERP record, approved bank transaction, linked amount, and audit note, plus explicit organization validation guidance. The unmatched-link path was not submitted because no approved unmatched line was available and creating a false reconciliation would corrupt test data.
+
+### Finance transaction sub-tabs
+
+**Receipts:** Finance Receipts showed `RECEIPTS/2026/0001` for the UAT client, bank transfer, `₦205,518.79`, but the row displayed **Unlinked** under Bank link even though Bank Analysis showed a linked bank line for the same UAT payment and amount. This is a reproducible propagation/data-consistency issue: receipt-level bank linkage and Bank Analysis linkage are not aligned.
+
+**Payments:** Worker Payments showed three records for Ola: salary `₦239,000.00`, and two records described as staff loan repayment for the same loan at `₦20,000.00` and `₦10,000.00`. The visible Type badge rendered `Salary` for all three rows, even though the descriptions identify two loan repayments. This is a reproducible UI/type-mapping defect: worker payment types are not displayed correctly in the Finance register.
+
+**Expenses:** Logged Expenses showed one UAT labor expense for `₦1,000.00`, with the row’s bank link Unlinked. Category, description, amount, and date rendered; source bank/account, supporting information, approval state, and audit details were not visible in the register and require form/detail testing.
+
+### Document Registry settled retest
+
+The first `/documents` capture was during the loading skeleton and temporarily showed zero. After reopening and allowing asynchronous queries to settle, production showed **11 numbered documents** and **10 operational revisions**. The registry reconciled to 1 invoice, 1 proforma, 1 quotation, 1 receipt, 1 waybill, 2 purchase orders, 1 GRN, and 3 worker payments. The revision table showed invoice and PO snapshots with current/superseded states and changed-by Ola metadata. This resolves the apparent zero-count issue as an asynchronous capture artifact, not a registry defect. The worker-payment type issue remains visible: all three registry rows show `salary`, matching the Finance register.
+
+### D01 Quotation PDF
+
+The live quotation PDF downloaded from `/quotations` successfully. `pdfinfo` reported **1 page, A4 (595.28 × 841.89 pts)**. Extracted text included company/document ID, client, site/reference, status, line-item quantity and price, NGN-safe headers, subtotal, labor, transport, profit, overhead/site cost, tax, and grand total. Visual inspection showed a professional branded header, dark blue table, green accent, draft watermark, totals box, signature lines, seal/background, and footer on one page. The document is usable for controlled UAT; the draft watermark/status is appropriate for the source record.
+
+### D04 Waybill PDF and registry lifecycle
+
+The Document Registry Waybill tab showed `WAYBILLS/2026/0001`, status Reprinted, and a Reprint action. Clicking Reprint produced the explicit confirmation `WAYBILLS/2026/0001 copy 3 was generated and recorded.` The downloaded PDF was **1 page, A4**, with document ID, date, driver, vehicle, destination, recipient, project, print history `copy 3`, notes, authorization text, inherited item description `UAT HDPE Pipe 110mm SDR11`, quantity 8, unit m, prepared/approved/date lines, and company seal. Visual inspection confirmed the table, seal, watermark, footer, and signatures stayed together on one page.
