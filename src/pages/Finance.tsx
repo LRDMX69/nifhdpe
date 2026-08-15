@@ -65,7 +65,7 @@ const Finance = () => {
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: "expense" | "payment" } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: "expense" | "payment" | "invoice" } | null>(null);
   const [editingExpense, setEditingExpense] = useState<ExpenseItem | null>(null);
   const [editingPayment, setEditingPayment] = useState<PaymentItem | null>(null);
   const containerRef = useGsapAnimation("slideUp");
@@ -488,6 +488,15 @@ const Finance = () => {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
+      if (deleteTarget.type === "invoice") {
+        const { error } = await supabase.from("invoices").update({ status: "cancelled" }).eq("id", deleteTarget.id).eq("organization_id", orgId).eq("status", "draft");
+        if (error) throw error;
+        toast({ title: "Draft invoice cancelled" });
+        setDeleteTarget(null);
+        refetchInvoices();
+        refetchFinanceReport();
+        return;
+      }
       const table = deleteTarget.type === "expense" ? "expenses" : "worker_payments";
       const { error } = await supabase.from(table).delete().eq("id", deleteTarget.id).eq("organization_id", orgId);
       if (error) throw error;
@@ -662,10 +671,10 @@ const Finance = () => {
 
       {/* Delete confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete this {deleteTarget?.type}?</AlertDialogTitle>
-          <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{deleteTarget?.type === "invoice" ? "Cancel this draft invoice?" : `Delete this ${deleteTarget?.type}?`}</AlertDialogTitle>
+          <AlertDialogDescription>{deleteTarget?.type === "invoice" ? "The draft will remain in the audit trail as cancelled and will be excluded from operational finance totals." : "This action cannot be undone."}</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Keep record</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{deleteTarget?.type === "invoice" ? "Cancel draft" : "Delete"}</AlertDialogAction>
           </AlertDialogFooter></AlertDialogContent>
       </AlertDialog>
 
@@ -769,9 +778,14 @@ const Finance = () => {
                         <TableCell>{entityIsBankLinked("invoice", inv.id) ? <Badge className="bg-emerald-600">Linked</Badge> : <Badge variant="outline">Unlinked</Badge>}</TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-1">
-                          {Number(inv.balance_due ?? 0) > 0 && (
+                          {Number(inv.balance_due ?? 0) > 0 && inv.status !== "cancelled" && (
                             <Button variant="ghost" size="sm" className="h-7 px-2 text-emerald-600 hover:text-emerald-700" onClick={() => setPaymentInvoice(inv)}>
                               <Receipt className="h-3.5 w-3.5 mr-1" />Record
+                            </Button>
+                          )}
+                          {inv.status === "draft" && (
+                            <Button variant="ghost" size="sm" className="h-7 px-2 text-destructive hover:text-destructive" onClick={() => setDeleteTarget({ id: inv.id, type: "invoice" })}>
+                              <Trash2 className="h-3.5 w-3.5 mr-1" />Cancel draft
                             </Button>
                           )}
                           {canViewHistory && (

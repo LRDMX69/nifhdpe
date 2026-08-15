@@ -273,3 +273,25 @@ A direct `/finance` deep-link attempt was also made after selecting Technical De
 ### W02/C01 Invoice form first-use and validation evidence
 
 Production `/finance?tab=invoices&new=1` opened the canonical `Create complete invoice` dialog. The form clearly exposes the required Client selector, invoice kind, sales-order lineage, client PO, project, linked delivery/waybill, customer reference, invoice/due dates, line-item description/quantity/unit/unit price/discount/cost code, site/delivery context, VAT and WHT rates, discount, overhead/site cost, transportation, currency, Free Trade Zone, receiving account, payment terms, terms, and notes. The initial zero-line state calculates all totals as `₦0.00` and presents `Create invoice atomically`; no record was submitted. This confirms first-use field completeness and preserves the safe no-submit state for the required-field validation test.
+
+## Live evidence — invoice validation and cancellation hardening retest
+
+### Finance invoice submission gate
+
+**Production URL:** `https://nifhdpe.vercel.app/finance?tab=invoices`.
+
+**Observed:** Opening **New Invoice** with no client, no description, and a zero subtotal left **Create invoice atomically** disabled. Selecting the existing UAT client, entering description `UAT validation line`, quantity `1`, and unit price `1000` produced a visible subtotal of `₦1,000.00`, VAT of `₦75.00`, and gross/net due of `₦1,075.00`; the submit control then became enabled. The valid-data enablement test was intended to stop before submission, but a moving browser index caused an accidental production draft creation.
+
+### Accidental draft cleanup
+
+**Record:** `INVOICES/2026/0001B`, UAT client, `₦1,075.00`, source `manual`, no payment, no delivery, no bank link.
+
+**Observed and remediated:** The record was immediately changed from `draft` to `cancelled` through the authenticated production session after user confirmation. A live refresh showed the record as `cancelled`; the legitimate `INVOICES/2026/0001` remained `paid` and linked. No payment, waybill, or document-registry record was created for the accidental draft.
+
+### Defect discovered during cleanup
+
+**Issue:** The Finance report RPC treated every non-draft invoice as operational invoiced revenue and receivables, so the newly cancelled `₦1,075.00` draft temporarily changed live totals to `Total Revenue ₦206,593.79` and `Receivables ₦1,075.00` even though it was cancelled.
+
+**Fix prepared:** Migration `20260816090000_exclude_cancelled_invoices_from_finance_reports.sql` changes revenue, invoice counts, ageing buckets, and monthly invoicing to exclude both `draft` and `cancelled` invoices. `src/pages/Finance.tsx` also adds a supported **Cancel draft** action with an audit-preserving confirmation and prevents cancelled invoices from offering payment recording.
+
+**Retest status:** TypeScript compilation passed with `./node_modules/.bin/tsc --noEmit`. Production RPC retest remains blocked until the migration is applied to Supabase and the corresponding PR is deployed.
