@@ -32,6 +32,7 @@ import { AsyncBoundary } from "@/components/ui/async-boundary";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
 import { calculateExpensePaymentStatus, calculateOutstandingBalance, calculateReceivablesFromAging } from "@/lib/financialMath";
+import { workerPaymentTypeLabel } from "@/lib/workerPaymentLabels";
 
 type ExpenseItem = Database["public"]["Tables"]["expenses"]["Row"];
 type PaymentItem = Database["public"]["Tables"]["worker_payments"]["Row"];
@@ -45,7 +46,8 @@ type FinanceTransactionLinkItem = { id: string; bank_transaction_id: string; ent
 type FinanceLinkEntityType = "invoice" | "receipt" | "expense" | "worker_payment" | "purchase_order" | "fuel_log" | "director_account" | "staff_loan" | "loan_repayment" | "salary_schedule" | "overtime" | "vat_entry" | "external_loan";
 type FinanceLinkedSource = { id: string; label: string; amount: number };
 
-const PAYMENT_TYPES = ["salary", "overtime", "fuel", "maintenance", "bonus", "transport", "vendor"] as const;
+const PAYMENT_TYPES = ["salary", "overtime", "loan_repayment", "fuel", "maintenance", "bonus", "transport", "vendor"] as const;
+
 const EXPENSE_CATEGORIES = ["labor", "fuel", "transport", "materials", "equipment", "other"] as const;
 
 const Finance = () => {
@@ -477,6 +479,11 @@ const Finance = () => {
   const linkedTransactionIds = useMemo(() => new Set(transactionLinks.map((link) => link.bank_transaction_id)), [transactionLinks]);
   const bankTransactionById = useMemo(() => new Map(bankTransactions.map((transaction) => [transaction.id, transaction])), [bankTransactions]);
   const entityIsBankLinked = (entityType: string, entityId: string) => transactionLinks.some((link) => link.entity_type === entityType && link.entity_id === entityId);
+  const receiptBankLinkLabel = (receipt: ReceiptItem): string | null => {
+    if (entityIsBankLinked("receipt", receipt.id)) return "Linked";
+    if (receipt.invoice_id && entityIsBankLinked("invoice", receipt.invoice_id)) return "Linked via invoice";
+    return null;
+  };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -852,16 +859,17 @@ const Finance = () => {
                     <TableHead>Receipt #</TableHead><TableHead>Client</TableHead><TableHead>Date</TableHead><TableHead>Method</TableHead><TableHead className="text-right">Amount Received</TableHead><TableHead>Bank link</TableHead>
                   </TableRow></TableHeader>
                   <TableBody>
-                    {(receipts as ReceiptItem[]).map((r) => (
-                      <TableRow key={r.id}>
+                    {(receipts as ReceiptItem[]).map((r) => {
+                      const bankLinkLabel = receiptBankLinkLabel(r);
+                      return <TableRow key={r.id}>
                         <TableCell className="text-sm font-bold">{r.document_number}</TableCell>
                         <TableCell className="text-sm">{r.clients?.name}</TableCell>
                         <TableCell className="text-sm">{r.payment_date}</TableCell>
                         <TableCell className="text-sm capitalize">{r.payment_method}</TableCell>
                         <TableCell className="text-right font-bold text-emerald-600">{formatCurrency(r.amount_received)}</TableCell>
-                        <TableCell>{entityIsBankLinked("receipt", r.id) ? <Badge className="bg-emerald-600">Linked</Badge> : <Badge variant="outline">Unlinked</Badge>}</TableCell>
-                      </TableRow>
-                    ))}
+                        <TableCell>{bankLinkLabel ? <Badge className="bg-emerald-600">{bankLinkLabel}</Badge> : <Badge variant="outline">Unlinked</Badge>}</TableCell>
+                      </TableRow>;
+                    })}
                   </TableBody></Table>
                 </div>
               </AsyncBoundary>
@@ -951,7 +959,7 @@ const Finance = () => {
                       <TableRow key={p.id}>
                         <TableCell className="text-sm">{p.date}</TableCell>
                         <TableCell className="text-sm">{p.user_id ? getMemberName(p.user_id) : "—"}</TableCell>
-                        <TableCell><Badge variant="outline" className="capitalize">{p.type}</Badge></TableCell>
+                        <TableCell><Badge variant="outline" className="capitalize">{workerPaymentTypeLabel(p)}</Badge></TableCell>
                         <TableCell className="text-sm max-w-[200px] truncate" title={p.description || ""}>{p.description || "—"}</TableCell>
                         <TableCell className="text-right font-medium">{formatCurrency(p.amount)}</TableCell>
                         <TableCell>{entityIsBankLinked("worker_payment", p.id) ? <Badge className="bg-emerald-600">Linked</Badge> : <Badge variant="outline">Unlinked</Badge>}</TableCell>
