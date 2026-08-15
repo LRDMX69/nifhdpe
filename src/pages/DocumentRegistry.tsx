@@ -43,6 +43,7 @@ interface RevisionRow {
 
 const TYPE_META: Record<string, { label: string; icon: typeof FileText; color: string; route: string }> = {
   invoice:   { label: "Invoice",          icon: FileText,      color: "text-blue-500",    route: "/finance" },
+  proforma:  { label: "Proforma Invoice", icon: FileText,      color: "text-amber-500",   route: "/quotations" },
   quotation: { label: "Quotation",        icon: FileText,      color: "text-violet-500",  route: "/quotations" },
   receipt:   { label: "Receipt",          icon: ReceiptIcon,   color: "text-emerald-500", route: "/finance" },
   delivery:  { label: "Delivery",         icon: Truck,         color: "text-orange-500",  route: "/logistics" },
@@ -87,6 +88,11 @@ const DocumentRegistry = () => {
           const { data, error } = await supabase.from("invoices").select("id, document_number, invoice_date, total_amount, status, clients(name)").eq("organization_id", orgId).not("document_number", "is", null).order("invoice_date", { ascending: false }).limit(SOURCE_FETCH_LIMIT);
           if (error) throw error;
           return (data ?? []).map((r: any) => ({ id: r.id, number: r.document_number, type: "invoice", date: r.invoice_date, party: r.clients?.name ?? null, amount: r.total_amount, status: r.status }));
+        }},
+        { key: "proforma", run: async () => {
+          const { data, error } = await industrialDb.from("proforma_invoices").select("id, proforma_number, issue_date, total_amount, status, client_id, clients(name)").eq("organization_id", orgId).order("issue_date", { ascending: false }).limit(SOURCE_FETCH_LIMIT);
+          if (error) throw error;
+          return (data ?? []).map((r: any) => ({ id: r.id, number: r.proforma_number, type: "proforma", date: r.issue_date, party: r.clients?.name ?? null, amount: r.total_amount, status: r.status }));
         }},
         { key: "quotation", run: async () => {
           const { data, error } = await supabase.from("quotations").select("id, quotation_number, created_at, total_amount, status, clients(name)").eq("organization_id", orgId).not("quotation_number", "is", null).order("created_at", { ascending: false }).limit(SOURCE_FETCH_LIMIT);

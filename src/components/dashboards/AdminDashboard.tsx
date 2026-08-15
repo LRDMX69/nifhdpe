@@ -135,12 +135,12 @@ const AdminDashboard = () => {
     mutationFn: async () => {
       if (!orgId) throw new Error("No org");
       const departments = ["finance", "hr", "warehouse", "engineering"];
-      await supabase.functions.invoke("central-ai-monitor", { body: { organization_id: orgId } });
-      await Promise.allSettled(
-        departments.map(dept =>
-          supabase.functions.invoke("department-automation", { body: { organization_id: orgId, department: dept } })
-        )
-      );
+      const { error: monitorError } = await supabase.functions.invoke("central-ai-monitor", { body: { organization_id: orgId } });
+      if (monitorError) throw monitorError;
+      await Promise.all(departments.map(async (dept) => {
+        const { error } = await supabase.functions.invoke("department-automation", { body: { organization_id: orgId, department: dept } });
+        if (error) throw new Error(`${dept} automation failed: ${error.message}`);
+      }));
     },
     onSuccess: () => {
       toast({ title: "All department scans complete", description: "Intelligence feed updated with latest insights." });

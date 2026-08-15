@@ -132,7 +132,8 @@ const Opportunities = () => {
   const handleRefreshIntelligence = async () => {
     setScanning(true);
     try {
-      await supabase.functions.invoke("opportunity-scanner", { body: { action: "refresh" } });
+      const { error: scanError } = await supabase.functions.invoke("opportunity-scanner", { body: { action: "refresh" } });
+      if (scanError) throw scanError;
       await refetch();
       toast({ title: "Intelligence refreshed", description: "AI has re-analyzed all opportunities." });
     } catch {

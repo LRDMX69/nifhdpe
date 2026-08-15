@@ -35,6 +35,7 @@ type DbQuotation = Database["public"]["Tables"]["quotations"]["Row"] & { clients
 type DbQuotationItem = Database["public"]["Tables"]["quotation_items"]["Row"];
 type DbClient = { id: string; name: string };
 type QuotationSalesOrder = { id: string; order_number: string; quotation_id: string | null; status: string; total_amount: number | null; project_id: string | null };
+type QuotationProforma = { id: string; proforma_number: string; client_id: string | null; quotation_id: string | null; invoice_id: string | null; status: string; total_amount: number | null; valid_until: string | null; issue_date: string; currency: string | null };
 type QuotationProductSpecification = {
   id: string;
   product_code: string;
@@ -189,6 +190,17 @@ const Quotations = () => {
       const { data, error } = await industrialDb.from("sales_orders").select("id, order_number, quotation_id, status, total_amount, project_id").eq("organization_id", orgId).neq("status", "cancelled").order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as QuotationSalesOrder[];
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: proformas = [], refetch: refetchProformas } = useQuery({
+    queryKey: ["proformas-for-quotations", orgId],
+    queryFn: async () => {
+      if (!orgId) return [] as QuotationProforma[];
+      const { data, error } = await industrialDb.from("proforma_invoices").select("id, proforma_number, client_id, quotation_id, invoice_id, status, total_amount, valid_until, issue_date, currency").eq("organization_id", orgId).order("issue_date", { ascending: false }).order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as QuotationProforma[];
     },
     enabled: !!orgId,
   });
@@ -381,38 +393,41 @@ const Quotations = () => {
   };
 
   const createProforma = async () => {
-    if (!orgId || !user || !proformaQuotationId) return;
-    const quotation = quotations.find((candidate) => candidate.id === proformaQuotationId);
-    if (!quotation) return;
+    if (!orgId || !proformaQuotationId) return;
     setSaving(true);
     try {
-      const { data: number, error: numberError } = await industrialDb.rpc("next_doc_number", { _org_id: orgId, _doc_type: "proforma_invoices" });
-      if (numberError) throw numberError;
-      const { data: lineItems, error: lineItemsError } = await industrialDb.from("quotation_items").select("description, quantity, unit_price, total_price, item_type, product_specification_id").eq("quotation_id", quotation.id);
-      if (lineItemsError) throw lineItemsError;
-      const { error } = await industrialDb.from("proforma_invoices").insert({
-        organization_id: orgId,
-        proforma_number: number ?? `PF-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
-        client_id: quotation.client_id,
-        quotation_id: quotation.id,
-        issue_date: new Date().toISOString().slice(0, 10),
-        valid_until: proformaValidUntil || null,
-        currency: quotation.currency ?? "NGN",
-        subtotal: quotation.subtotal ?? 0,
-        discount_amount: quotation.discount_amount ?? 0,
-        tax_amount: quotation.tax_amount ?? 0,
-        transportation_cost: quotation.transport_cost ?? 0,
-        total_amount: quotation.total_amount ?? 0,
-        items: lineItems ?? [],
-        notes: proformaNotes.trim() || null,
-        status: "draft",
-        created_by: user.id,
+      const { error } = await industrialDb.rpc("create_proforma_invoice_from_quotation", {
+        _org_id: orgId,
+        _quotation_id: proformaQuotationId,
+        _valid_until: proformaValidUntil || null,
+        _notes: proformaNotes.trim() || null,
+        _idempotency_key: `quotation-proforma:${proformaQuotationId}`,
       });
       if (error) throw error;
-      toast({ title: "Proforma invoice created", description: "It uses a separate proforma sequence and remains linked to the quotation." });
+      toast({ title: "Proforma invoice issued", description: "The full quotation data is linked and visible in this commercial workflow." });
       setProformaOpen(false); setProformaQuotationId(""); setProformaValidUntil(""); setProformaNotes("");
+      await refetchProformas();
     } catch (error) {
       toast({ title: "Could not create proforma", description: humanizeError(error), variant: "destructive" });
+    } finally { setSaving(false); }
+  };
+
+  const decideProforma = async (proforma: QuotationProforma, decision: "accepted" | "cancelled") => {
+    if (!orgId) return;
+    setSaving(true);
+    try {
+      const { data, error } = await industrialDb.rpc("decide_proforma_invoice", {
+        _org_id: orgId,
+        _proforma_id: proforma.id,
+        _decision: decision,
+        _reason: decision === "accepted" ? "Client acceptance recorded in the commercial workflow" : "Proforma cancelled from the commercial workflow",
+      });
+      if (error) throw error;
+      const converted = data as { invoice_id?: string | null } | null;
+      toast({ title: decision === "accepted" ? "Proforma accepted" : "Proforma cancelled", description: decision === "accepted" && converted?.invoice_id ? "A linked final invoice was generated automatically." : undefined });
+      await Promise.all([refetchProformas(), refetchSalesOrders(), refetch()]);
+    } catch (error) {
+      toast({ title: "Could not update proforma", description: humanizeError(error), variant: "destructive" });
     } finally { setSaving(false); }
   };
 
@@ -565,7 +580,7 @@ const Quotations = () => {
         description="Create and manage pipe quotations"
         executiveSummary={`${quotations.filter((q) => q.status === "sent").length} awaiting client · ${quotations.filter((q) => q.status === "accepted").length} accepted of ${quotations.length}`}
         lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
-        onRefresh={() => refetch()}
+        onRefresh={() => { void refetch(); void refetchProformas(); void refetchSalesOrders(); }}
       >
         <Button size="sm" variant="outline" onClick={handleExport} disabled={quotations.length === 0}>
           <Download className="h-3.5 w-3.5 mr-1" /> Export CSV
@@ -710,6 +725,8 @@ const Quotations = () => {
       </div>
 
       {acceptedQuotations.length > 0 && <Card className="border-primary/20 bg-primary/5"><CardContent className="p-4 space-y-3"><div><p className="text-sm font-semibold">Commercial order lifecycle</p><p className="text-xs text-muted-foreground">Accepted quotations become controlled sales orders. Confirmation evaluates stock reservations and shortages; finance can then create the linked invoice.</p></div><div className="space-y-2">{acceptedQuotations.map((quotation) => { const order = salesOrders.find((candidate) => candidate.quotation_id === quotation.id); return <div key={quotation.id} className="flex flex-col gap-3 rounded-lg border bg-background/70 p-3 lg:flex-row lg:items-center lg:justify-between"><div className="min-w-0"><p className="text-sm font-medium">{quotation.quotation_number} · {quotation.clients?.name ?? "Client"}</p><p className="text-xs text-muted-foreground">{formatCurrency(Number(quotation.total_amount ?? 0))} · {order ? `${order.order_number} · ${order.status.replace("_", " ")}` : "No sales order yet"}</p></div><div className="flex flex-wrap gap-2">{!order && canEdit && <Button size="sm" variant="outline" onClick={() => createSalesOrder(quotation)} disabled={saving}><ShoppingCart className="h-3.5 w-3.5 mr-1" />Create sales order</Button>}{order && order.status === "draft" && canConfirmOrders && <Button size="sm" variant="outline" onClick={() => confirmSalesOrder(order)} disabled={saving}><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Confirm order</Button>}{order && ["confirmed", "partially_fulfilled", "fulfilled"].includes(order.status) && canCreateOrderInvoices && <Button size="sm" onClick={() => createInvoiceFromSalesOrder(order)} disabled={saving}><ReceiptText className="h-3.5 w-3.5 mr-1" />Create linked invoice</Button>}</div></div>; })}</div></CardContent></Card>}
+
+      {proformas.length > 0 && <Card className="border-amber-500/30 bg-amber-500/5"><CardContent className="p-4 space-y-3"><div><p className="text-sm font-semibold">Proforma and final-invoice lifecycle</p><p className="text-xs text-muted-foreground">Every proforma remains linked to its quotation. Recording acceptance generates one final invoice atomically; repeated clicks return the same linked result.</p></div><div className="space-y-2">{proformas.map((proforma) => { const quotation = quotations.find((candidate) => candidate.id === proforma.quotation_id); return <div key={proforma.id} className="flex flex-col gap-3 rounded-lg border bg-background/70 p-3 lg:flex-row lg:items-center lg:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-medium">{proforma.proforma_number} · {quotation?.clients?.name ?? "Client"}</p><Badge variant={proforma.status === "accepted" ? "default" : proforma.status === "cancelled" ? "destructive" : "outline"} className="capitalize">{proforma.status}</Badge></div><p className="text-xs text-muted-foreground">{formatCurrency(Number(proforma.total_amount ?? 0))} · issued {proforma.issue_date}{proforma.valid_until ? ` · valid until ${proforma.valid_until}` : ""}{proforma.invoice_id ? ` · invoice linked ${proforma.invoice_id.slice(0, 8)}` : ""}</p></div><div className="flex flex-wrap gap-2">{["draft", "issued"].includes(proforma.status) && canEdit && <Button size="sm" onClick={() => decideProforma(proforma, "accepted")} disabled={saving}><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Accept & create invoice</Button>}{["draft", "issued"].includes(proforma.status) && canEdit && <Button size="sm" variant="outline" onClick={() => decideProforma(proforma, "cancelled")} disabled={saving}>Cancel</Button>}{proforma.invoice_id && <Button size="sm" variant="outline" onClick={() => { window.location.assign(`/finance?tab=invoices`); }}>Open invoice</Button>}</div></div>; })}</div></CardContent></Card>}
 
       <AsyncBoundary
         loading={isLoading}

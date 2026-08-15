@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateExpensePaymentStatus, calculateInvoiceTotals, calculateLoanBalance, calculateOutstandingBalance, calculateQuotationTotals, calculateReconciliationDifference, calculateVatSchedule, formatClientDocumentNumber } from "@/lib/financialMath";
+import { calculateExpensePaymentStatus, calculateInvoiceTotals, calculateLoanBalance, calculateOutstandingBalance, calculateQuotationTotals, calculateReconciliationDifference, calculateReceivablesFromAging, calculateVatSchedule, formatClientDocumentNumber } from "@/lib/financialMath";
 
 describe("financial business calculations", () => {
   it("calculates quotation subtotal, margin, discount, overhead, VAT, and grand total deterministically", () => {
@@ -80,6 +80,10 @@ describe("financial business calculations", () => {
     expect(formatClientDocumentNumber("INVOICES/2026/0027", 2)).toBe("INVOICES/2026/0027B");
     expect(formatClientDocumentNumber("INVOICES/2026/0027", 3)).toBe("INVOICES/2026/0027C");
     expect(formatClientDocumentNumber("INVOICES/2026/0027", 28)).toBe("INVOICES/2026/0027AB");
+  });
+
+  it("sums current receivables from server aging buckets without period-cash distortion", () => {
+    expect(calculateReceivablesFromAging({ current: 120_000, "1_30": 30_000, "31_60": 0, "61_90": null, "90_plus": -10 })).toBe(150_000);
   });
 
   it("calculates complete invoice gross, net, VAT, WHT, and balance inputs deterministically", () => {
