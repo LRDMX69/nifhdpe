@@ -46,6 +46,14 @@ const Procurement = () => {
   
   // PO state
   const [poVendorId, setPoVendorId] = useState("");
+  const [poMode, setPoMode] = useState("local");
+  const [poVendorInvoice, setPoVendorInvoice] = useState("");
+  const [poFolio, setPoFolio] = useState("");
+  const [poSiteReference, setPoSiteReference] = useState("");
+  const [poVat, setPoVat] = useState("");
+  const [poHaulage, setPoHaulage] = useState("");
+  const [poExchangeRate, setPoExchangeRate] = useState("");
+  const [poAmountPaid, setPoAmountPaid] = useState("");
   const [poItems, setPoItems] = useState<DraftPoItem[]>([{ id: "po-item-1", itemName: "", description: "", quantity: "1", unit: "", unitPrice: "0" }]);
   
   // GRN state
@@ -140,20 +148,21 @@ const Procurement = () => {
       if (items.some((item) => !item.item_name || !Number.isFinite(item.quantity) || item.quantity <= 0 || !Number.isFinite(item.unit_price) || item.unit_price < 0)) {
         throw new Error("Every purchase-order line needs an item name, positive quantity, and non-negative unit price.");
       }
-      const { error } = await industrialDb.rpc("create_purchase_order_with_items", {
+      const { error } = await industrialDb.rpc("create_purchase_order_with_metadata", {
         _org_id: orgId,
         _vendor_id: poVendorId,
         _project_id: null,
         _delivery_date: null,
         _notes: null,
         _items: items,
+        _metadata: { procurement_mode: poMode, vendor_invoice_number: poVendorInvoice.trim(), accounting_folio: poFolio.trim(), site_reference: poSiteReference.trim(), vat_amount: Number(poVat || 0), haulage_cost: Number(poHaulage || 0), exchange_rate: poExchangeRate ? Number(poExchangeRate) : null, amount_paid: Number(poAmountPaid || 0) },
       });
       if (error) throw error;
     },
     onSuccess: () => {
       toast({ title: "Purchase Order created", description: `${poItems.length} line item${poItems.length === 1 ? "" : "s"} added.` });
       setPoOpen(false);
-      setPoVendorId("");
+      setPoVendorId(""); setPoMode("local"); setPoVendorInvoice(""); setPoFolio(""); setPoSiteReference(""); setPoVat(""); setPoHaulage(""); setPoExchangeRate(""); setPoAmountPaid("");
       setPoItems([{ id: `po-item-${Date.now()}`, itemName: "", description: "", quantity: "1", unit: "", unitPrice: "0" }]);
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
     },
@@ -368,6 +377,7 @@ const Procurement = () => {
                         </select>
                       </div>
                       <div className="space-y-3">
+                        <div className="grid gap-2 sm:grid-cols-2"><div><Label>Procurement mode</Label><select className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={poMode} onChange={(e) => setPoMode(e.target.value)}><option value="local">Local</option><option value="import">Import</option><option value="forex">Forex</option><option value="open_market">Open market</option></select></div><Input value={poVendorInvoice} onChange={(e) => setPoVendorInvoice(e.target.value)} placeholder="Vendor invoice number" /><Input value={poFolio} onChange={(e) => setPoFolio(e.target.value)} placeholder="Accounting folio" /><Input value={poSiteReference} onChange={(e) => setPoSiteReference(e.target.value)} placeholder="Site / project reference" /><Input type="number" min="0" value={poVat} onChange={(e) => setPoVat(e.target.value)} placeholder="VAT amount" /><Input type="number" min="0" value={poHaulage} onChange={(e) => setPoHaulage(e.target.value)} placeholder="Haulage cost" />{poMode === "forex" && <Input type="number" min="0" value={poExchangeRate} onChange={(e) => setPoExchangeRate(e.target.value)} placeholder="Exchange rate" />}<Input type="number" min="0" value={poAmountPaid} onChange={(e) => setPoAmountPaid(e.target.value)} placeholder="Amount paid" /></div>
                         <div className="flex items-center justify-between gap-2"><Label>Order lines *</Label><Button type="button" size="sm" variant="outline" onClick={() => setPoItems((current) => [...current, { id: `po-item-${Date.now()}`, itemName: "", description: "", quantity: "1", unit: "", unitPrice: "0" }])}><Plus className="h-3.5 w-3.5 mr-1" />Add line</Button></div>
                         {poItems.map((item, index) => <div key={item.id} className="rounded-lg border p-3 space-y-2">
                           <div className="flex items-center justify-between gap-2"><p className="text-xs font-semibold">Line {index + 1}</p>{poItems.length > 1 && <Button type="button" size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => setPoItems((current) => current.filter((candidate) => candidate.id !== item.id))}>Remove</Button>}</div>

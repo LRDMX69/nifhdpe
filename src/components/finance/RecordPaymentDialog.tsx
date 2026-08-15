@@ -20,6 +20,7 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   invoice: Invoice | null;
   onRecorded?: () => void;
+  financeAccounts?: Array<{ id: string; account_name: string; account_number?: string | null }>;
 }
 
 const METHODS = ["bank_transfer", "cash", "cheque", "pos", "mobile_money"] as const;
@@ -28,7 +29,7 @@ const METHODS = ["bank_transfer", "cash", "cheque", "pos", "mobile_money"] as co
  * Records a payment against an invoice and immediately prints a numbered
  * Receipt PDF that the client can be handed.
  */
-export const RecordPaymentDialog = ({ open, onOpenChange, invoice, onRecorded }: Props) => {
+export const RecordPaymentDialog = ({ open, onOpenChange, invoice, onRecorded, financeAccounts = [] }: Props) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [amount, setAmount] = useState("");
@@ -36,12 +37,13 @@ export const RecordPaymentDialog = ({ open, onOpenChange, invoice, onRecorded }:
   const [reference, setReference] = useState("");
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
+  const [bankAccountId, setBankAccountId] = useState("none");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setAmount(""); setMethod("bank_transfer"); setReference("");
-      setPaymentDate(new Date().toISOString().slice(0, 10)); setNotes("");
+      setPaymentDate(new Date().toISOString().slice(0, 10)); setNotes(""); setBankAccountId("none");
     } else if (invoice) {
       setAmount(String(invoice.balance_due ?? invoice.total_amount ?? 0));
     }
@@ -61,6 +63,7 @@ export const RecordPaymentDialog = ({ open, onOpenChange, invoice, onRecorded }:
         _reference_number: reference || null,
         _notes: notes || null,
         _payment_date: paymentDate,
+        _bank_account_id: bankAccountId === "none" ? null : bankAccountId,
       });
       if (error) throw error;
       const newBalance = Math.max(0, Number(invoice.balance_due ?? invoice.total_amount ?? 0) - amt);
@@ -125,6 +128,7 @@ export const RecordPaymentDialog = ({ open, onOpenChange, invoice, onRecorded }:
                 </Select>
               </div>
               <div className="space-y-1.5"><Label>Date</Label><Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} /></div>
+              <div className="space-y-1.5 col-span-2"><Label>Destination bank account</Label><Select value={bankAccountId} onValueChange={setBankAccountId}><SelectTrigger><SelectValue placeholder="Select the account receiving this payment" /></SelectTrigger><SelectContent><SelectItem value="none">Not assigned</SelectItem>{financeAccounts.map((account) => <SelectItem key={account.id} value={account.id}>{account.account_name}{account.account_number ? ` · ${account.account_number}` : ""}</SelectItem>)}</SelectContent></Select><p className="text-[11px] text-muted-foreground">Assigning an account keeps the receipt connected to Bank Analysis. You can still reconcile the exact bank line later.</p></div>
               <div className="space-y-1.5 col-span-2"><Label>Reference / Cheque #</Label><Input value={reference} onChange={e => setReference(e.target.value)} placeholder="Optional" /></div>
               <div className="space-y-1.5 col-span-2"><Label>Notes</Label><Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} /></div>
             </div>

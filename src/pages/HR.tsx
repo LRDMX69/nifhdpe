@@ -29,6 +29,10 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { calculateNigerianSalary, SalaryBreakdown } from "@/lib/payroll";
 import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
+import { industrialDb } from "@/lib/industrialDb";
+import { HRFinanceWorkspace } from "@/components/hr/HRFinanceWorkspace";
+import { HRCommercialOperationsPanel } from "@/components/hr/HRCommercialOperationsPanel";
+import { HRFinanceAuditWorkspace } from "@/components/hr/HRFinanceAuditWorkspace";
 
 const HR = () => {
   const { user, memberships, activeRole, isMaintenance } = useAuth();
@@ -199,6 +203,18 @@ const HR = () => {
     enabled: !!orgId && isHrOrAdmin,
   });
 
+  const { data: hrWorkflowSettings } = useQuery({
+    queryKey: ["hr-workflow-settings", orgId],
+    queryFn: async () => {
+      if (!orgId) return null;
+      const { data, error } = await industrialDb.from("hr_workflow_settings").select("md_approver_id, working_days_per_month").eq("organization_id", orgId).maybeSingle();
+      if (error) throw error;
+      return data as { md_approver_id?: string | null; working_days_per_month?: number | null } | null;
+    },
+    enabled: !!orgId && isHrOrAdmin,
+  });
+  const canDecideMd = activeRole === "administrator" || activeRole === "hr" && hrWorkflowSettings?.md_approver_id === user?.id || isMaintenance;
+
   const { data: orgInfo } = useQuery({
     queryKey: ["org-info-hr", orgId],
     queryFn: async () => {
@@ -240,11 +256,26 @@ const HR = () => {
   });
 
   const updateLeave = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from("leave_requests").update({ status, approved_by: user?.id }).eq("id", id);
+    mutationFn: async ({ id, action, reason }: { id: string; action: "reviewed" | "returned" | "approved" | "rejected"; reason?: string }) => {
+      if (!orgId) throw new Error("Organization is not ready");
+      const { error } = action === "reviewed" || action === "returned"
+        ? await industrialDb.rpc("review_leave_request", { _org_id: orgId, _leave_id: id, _review_status: action, _notes: reason ?? null })
+        : await industrialDb.rpc("decide_leave_request", { _org_id: orgId, _leave_id: id, _decision: action, _reason: reason ?? null });
       if (error) throw error;
     },
-    onSuccess: (_, { status }) => { toast({ title: `Leave ${status}` }); queryClient.invalidateQueries({ queryKey: ["leave-requests"] }); },
+    onSuccess: (_, { action }) => { toast({ title: action === "reviewed" ? "Leave reviewed" : `Leave ${action}` }); queryClient.invalidateQueries({ queryKey: ["leave-requests"] }); },
+    onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
+  });
+
+  const updateDisciplinaryReview = useMutation({
+    mutationFn: async ({ id, action, reason }: { id: string; action: "reviewed" | "returned" | "approved" | "rejected"; reason?: string }) => {
+      if (!orgId) throw new Error("Organization is not ready");
+      const { error } = action === "reviewed" || action === "returned"
+        ? await industrialDb.rpc("review_disciplinary_record", { _org_id: orgId, _record_id: id, _review_status: action })
+        : await industrialDb.rpc("decide_disciplinary_record", { _org_id: orgId, _record_id: id, _decision: action, _reason: reason ?? null });
+      if (error) throw error;
+    },
+    onSuccess: (_, { action }) => { toast({ title: action === "reviewed" ? "Disciplinary record reviewed" : `Disciplinary record ${action}` }); queryClient.invalidateQueries({ queryKey: ["disciplinary"] }); },
     onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
@@ -358,34 +389,27 @@ const HR = () => {
   const submitSalary = useMutation({
     mutationFn: async () => {
       if (!orgId || !user || !payUserId) throw new Error("Fill required fields");
-      
       const profile = profileMap.get(payUserId);
       const gross = Number(profile?.basic_salary || 0);
       if (gross <= 0) throw new Error("Employee has no base salary configured.");
-      
       const breakdown = calculateNigerianSalary(gross);
-      
-      const { error } = await supabase.from("worker_payments").insert({
-        organization_id: orgId, 
-        created_by: user.id, 
-        user_id: payUserId,
-        type: "salary" as const, 
-        amount: breakdown.netPay, // Total net amount
-        gross_pay: breakdown.grossPay,
+      const { error } = await industrialDb.from("hr_salary_schedules").insert({
+        organization_id: orgId,
+        employee_id: payUserId,
+        period_start: payDate || new Date().toISOString().split("T")[0],
+        period_end: payDate || new Date().toISOString().split("T")[0],
+        gross_salary: breakdown.grossPay,
+        pension: breakdown.pensionEmployee,
+        tax: breakdown.paye,
+        deductions: breakdown.nhf,
         net_pay: breakdown.netPay,
-        basic_salary: breakdown.basic,
-        housing_allowance: breakdown.housing,
-        transport_allowance: breakdown.transport,
-        pension_employee: breakdown.pensionEmployee,
-        pension_employer: breakdown.pensionEmployer,
-        nhf_deduction: breakdown.nhf,
-        paye_tax: breakdown.paye,
-        date: payDate || new Date().toISOString().split("T")[0],
-        description: payDesc || null,
+        status: "submitted",
+        submitted_by: user.id,
+        notes: payDesc || null,
       });
       if (error) throw error;
     },
-    onSuccess: () => { toast({ title: "Salary payment recorded with statutory deductions" }); setPayrollOpen(false); setPayUserId(""); setPayAmount(""); setPayDate(""); setPayDesc(""); queryClient.invalidateQueries({ queryKey: ["salary-payments"] }); },
+    onSuccess: () => { toast({ title: "Salary schedule submitted for approval" }); setPayrollOpen(false); setPayUserId(""); setPayAmount(""); setPayDate(""); setPayDesc(""); queryClient.invalidateQueries({ queryKey: ["salary-payments"] }); queryClient.invalidateQueries({ queryKey: ["hr-salary-schedules"] }); },
     onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
 
@@ -559,6 +583,10 @@ const HR = () => {
         </div>
       )}
 
+      {isHrOrAdmin && <HRFinanceWorkspace orgId={orgId} userId={user?.id} members={membersList} profileMap={profileMap} activeRole={activeRole ?? undefined} />}
+      {isHrOrAdmin && <HRCommercialOperationsPanel orgId={orgId} />}
+      {isHrOrAdmin && <HRFinanceAuditWorkspace orgId={orgId} userId={user?.id} />}
+
       {isHrOrAdmin && (attendancePatterns.lateArrivals.length > 3 || attendancePatterns.missingCheckouts.length > 0 || attendancePatterns.absentUsers.length > 0) && (
         <Card className="border-warning/30 bg-warning/5"><CardContent className="p-4 space-y-2">
           <div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-warning" /><span className="text-sm font-medium">Attendance Irregularities Detected</span></div>
@@ -698,11 +726,16 @@ const HR = () => {
           >
             <div className="space-y-2">{leaveRequests.map((l) => {
             const requesterName = profileMap.get(l.user_id)?.full_name;
+            const approval = l as typeof l & { hr_review_status?: string | null; md_decision?: string | null };
+            const awaitingHrReview = approval.hr_review_status == null || approval.hr_review_status === "pending";
+            const awaitingMdDecision = approval.hr_review_status === "reviewed" && !approval.md_decision;
             return (<div key={l.id} className="flex items-center justify-between py-3 px-3 rounded-lg bg-muted/30 gap-2 flex-wrap">
-              <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="text-sm capitalize font-medium">{l.leave_type} leave</p>{isHrOrAdmin && requesterName && <span className="text-xs text-muted-foreground">— {requesterName}</span>}</div><p className="text-xs text-muted-foreground">{l.start_date} → {l.end_date}</p>{l.reason && <p className="text-xs text-muted-foreground mt-1">{l.reason}</p>}</div>
+              <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="text-sm capitalize font-medium">{l.leave_type} leave</p>{isHrOrAdmin && requesterName && <span className="text-xs text-muted-foreground">— {requesterName}</span>}</div><p className="text-xs text-muted-foreground">{l.start_date} → {l.end_date}</p>{l.reason && <p className="text-xs text-muted-foreground mt-1">{l.reason}</p>}<p className="text-[10px] text-muted-foreground">HR: {approval.hr_review_status ?? "pending"} · MD: {approval.md_decision ?? "pending"}</p></div>
               <div className="flex items-center gap-1 shrink-0">
-                {isHrOrAdmin && l.status === "pending" && (<><Button size="sm" variant="outline" className="h-6 text-[10px] text-primary" onClick={() => updateLeave.mutate({ id: l.id, status: "approved" })}>Approve</Button><Button size="sm" variant="outline" className="h-6 text-[10px] text-destructive" onClick={() => updateLeave.mutate({ id: l.id, status: "rejected" })}>Reject</Button></>)}
-                <Badge variant="outline" className={`text-[10px] capitalize ${l.status === "approved" ? "text-primary" : l.status === "rejected" ? "text-destructive" : "text-warning"}`}>{l.status}</Badge>
+                {isHrOrAdmin && awaitingHrReview && (<Button size="sm" variant="outline" className="h-6 text-[10px] text-primary" onClick={() => updateLeave.mutate({ id: l.id, action: "reviewed" })}>Review</Button>)}
+                {isHrOrAdmin && approval.hr_review_status === "reviewed" && !approval.md_decision && !canDecideMd && <Badge variant="outline" className="text-[10px] text-warning">Awaiting MD</Badge>}
+                {canDecideMd && awaitingMdDecision && (<><Button size="sm" variant="outline" className="h-6 text-[10px] text-primary" onClick={() => updateLeave.mutate({ id: l.id, action: "approved" })}>Approve</Button><Button size="sm" variant="outline" className="h-6 text-[10px] text-destructive" onClick={() => updateLeave.mutate({ id: l.id, action: "rejected" })}>Reject</Button></>)}
+                <Badge variant="outline" className={`text-[10px] capitalize ${l.status === "approved" ? "text-primary" : l.status === "rejected" ? "text-destructive" : "text-warning"}`}>{approval.md_decision ?? l.status}</Badge>
               </div>
             </div>);
             })}</div>
@@ -721,7 +754,7 @@ const HR = () => {
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-5 w-5 text-primary" /> Salary Payments</CardTitle>
                 <Dialog open={payrollOpen} onOpenChange={setPayrollOpen}>
-                  <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" />Record Salary</Button></DialogTrigger>
+                  <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" />Submit Salary Schedule</Button></DialogTrigger>
                   <DialogContent><DialogHeader><DialogTitle>Record Salary Payment</DialogTitle></DialogHeader>
                     <div className="space-y-4">
                       <div className="space-y-2"><Label>Employee *</Label><Select value={payUserId} onValueChange={setPayUserId}><SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger><SelectContent>{memberOptions.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent></Select></div>
@@ -744,7 +777,7 @@ const HR = () => {
 
                       <Button className="w-full" onClick={() => submitSalary.mutate()} disabled={!payUserId || !salaryBreakdown || submitSalary.isPending}>
                         {submitSalary.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                        {salaryBreakdown ? `Pay ₦${salaryBreakdown.netPay.toLocaleString()}` : "Save Payment"}
+                        {salaryBreakdown ? `Submit ₦${salaryBreakdown.netPay.toLocaleString()} for approval` : "Submit Schedule"}
                       </Button>
                     </div>
                   </DialogContent>
@@ -758,7 +791,7 @@ const HR = () => {
                   isEmpty={salaryPayments.length === 0}
                   loadingVariant="list"
                   loadingRows={3}
-                  emptyState={{ compact: true, icon: DollarSign, title: "No salary records yet", description: "Use 'Record Salary' above to log payroll runs. Statutory deductions (PAYE, pension, NHF) are auto-calculated from each employee's base salary." }}
+                  emptyState={{ compact: true, icon: DollarSign, title: "No salary schedules yet", description: "Use 'Submit Salary Schedule' above to create an auditable payroll row. Statutory deductions (PAYE, pension, NHF) are calculated from the employee's base salary." }}
                 >
                   {(() => {
                   // Group payments by employee
@@ -1028,12 +1061,15 @@ const HR = () => {
                 loadingRows={3}
                 emptyState={{ compact: true, icon: ShieldAlert, title: "No disciplinary records", description: "Document warnings, suspensions, or terminations using 'Record' above. Entries here form part of the employee's history." }}
               >
-                <div className="space-y-2">{disciplinary.map((d) => (
-                <div key={d.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2">
-                  <div className="min-w-0"><p className="text-sm font-medium">{getMemberName(d.user_id)}</p><p className="text-xs text-muted-foreground">{d.description.slice(0, 80)}{d.description.length > 80 ? "..." : ""}</p><p className="text-[10px] text-muted-foreground">{d.incident_date}{d.action_taken ? ` · ${d.action_taken}` : ""}</p></div>
-                  <div className="flex items-center gap-1"><Badge variant="outline" className={`text-[10px] capitalize ${d.severity === "termination" || d.severity === "suspension" ? "text-destructive" : "text-warning"}`}>{d.severity.replace("_", " ")}</Badge><RecordActions onEdit={() => openEditDisc(d)} onDelete={() => setDeleteTarget({ id: d.id, table: "disciplinary_records", label: "record" })} /></div>
-                </div>
-                ))}</div>
+                <div className="space-y-2">{disciplinary.map((d) => {
+                const decision = d as typeof d & { hr_review_status?: string | null; md_decision?: string | null };
+                const awaitingReview = decision.hr_review_status == null || decision.hr_review_status === "pending";
+                const awaitingDecision = decision.hr_review_status === "reviewed" && !decision.md_decision;
+                return (<div key={d.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 gap-2 flex-wrap">
+                  <div className="min-w-0"><p className="text-sm font-medium">{getMemberName(d.user_id)}</p><p className="text-xs text-muted-foreground">{d.description.slice(0, 80)}{d.description.length > 80 ? "..." : ""}</p><p className="text-[10px] text-muted-foreground">{d.incident_date}{d.action_taken ? ` · ${d.action_taken}` : ""} · HR: {decision.hr_review_status ?? "pending"} · MD: {decision.md_decision ?? "pending"}</p></div>
+                  <div className="flex flex-wrap items-center justify-end gap-1"><Badge variant="outline" className={`text-[10px] capitalize ${d.severity === "termination" || d.severity === "suspension" ? "text-destructive" : "text-warning"}`}>{d.severity.replace("_", " ")}</Badge>{isHrOrAdmin && awaitingReview && <Button size="sm" variant="outline" className="h-7 text-[10px] text-primary" onClick={() => updateDisciplinaryReview.mutate({ id: d.id, action: "reviewed" })}>Review</Button>}{canDecideMd && awaitingDecision && <><Button size="sm" variant="outline" className="h-7 text-[10px] text-primary" onClick={() => updateDisciplinaryReview.mutate({ id: d.id, action: "approved" })}>Approve</Button><Button size="sm" variant="outline" className="h-7 text-[10px] text-destructive" onClick={() => updateDisciplinaryReview.mutate({ id: d.id, action: "rejected" })}>Reject</Button></>}{decision.md_decision && <Badge variant="outline" className={`text-[10px] capitalize ${decision.md_decision === "approved" ? "text-primary" : "text-destructive"}`}>MD {decision.md_decision}</Badge>}<Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => setDeleteTarget({ id: d.id, table: "disciplinary_records", label: "record" })}>Delete</Button></div>
+                </div>);
+                })}</div>
               </AsyncBoundary>
             </CardContent>
           </Card></TabsContent>

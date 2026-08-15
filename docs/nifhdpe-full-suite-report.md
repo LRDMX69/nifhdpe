@@ -113,3 +113,18 @@ First, apply the follow-up migrations in order: `20260814100000`, `2026081411000
 ## Final status
 
 The codebase is no longer limited to isolated UI foundations for the requested suite. The technically determinable workflow connections have been implemented in the application and database layer, with server-side transactional behavior for the high-risk state transitions. The remaining production-certification work is authenticated and governance-based: the user’s real Lovable Cloud session must exercise the role-specific workflows on desktop and mobile, generated Supabase types should be refreshed when convenient through the platform workflow, and management must approve the listed business policies.
+
+
+## HR meeting requirements integration — current-main pass
+
+The HR page now acts as a controlled workforce, finance-oversight, and cross-module visibility surface rather than a duplicate control desk. HR has contextual visibility into the existing Clients, Quotations, Sales Orders, Invoices, Deliveries, and Finance records, with links back to their native owning modules. The central Clients form now accepts optional TIN, State, and Local Government metadata, while client deletion remains outside HR authority.
+
+Three cohesive native workspaces are embedded in HR: **Finance & Benefits**, **Commercial & Operations Oversight**, and **Bank & Reconciliation Oversight**. Finance & Benefits covers salary schedules, overtime, staff loans and repayments, HMO coverage, finance accounts, VAT schedule entries, configurable MD approval settings, atomic approved-payroll payment creation, and professional payslip generation. Commercial & Operations shows live clients, quotation pipeline, accepted values, sales orders, invoice balances, and delivery status. Bank & Reconciliation captures statement headers and optional CSV lines into pending-review records, supports month-end reconciliation and discrepancy capture, and maintains a director-account ledger without silently posting financial records.
+
+Leave and disciplinary workflows now use explicit HR-review and MD-decision RPC transitions. Legacy direct final-decision paths are removed from the governed surface; the configured MD identity remains a management-policy input. Approved salary schedules are the source of truth for HR-created salary payments and payslips, while approved overtime and staff-loan repayments create linked worker-payment records through atomic connectors.
+
+Procurement purchase orders now retain configurable local/import/forex/open-market mode, vendor invoice, accounting folio, site reference, VAT, haulage, exchange-rate, amount-paid, outstanding, and payment-status metadata through the native PO editor. Quotations can create draft proforma invoices from quotation lineage using a separate document sequence. Finance expenses accept source account, folio, site reference, VAT, withholding, outstanding, and payment-status metadata.
+
+### Additional migration handoff
+
+Apply `20260815100000_hr_finance_workflow_connectors.sql` after the previously delivered migration sequence. Refresh the Lovable Cloud/PostgREST schema cache and regenerate Supabase types before relying on the newly added columns directly. This migration adds HR finance tables, bank/reconciliation records, workflow settings, approval RPCs, payroll/payment connectors, director-account ledger, procurement metadata, and client TIN/location columns. Tax rates, WHT applicability, payroll working-day basis, HMO amounts, loan policy, MD identity, and other management decisions remain configurable and are not invented by the implementation.
