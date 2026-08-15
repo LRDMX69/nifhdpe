@@ -12,7 +12,7 @@ This report records the result of the Monday-deadline production-readiness harde
 
 > **Important limitation:** The new migration `20260815100000_hr_finance_workflow_connectors.sql` has not been exercised against the live Lovable Cloud/Supabase project in this environment. Therefore, this report does **not** claim that the ERP is fully production-certified. Every workflow that depends on that migration, live RLS, PostgREST schema cache, authenticated roles, or production data is marked **NOT VERIFIED** or **partially verified** below.
 
-The static verification gate passed: standard TypeScript type checking, strict TypeScript type checking, linting with zero errors, the complete Vitest suite, production build, high-severity dependency audit, and Git diff hygiene. The complete suite currently reports **23 passing tests across five test files**. Lint reports **95 warnings and 0 errors**; the warnings are pre-existing or non-blocking explicit-`any` warnings and should be reduced in a later quality pass.
+The static verification gate passed: standard TypeScript type checking, strict TypeScript type checking, linting with zero errors, the complete Vitest suite, production build, high-severity dependency audit, Git diff hygiene, and the same checks executed locally in the new GitHub Actions workflow. The workflow is configured to run on every push, pull requests targeting `main`, and manual dispatch. The complete suite currently reports **23 passing tests across five test files**. Lint reports **95 warnings and 0 errors**; the warnings are pre-existing or non-blocking explicit-`any` warnings and should be reduced in a later quality pass.
 
 ## Verification evidence
 
@@ -26,6 +26,7 @@ The static verification gate passed: standard TypeScript type checking, strict T
 | Dependency audit | ✅ Passed | `npm audit --audit-level=high` reported 0 vulnerabilities. |
 | Diff hygiene | ✅ Passed | `git diff --check` exited 0. |
 | Placeholder audit | ✅ Clean by review | Only legitimate GPS “samples” terminology and an explicit AI fallback comment matched; no TODO, FIXME, placeholder, dummy-data, or unfinished implementation marker was found. |
+| GitHub Actions CI | ✅ Added and locally validated | `.github/workflows/ci.yml` runs on pushes, pull requests targeting `main`, and manual dispatch; it runs type checks, strict checks, lint, all behavior tests, production build, dependency audit, diff hygiene, and the production-marker audit. | Push the workflow and confirm the first hosted run is green on GitHub. |
 | Live Supabase migration | ❌ NOT VERIFIED | The user must apply the migration and refresh the schema cache before authenticated workflow testing. |
 | Authenticated end-to-end smoke tests | ❌ NOT VERIFIED | No live role-based smoke run was available in the sandbox. |
 
