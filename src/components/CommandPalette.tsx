@@ -45,7 +45,6 @@ export const CommandPalette = () => {
         <CommandGroup heading="Go to">
           <CommandItem onSelect={() => go("/dashboard")}><LayoutDashboard className="h-4 w-4 mr-2" />Dashboard</CommandItem>
           <CommandItem onSelect={() => go("/finance")}><DollarSign className="h-4 w-4 mr-2" />Finance</CommandItem>
-          <CommandItem onSelect={() => go("/finance?tab=invoices")}><Receipt className="h-4 w-4 mr-2" />Invoices</CommandItem>
           <CommandItem onSelect={() => go("/quotations")}><FileText className="h-4 w-4 mr-2" />Quotations</CommandItem>
           <CommandItem onSelect={() => go("/clients")}><Users className="h-4 w-4 mr-2" />Clients</CommandItem>
           <CommandItem onSelect={() => go("/projects")}><FolderKanban className="h-4 w-4 mr-2" />Projects</CommandItem>
