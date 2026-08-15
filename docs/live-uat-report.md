@@ -203,3 +203,26 @@ Attendance and leave remain separate blockers and must be fixed before approval.
 [3]: ../audit/live-page-results.md "NIFHDPE live UAT evidence log"
 
 [4]: https://github.com/LRDMX69/nifhdpe/tree/feat/invoice-waybill-reactive-workflows "NIFHDPE repair branch"
+
+
+## Post-merge production retest addendum — 15 August 2026
+
+PR #10 was merged into `main` at commit `b14a45f477f0124b6e81d0becbc52d5905b6d018`, and the public production deployment was retested at `https://nifhdpe.vercel.app`.
+
+| Repaired area | Post-merge live result | Evidence |
+|---|---|---|
+| Pipe Calculator validation | **PASS** | Zero/zero now produces `Length and flow rate must both be greater than zero.`; no false zero result is shown. |
+| Pipe Calculator valid formula | **PASS** | 200m and 10 L/s returns 1.57 m/s, 4.87 m, and 628 kg. |
+| Document Registry revisions | **PASS** | Registry now shows 8 revisions and current/superseded snapshots; the previous source warning is gone. |
+| GRN list rendering | **PASS** | Existing GRN/2026/0001 renders in Goods Received with 8 received. |
+| Direct PO-card Receive GRN wiring | **PASS with limitation** | Fresh PO/2026/0002 exposes Receive GRN and opens the dialog with that PO selected. The draft PO reported no outstanding line items, so posting was not completed. |
+| Finance aggregate | **PARTIAL PASS** | Finance overview now shows Total Received ₦205,518.79 against the paid invoice without a manual refresh after navigation. A same-session post-payment mutation could not be safely repeated against the already-paid invoice. |
+| Loan repayment balance | **PASS** | Fresh ₦10,000 repayment reduced the live balance from ₦40,000 to ₦30,000 and displayed success. |
+| Loan repayment worker-payment type/propagation | **NOT VERIFIED** | Payroll remained at 2 historical payments totaling ₦259,000 immediately after the fresh repayment; the new ₦10,000 row was not visible in the settled register. Database-level verification is required. |
+| Attendance Check In | **FAIL** | Post-merge Check In remains a silent no-op: Not checked in, all counters zero, no record. |
+
+### Revised post-merge decision
+
+The merged deployment resolves the Pipe Calculator validation defect and the Document Registry revisions-source failure, and materially improves procurement and finance behavior. It does **not** qualify for an unconditional production-ready verdict. Attendance remains a critical silent failure; the fresh loan repayment’s worker-payment propagation/type remains unverified; exact post-mutation Finance invalidation remains only partially exercised; the proforma-to-invoice repair still requires a fresh conversion proving exact total equality; payroll breakdown mapping still requires a fresh salary payment and database inspection; and leave review remains a known schema/RPC failure.
+
+**Revised verdict: CONDITIONAL NO-GO.** The release is demonstrably improved and the merged UI fixes are live, but production approval remains blocked until the remaining financial-integrity and HR workflow gates are completed. The full post-merge evidence is in [audit/post-merge-retest-2026-08-15.md](../audit/post-merge-retest-2026-08-15.md).
