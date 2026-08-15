@@ -251,3 +251,25 @@ The earlier Dashboard `Total Expenses ₦0.00` and Opportunities zero-card captu
 ### C01/CALC Pipe Calculator live validation
 
 The settled production calculator case used HDPE, 110 mm, length 100 m, and flow 5 L/s. The live output was Pressure Rating `16 bar`, Flow Velocity `0.79 m/s`, Head Loss `0.68 m`, and Total Weight `314 kg`. An independent saved Python calculation using the implementation’s stated inner diameter (0.09 m), HDPE Hazen-Williams coefficient (150), and formulas produced velocity `0.785950 m/s`, head loss `0.675110 m`, and weight `314.00 kg`, matching the displayed rounded values. The earlier zero-input validation remains PASS with a clear error and no false result. Normal calculation integrity is PASS for this case; small/large/decimal edge cases remain pending.
+
+### Calculator precision correction merged retest
+
+After PR #20 deployment, the live calculator accepted HDPE 110 mm, length `0.01` m, flow `0.1` L/s and displayed **Total Weight `0.03 kg`**, resolving the prior misleading `0 kg` output. It continued to display finite velocity `0.02 m/s`, head loss `0.00 m`, and pressure `16 bar`. The normal 100 m / 5 L/s case remains independently verified at `0.79 m/s`, `0.68 m`, and `314 kg`.
+
+### W07/D06 Procurement and Purchase Order PDF
+
+Production Procurement → Purchase Orders showed `PURCHASE_ORDERS/2026/0001` as **received** from `UAT Supplier HDPE 2026-08-15`, value `₦120,000`, with PDF available; the source draft PO `PURCHASE_ORDERS/2026/0002` also exposed Receive GRN. The received PO PDF downloaded successfully as **1 page, A4 (595.28 × 841.89 pts)**. Text and visual inspection confirmed document ID, PO number, FINAL status, NGN currency, vendor, description, quantity 8, unit price `₦15,000`, total `₦120,000`, grand total, prepared/approved/date lines, administrative approval stamp, letterhead, watermark, and footer. The existing GRN/Inventory record reconciles to the same 8 units and `₦120,000` stock value.
+
+### U07 Repository hygiene
+
+The source and migration sweep returned **0 files** containing `TODO`, `FIXME`, `XXX`, or `HACK` markers, and no matches for `coming soon`, `not implemented`, `mock data`, `dummy data`, or `fake data`. Remaining `placeholder` and `No … yet` strings are form prompts or intentional empty-state guidance, not unfinished handlers. U07 is PASS for repository markers; UAT records and AI-generated historical content remain data-quality warnings rather than code placeholders.
+
+### R01/R02/R05/R08 Role and permission evidence
+
+The live role switcher rendered role-specific onboarding and navigation. HR’s scoped dashboard exposed HR, agreed Finance/Procurement/Analytics oversight, Quotations, Clients, Logistics, Claims, Messages, and Documents, consistent with the current organization policy that HR heads Finance. Technical Dept. exposed Projects, Equipment, Field Reports, HSE, Compliance, Calculator, HR, Claims, Messages, and Documents, while hiding Finance, Procurement, Analytics, Marketing Opportunities, and Settings from navigation. Technical onboarding clearly described engineering responsibilities.
+
+A direct `/finance` deep-link attempt was also made after selecting Technical Dept. inside the SPA. The account is a maintenance administrator, and `ProtectedRoute` explicitly bypasses role denial for maintenance admins, so the page remained reachable. This proves the maintenance override works but does **not** prove a non-maintenance Technical user’s deep-link denial. A real non-maintenance role credential is required to complete R08 safely; no destructive or unauthorized mutation was attempted. Navigation-level role scoping is PASS; direct-denial test is BLOCKED/UNTESTED due credential scope.
+
+### W02/C01 Invoice form first-use and validation evidence
+
+Production `/finance?tab=invoices&new=1` opened the canonical `Create complete invoice` dialog. The form clearly exposes the required Client selector, invoice kind, sales-order lineage, client PO, project, linked delivery/waybill, customer reference, invoice/due dates, line-item description/quantity/unit/unit price/discount/cost code, site/delivery context, VAT and WHT rates, discount, overhead/site cost, transportation, currency, Free Trade Zone, receiving account, payment terms, terms, and notes. The initial zero-line state calculates all totals as `₦0.00` and presents `Create invoice atomically`; no record was submitted. This confirms first-use field completeness and preserves the safe no-submit state for the required-field validation test.
