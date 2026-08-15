@@ -589,7 +589,7 @@ const HR = () => {
             <span><span className="font-semibold text-sm">Centralized operations view</span><span className="block text-xs text-muted-foreground">Read-only connected oversight. Source records remain owned by Finance, Quotations, Logistics, and Bank Analysis.</span></span>
             <span className="text-xs text-primary group-open:hidden">Expand</span><span className="text-xs text-primary hidden group-open:inline">Collapse</span>
           </summary>
-          <div className="grid gap-4 border-t border-primary/10 p-4 lg:grid-cols-2">
+          <div className="hidden group-open:grid gap-4 border-t border-primary/10 p-4 lg:grid-cols-2">
             <HRFinanceWorkspace orgId={orgId} userId={user?.id} members={membersList} profileMap={profileMap} activeRole={activeRole ?? undefined} />
             <HRCommercialOperationsPanel orgId={orgId} />
             <div className="lg:col-span-2"><HRFinanceAuditWorkspace orgId={orgId} userId={user?.id} /></div>
