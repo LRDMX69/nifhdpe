@@ -223,8 +223,8 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
 
   const sections = contentSections || (content ? parseContentIntoSections(content) : []);
   const isCompactDocument = Boolean(
-    tableData && tableData.rows.length <= 8 && sections.length <= 2 &&
-    sections.reduce((total, section) => total + (section.body?.length ?? 0) + (section.bullets?.join(" ").length ?? 0), 0) < 1200,
+    tableData && tableData.rows.length <= 8 && sections.length <= 1 &&
+    sections.reduce((total, section) => total + (section.body?.length ?? 0) + (section.bullets?.join(" ").length ?? 0), 0) < 700,
   );
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: isCompactDocument ? "a5" : "a4" });
   const pageW = doc.internal.pageSize.getWidth();
@@ -373,7 +373,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
     y = checkPageBreak(doc, y, 30, margin, contentTop, contentBottom, letterheadDataUrl);
     autoTable(doc, {
       startY: y,
-      head: [tableData.columns.map(c => c.header)],
+      head: [tableData.columns.map(c => pdfText(c.header))],
       body: tableData.rows.map(row => tableData.columns.map(c => pdfText(row[c.dataKey] ?? ""))),
       margin: { top: contentTop, right: margin, bottom: contentBottom, left: margin },
       styles: { font: "helvetica", fontSize: 8.3, cellPadding: { top: 2.7, right: 3, bottom: 2.7, left: 3 }, textColor: [35, 45, 55], lineColor: [218, 226, 221], lineWidth: 0.18, valign: "middle", overflow: "linebreak" },
