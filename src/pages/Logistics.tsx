@@ -23,13 +23,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
-import { generateWaybill } from "@/lib/generateWaybill";
+import { generateAndRecordWaybill } from "@/lib/generateWaybill";
 import { WaybillDialog } from "@/components/logistics/WaybillDialog";
 import { useSearchParams } from "react-router-dom";
 import { humanizeError } from "@/lib/humanizeError";
 import { industrialDb } from "@/lib/industrialDb";
 
-type DeliveryRow = Database["public"]["Tables"]["deliveries"]["Row"] & { projects?: { name: string } | null; manual_dispatch_reason?: string | null };
+type DeliveryRow = Database["public"]["Tables"]["deliveries"]["Row"] & { projects?: { name: string } | null; manual_dispatch_reason?: string | null; document_number?: string | null; waybill_id?: string | null; sales_order_id?: string | null; client_id?: string | null };
 type DispatchOrder = { id: string; order_number: string; status: string; total_amount: number | null; project_id: string | null; clients?: { name: string } | null };
 type VehicleRow = Database["public"]["Tables"]["vehicles"]["Row"] & { name?: string | null };
 type FuelLogRow = Database["public"]["Tables"]["fuel_logs"]["Row"] & { vehicles?: { plate_number: string; name?: string | null } | null };
@@ -397,7 +397,7 @@ const Logistics = () => {
           </Button>
         </div>
       </PageHeader>
-      <WaybillDialog open={waybillOpen} onOpenChange={setWaybillOpen} />
+      <WaybillDialog open={waybillOpen} onOpenChange={setWaybillOpen} onCreated={() => { void refetch(); }} />
 
       <WorkflowBanner
         storageKey="logistics"
@@ -495,17 +495,27 @@ const Logistics = () => {
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={async () => {
                             try {
-                              await generateWaybill({
+                              const linkedDelivery = d as DeliveryRow;
+                              const linkedItems = deliveryItems.filter((item) => item.delivery_id === d.id).map((item) => ({ description: item.product_specifications ? `${item.product_specifications.product_code} — ${item.product_specifications.product_name}` : item.inventory?.item_name ?? item.sales_order_items?.description ?? "Dispatched material", quantity: Number(item.quantity), unit: "each" }));
+                              const waybill = await generateAndRecordWaybill({
+                                organizationId: orgId,
+                                deliveryId: d.id,
+                                salesOrderId: linkedDelivery.sales_order_id ?? null,
+                                clientId: linkedDelivery.client_id ?? null,
+                                projectId: linkedDelivery.project_id ?? null,
+                                idempotencyKey: `waybill:${orgId}:${d.id}`,
                                 date: d.delivery_date,
                                 driver: d.driver ?? "",
                                 vehicle: d.vehicle ?? "",
                                 destination: d.destination,
                                 destinationState: d.destination_state,
                                 siteName: d.site_name,
-                                projectName: (d as DeliveryRow).projects?.name,
+                                projectName: linkedDelivery.projects?.name,
                                 notes: d.notes,
+                                items: linkedItems.length > 0 ? linkedItems : [{ description: "Materials in transit", quantity: "—", unit: "" }],
                                 issuedBy: user?.email ?? undefined,
                               });
+                              toast({ title: "Waybill generated and recorded", description: `${waybill.document_number} is now available in Document Registry for reprint.` });
                             } catch (err) {
                               toast({ title: "Waybill failed", description: (err as Error).message, variant: "destructive" });
                             }

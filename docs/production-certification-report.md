@@ -1,7 +1,7 @@
 # NIFHDPE ERP Production Certification Report
 
 **Project:** NIF Technical Company HDPE Operations ERP  
-**Branch:** `feat/hr-meeting-integration`  
+**Branch:** `feat/invoice-waybill-reactive-workflows`
 **Certification date:** 15 August 2026  
 **Prepared by:** Manus AI  
 **Certification posture:** **Code-level hardening completed; live production certification remains conditional.**
@@ -12,7 +12,7 @@ This report records the result of the Monday-deadline production-readiness harde
 
 > **Important limitation:** The new migration `20260815100000_hr_finance_workflow_connectors.sql` has not been exercised against the live Lovable Cloud/Supabase project in this environment. Therefore, this report does **not** claim that the ERP is fully production-certified. Every workflow that depends on that migration, live RLS, PostgREST schema cache, authenticated roles, or production data is marked **NOT VERIFIED** or **partially verified** below.
 
-The static verification gate passed: standard TypeScript type checking, strict TypeScript type checking, linting with zero errors, the complete Vitest suite, production build, high-severity dependency audit, Git diff hygiene, and the same checks executed locally in the new GitHub Actions workflow. The workflow is configured to run on every push, pull requests targeting `main`, and manual dispatch. The complete suite currently reports **23 passing tests across five test files**. Lint reports **95 warnings and 0 errors**; the warnings are pre-existing or non-blocking explicit-`any` warnings and should be reduced in a later quality pass.
+The static verification gate passed: standard TypeScript type checking, strict TypeScript type checking, linting with zero errors, the complete Vitest suite, production build, high-severity dependency audit, Git diff hygiene, and the same checks executed locally in the new GitHub Actions workflow. The workflow is configured to run on every push, pull requests targeting `main`, and manual dispatch. The complete suite currently reports **25 passing tests across five test files**. Lint reports **95 warnings and 0 errors**; the warnings are pre-existing or non-blocking explicit-`any` warnings and should be reduced in a later quality pass.
 
 ## Verification evidence
 
@@ -21,7 +21,7 @@ The static verification gate passed: standard TypeScript type checking, strict T
 | Standard TypeScript | ✅ Passed | `npm run typecheck` exited 0. |
 | Strict TypeScript | ✅ Passed | `npm run typecheck:strict` exited 0. |
 | Lint | ✅ Passed with warnings | `npm run lint` exited 0; 95 warnings, 0 errors. |
-| Behavior tests | ✅ Passed | `npm test -- --run` reported 5 files and 23 tests passing. |
+| Behavior tests | ✅ Passed | `npm test -- --run` reported 5 files and 25 tests passing. |
 | Production build | ✅ Passed | `npm run build` completed successfully; Vite emitted production assets. |
 | Dependency audit | ✅ Passed | `npm audit --audit-level=high` reported 0 vulnerabilities. |
 | Diff hygiene | ✅ Passed | `git diff --check` exited 0. |
@@ -89,7 +89,7 @@ No Nigerian tax, accounting, payroll, lending, HMO, credit, or approval policy w
 
 ## Migration handoff
 
-Before using the new Monday workflows, apply `supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql` through Lovable Cloud/Supabase. The migration creates the finance accounts, bank statements, bank transactions, reconciliations, transaction links, HR finance records, VAT schedule, approval RPCs, payment RPCs, bank-link RPCs, account-lineage columns, the server-side VAT connector, the bank-account-aware receipt connector, and the expense normalization trigger.
+Before using the new Monday workflows, apply `supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql` and then `supabase/migrations/20260815130000_invoice_waybill_reactive_workflows.sql` through Lovable Cloud/Supabase in timestamp order. The first migration creates the finance accounts, bank statements, bank transactions, reconciliations, transaction links, HR finance records, VAT schedule, approval RPCs, payment RPCs, bank-link RPCs, account-lineage columns, the server-side VAT connector, the bank-account-aware receipt connector, and the expense normalization trigger. The second migration adds client-aware invoice/sales-order series, complete invoice financial normalization and atomic creation/payment RPCs, the durable waybills table, delivery references, issue/print/reprint RPCs, and the document-registry source.
 
 After application, refresh the PostgREST schema cache in the Supabase dashboard, regenerate Supabase types through the Lovable Cloud workflow, and reload the deployed application. Then run authenticated smoke tests for at least the administrator, finance, HR, reception/sales, and warehouse roles. The first operational test should create or verify a finance account, import a bank statement, approve one line, connect it to a receipt or expense, and confirm the connection appears in both HR Bank & Reconciliation and Finance → Bank Analysis.
 
@@ -112,4 +112,19 @@ grep -RInE 'TODO|FIXME|PLACEHOLDER|REPLACE_WITH|coming soon|not implemented|mock
 
 ## Source evidence
 
-The primary evidence for this report is the repository state in the listed branch, including `src/lib/financialMath.ts`, `src/test/financialMath.test.ts`, `src/pages/Finance.tsx`, `src/components/finance/RecordPaymentDialog.tsx`, `src/components/hr/HRFinanceWorkspace.tsx`, `src/components/hr/HRFinanceAuditWorkspace.tsx`, and `supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql`. The report intentionally distinguishes static code evidence from live execution evidence and does not treat a successful build as proof of live database behavior.
+The primary evidence for this report is the repository state in the listed branch, including `src/lib/financialMath.ts`, `src/test/financialMath.test.ts`, `src/pages/Finance.tsx`, `src/components/finance/InvoiceDialog.tsx`, `src/components/finance/RecordPaymentDialog.tsx`, `src/components/logistics/WaybillDialog.tsx`, `src/lib/generateWaybill.ts`, `src/pages/DocumentRegistry.tsx`, `src/components/hr/HRFinanceWorkspace.tsx`, `src/components/hr/HRFinanceAuditWorkspace.tsx`, `supabase/migrations/20260815100000_hr_finance_workflow_connectors.sql`, and `supabase/migrations/20260815130000_invoice_waybill_reactive_workflows.sql`. The report intentionally distinguishes static code evidence from live execution evidence and does not treat a successful build as proof of live database behavior.
+
+
+## Invoice and waybill reactive-workflow completion
+
+The main-based completion branch adds `20260815130000_invoice_waybill_reactive_workflows.sql` and wires it into the existing modules rather than creating a parallel operations page.
+
+| Workflow | Implemented behavior | Verification boundary |
+|---|---|---|
+| Client-aware invoice numbering | The first invoice for a client receives the ordinary sequence reference; later invoices in the same invoice family for the same client reuse that base reference with deterministic alphabetic suffixes such as `INVOICES/2026/0027B`. The sequence is keyed by organization, client, document family, and year, with row locking. | Pure suffix behavior is tested. Live concurrent Supabase numbering is **NOT VERIFIED** until the migration is applied and concurrent authenticated smoke tests run. |
+| Complete invoice creation | The Finance form now captures client/source lineage, client PO, sales order, project, delivery, customer reference, site, delivery location/contact, invoice kind, line specifications, unit, line discounts, cost codes, currency, VAT/tax, WHT, overhead, transportation, free-trade-zone flag, payment terms, conditions, notes, and receiving account. The `create_invoice_with_metadata` RPC validates and calculates persisted totals atomically. | Local type/build/test checks pass. Live RLS/RPC behavior and regenerated schema types remain **NOT VERIFIED**. |
+| Invoice payment chain | The authoritative payment RPC now creates the receipt, updates amount paid and balance due, derives payment status, records audit history, and requires a receiving bank/cash account through the eight-argument Finance path. | Pure balance behavior is tested. Live receipt/payment/RLS behavior is **NOT VERIFIED** until migration and authenticated tests are executed. |
+| Waybill issuance | Logistics persists a waybill before PDF generation, assigns a permanent number, links delivery/client/order/project lineage, updates the delivery reference, records an audit event, and marks the row `printed` only after rendering succeeds. A failed render remains visible as `generation_failed` with an error. | Local type/build checks pass. Live waybill RPC, storage, RLS, and delivery-link behavior are **NOT VERIFIED** until migration is applied. |
+| Waybill registry and reprint | Document Registry now reads the durable `waybills` source, displays printed/reprinted/generation-failed states, and reprints from the stored payload and original number. Reprints increment a server-side print count and audit event instead of creating a second waybill. | UI and helper paths compile. Live reprint idempotency and concurrent print behavior are **NOT VERIFIED** until authenticated smoke tests run. |
+
+The final release sequence for this branch is: apply the new migration after the existing connector migrations, refresh the Lovable Cloud/PostgREST schema cache, regenerate Supabase types, run authenticated Finance, Quotations, Logistics, Document Registry, and payment smoke tests, then verify that one client’s second invoice receives the expected suffix and that a generated waybill appears with `printed` status and a working reprint control.

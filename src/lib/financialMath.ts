@@ -85,3 +85,44 @@ export function calculateExpensePaymentStatus(outstandingBalance: number, partPa
   if (outstanding > 0) return "unpaid";
   return "paid";
 }
+
+
+export type InvoiceCalculationInput = {
+  items: Array<{ quantity: number; unitPrice: number; discountAmount?: number }>;
+  discountAmount: number;
+  overheadAmount: number;
+  transportationCost: number;
+  taxRatePercent: number;
+  withholdingTaxRatePercent: number;
+};
+
+export function calculateInvoiceTotals(input: InvoiceCalculationInput) {
+  const subtotal = roundMoney(input.items.reduce((sum, item) => sum + roundMoney(Math.max(0, item.quantity) * Math.max(0, item.unitPrice) - Math.max(0, item.discountAmount ?? 0)), 0));
+  const discount = roundMoney(Math.min(subtotal, Math.max(0, input.discountAmount)));
+  const overheadAmount = roundMoney(Math.max(0, input.overheadAmount));
+  const transportationCost = roundMoney(Math.max(0, input.transportationCost));
+  const taxableAmount = roundMoney(Math.max(0, subtotal - discount + overheadAmount + transportationCost));
+  const taxAmount = roundMoney(taxableAmount * Math.max(0, input.taxRatePercent) / 100);
+  const withholdingTaxAmount = roundMoney(taxableAmount * Math.max(0, input.withholdingTaxRatePercent) / 100);
+  const totalAmount = roundMoney(taxableAmount + taxAmount);
+  const netAmount = roundMoney(Math.max(0, totalAmount - withholdingTaxAmount));
+  return { subtotal, discount, overheadAmount, transportationCost, taxableAmount, taxAmount, withholdingTaxAmount, totalAmount, netAmount };
+}
+
+
+function alphabeticSuffix(index: number): string {
+  let value = Math.max(0, Math.floor(index));
+  let result = "";
+  while (value > 0) {
+    value -= 1;
+    result = String.fromCharCode(65 + (value % 26)) + result;
+    value = Math.floor(value / 26);
+  }
+  return result;
+}
+
+export function formatClientDocumentNumber(baseNumber: string, occurrence: number): string {
+  const base = baseNumber.trim();
+  const count = Math.max(1, Math.floor(occurrence));
+  return count === 1 ? base : `${base}${alphabeticSuffix(count)}`;
+}
