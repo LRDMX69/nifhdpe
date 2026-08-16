@@ -242,7 +242,9 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   const pageH = doc.internal.pageSize.getHeight();
   const margin = isCompactDocument ? 12 : isDenseDocument ? 18 : 20;
   const contentW = pageW - margin * 2;
-  const contentTop = isCompactDocument ? 45 : isDenseDocument ? 68 : CONTENT_TOP_START;
+  // The compact A5 letterhead includes a contact strip through roughly 60 mm;
+  // keep document metadata below it so IDs never collide with the company details.
+  const contentTop = isCompactDocument ? 64 : isDenseDocument ? 68 : CONTENT_TOP_START;
   const contentBottom = isCompactDocument ? 18 : isDenseDocument ? 22 : CONTENT_BOTTOM_RESERVE;
   const pdfText = (value: string | number) => String(value).replace(/₦/g, "NGN ").replace(/★/g, "*");
 
