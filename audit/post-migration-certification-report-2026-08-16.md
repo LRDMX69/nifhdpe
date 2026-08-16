@@ -1,169 +1,100 @@
-# NIFHDPE ERP Post-Migration Live Production QA Certification Report
+# NIFHDPE ERP Live Production QA Certification Report
 
 **System:** [NIF Technical Operations Suite](https://nifhdpe.vercel.app)  
 **Repository:** [LRDMX69/nifhdpe](https://github.com/LRDMX69/nifhdpe)  
 **Audit date:** 16 August 2026  
-**Execution:** Authenticated production browser session, maintenance-admin account, repository inspection, local automated regression, and fresh PDF artifact inspection. All live records used for mutation testing were clearly labelled UAT records; no new business record was submitted during this rerun.
+**Latest repository commit:** `5599a5e` — `fix: constrain opportunity cards on mobile`
+**Latest CI run:** [31964777644](https://github.com/LRDMX69/nifhdpe/actions/runs/31964777644) — **success**
+**Execution basis:** Authenticated live maintenance-admin session, fresh mobile/tablet Playwright session, live UAT records, source inspection, PDF artifact inspection, local automated regression, and GitHub CI.
 
 ## Executive verdict
 
-> **NO-GO — the two user-reported migration gates now pass, but full production certification is still not granted.**
+> **NO-GO for final production certification at this checkpoint.**
 
-The rerun confirms that the user’s migrations are effective in production. Finance now excludes the cancelled invoice from Revenue and Receivables while preserving the legitimate paid invoice. The sender-scoped Messages DELETE policy now works: the controlled audit message was deleted successfully and remained absent after a fresh route reload. Notifications, the Document Registry, the procurement GRN fix, inventory propagation, Finance receipts/payments/Bank Analysis, roles, dashboards, and the fresh invoice PDF path all remained stable.
+The audit closed several important defects. The confirmed delivery card now carries the sales-order reference, order total, and dispatched item lineage. Document Registry records and reprints waybills. The reproduced Opportunities mobile overflow defect was fixed and retested at 390×844 with the first 50 cards constrained to the viewport. Mobile and tablet route checks passed for Dashboard, Opportunities, HR, Finance, and Documents when intentional horizontal tab/table scrolling was distinguished from application-level overflow. VAT, overtime, staff-loan, loan-repayment, and Nigerian payroll preview calculations were executed with exact observed values. Local regression and CI are green.
 
-A GO verdict would nevertheless violate the governing QA specification because mandatory release evidence remains incomplete. The principal remaining gates are authenticated mobile/tablet QA, real non-maintenance permission certification and a deployable Managing Director role, a fresh confirmed-order delivery lifecycle, complete payroll/VAT/WHT/overtime/loan calculation proof, and full PDF/document-type certification including the previously observed sparse/blank-page receipt layout. These are evidence-based release gates, not confidence-based deductions.
+A final **GO** cannot yet be issued because three release-critical conditions remain unclosed. The new waybill lineage migration and the new NHF salary-schedule migration have not been confirmed as applied to the live database, so the actual persisted waybill PDF snapshot and full payroll approval-to-payslip lifecycle are not certified. In addition, the only live account available is the privileged maintenance administrator; real non-maintenance authorization boundaries remain untested. These are evidence gates, not confidence scores.
 
-## Exact post-migration rerun totals
+## Six blocker status
 
-| Metric | Exact result | Evidence basis |
-|---|---:|---|
-| Live route shells opened in this rerun | **21 / 21** | Dashboard, Projects, Equipment, Field Reports, HSE, Compliance, Calculator, BOQ, Opportunities, Quotations, Clients, Inventory, Logistics, Finance, Procurement, Analytics, HR, Claims, Messages, Documents, and Settings. |
-| Supported role-switcher entries rerun | **11 / 11** | Administrator, Engineer, Technician, Warehouse, Finance, HR, Reception/Sales, Knowledge Manager, SIWES trainee, IT student, and NYSC member. |
-| User-reported migrations live-verified | **2 / 2 PASS** | Cancelled-invoice finance reporting and sender-scoped Messages DELETE policy. |
-| Document Registry numbered records | **12** | 2 invoices, 1 proforma, 1 quotation, 1 receipt, 1 waybill, 2 purchase orders, 1 GRN, and 3 worker payments. |
-| Operational revisions visible | **12** | Current/superseded invoice and PO snapshots with actor and timestamps. |
-| PDF types cumulatively visually inspected | **5** | Invoice, quotation, purchase order, waybill, and payment receipt. |
-| Fresh post-migration invoice PDFs generated and visually inspected | **1** | `invoice-invoices_2026_0001-INVOICES_2026_0001 (6).pdf`, one-page A4 artifact. |
-| Fresh live calculator cases | **1** | HDPE 110mm, 100m, 5 L/s baseline. Cumulative independent calculator evidence remains 3 cases including zero-length and decimal validation. |
-| Automated test files passed | **5 / 5** | Payroll, financial math, offline queue errors, clean-for-print, and example suites. |
-| Automated tests passed | **26 / 26** | Fresh local rerun after the live sweep. |
-| TypeScript checks | **2 / 2** | Normal and strict checks passed. |
-| Production build | **PASS** | Fresh local production build completed successfully. |
-| New production code defects found in this rerun | **0** | No new reproducible code defect was found after the migration retest. The prior GRN fix remains live and passed again. |
-| Release gates still open or blocked | **6** | Responsive, real authorization/MD, positive delivery creation, complete HR/finance calculations, full PDF/document quality, and exhaustive CRUD/edge coverage. |
+| Blocker | Current evidence | Status | Closure required before GO |
+|---|---|---|---|
+| 1. Document editing, printing, and layout | Quotation editing/revision/PDF, invoice, quotation, PO, receipt, waybill, field-report attachment, equipment allocation, BOQ, and Opportunities export paths were inspected. PO visual hierarchy remains a non-blocking quality warning; the tested receipt and other corrected artifacts are readable and proportionate. | **PASS for the tested document set** | Continue routine visual monitoring; the PO metadata hierarchy warning should be improved in a later quality pass. |
+| 2. Complete document coverage | Invoice, quotation, PO, payment receipt, waybill, field-report attachment, equipment allocation, BOQ, and 61-page Opportunities pipeline exports were covered. Document Registry contains the waybill rows and reprint control. | **PASS for covered types** | No blocker-level closure remains in the tested document set. |
+| 3. Responsive mobile/tablet QA | Authenticated Playwright checks ran at 390×844 and 768×1024 across Dashboard, Opportunities, HR, Finance, and Documents. The Opportunities defect was reproduced, fixed, CI-verified, and live-retested. | **PASS for tested critical routes** | Extend the same measured matrix to the remaining critical routes during future releases. |
+| 4. Real permission boundaries | Source role matrix and navigation scoping were inspected, but only the maintenance administrator account was available. Maintenance mode intentionally exposes full access. | **BLOCKED** | Provide controlled non-maintenance accounts and execute deep-link denial, CRUD, approval, MD-decision, cross-organization, terminated-account, and administrator-only Settings tests. |
+| 5. Confirmed-order delivery lifecycle | Quotation acceptance → sales-order confirmation → reservation → delivery creation → order-linked Logistics card → waybill recording → Registry reprint was observed. The card showed `SALES_ORDERS/2026/0001C`, `₦17,250.00`, one dispatched `UAT-PE100-110-SDR11` item, and the Registry reprint reaction. The new authoritative snapshot migration has not been confirmed applied, so the generated PDF still requires one final retest. | **BLOCKED pending live migration retest** | Apply `20260816120000_fix_waybill_delivery_item_lineage.sql`, regenerate/reprint `WAYBILLS/2026/0002`, and verify the PDF contains the actual item and quantity rather than `Materials in transit`. |
+| 6. HR/finance calculation completeness | VAT and loan flows were persisted; overtime and payroll calculations were previewed with exact values. NHF persistence is implemented in code and a forward migration exists, but payroll approval → worker payment → payslip was not completed against the migrated live schema. Fresh bank reconciliation was not created because the current linked UAT line had no pending review. | **BLOCKED pending migration and lifecycle retest** | Apply `20260816123000_add_nhf_to_hr_salary_schedules.sql`; create, approve, pay, and print the labeled payroll UAT row; create/approve/pay the labeled overtime row; verify VAT, loan schedule/repayment, payslip NHF, Finance, Registry, and Bank outputs; perform a fresh bank reconciliation case. |
 
-These totals distinguish **live coverage** from **certification**. A route shell or existing UAT record passing does not certify every CRUD action, permission boundary, calculation scenario, or downstream lifecycle on that route.
+## Exact live evidence
 
-## Migration-specific results
+### Confirmed-order delivery and waybill lineage
 
-### Finance reporting migration — PASS
+The final UAT commercial chain used `QUOTATIONS/2026/0003`, `SALES_ORDERS/2026/0001C`, and the linked product specification `UAT-PE100-110-SDR11`. Sales-order confirmation succeeded with stock-reservation evaluation. The Logistics delivery card subsequently showed the linked order reference `SALES_ORDERS/2026/0001C`, order total `₦17,250.00`, and one dispatched item with quantity `1`.
 
-Live route: [`/finance?tab=invoices&qa=post-migration-rerun-finance`](https://nifhdpe.vercel.app/finance?tab=invoices&qa=post-migration-rerun-finance)
+The waybill action produced the live notification that `WAYBILLS/2026/0002` was available in Document Registry. Registry showed the waybill as `Reprinted`, and the Reprint action produced the notification `Waybill reprinted — WAYBILLS/2026/0002 copy 3 was generated and recorded.` The remaining gap is the content snapshot: the current live PDF still contained the historical generic `Materials in transit` row because the existing idempotent waybill record is not refreshed until the new migration is applied.
 
-Finance displayed Total Revenue **₦205,518.79**, Total Received **₦205,518.79**, Receivables **₦0.00**, and Net Cash Position **₦-64,481.21**. The cancelled UAT invoice `INVOICES/2026/0001B` remained visible and truthfully labelled `cancelled` at ₦1,075.00, but it no longer inflated Revenue or Receivables. The legitimate `INVOICES/2026/0001` remained `paid`, bank-linked, and fully received at ₦205,518.79 with ₦0.00 balance.
+The forward migration makes `delivery_items` authoritative, refreshes generic existing snapshots, and preserves idempotent reprints. Until the migration is applied and the PDF is directly inspected, the lifecycle is not a final PASS.
 
-Analytics independently agreed: Billed ₦205,518.79 across 2 issued invoices, Collected ₦205,518.79, all invoices settled, Net Profit ₦-64,481.21, and Inventory Value ₦120,000.00. This closes the previous cancellation-reporting gate.
+### HR and Finance calculations
 
-### Messages DELETE migration — PASS
+The deployed payroll preview accepted employee `DMX` and gross salary `₦240,000.00`. It displayed employee pension `₦19,200.00`, NHF `₦3,000.00`, PAYE `₦22,824.67`, employer pension `₦24,000.00`, and net payable `₦194,975.33`. The form now carries a schedule-note field so the final record can be explicitly labeled as UAT.
 
-Live route: [`/messages?qa=post-migration-rerun-messages`](https://nifhdpe.vercel.app/messages?qa=post-migration-rerun-messages)
+The VAT UAT entry used gross `₦100,000.00`, output VAT `₦7,500.00`, input VAT `₦2,500.00`, VAT withheld `₦500.00`, VAT paid `₦3,000.00`, penalty `₦100.00`, interest `₦50.00`, and brought forward `₦250.00`. The live preview displayed net amount `₦99,500.00`, VAT payable `₦1,400.00`, VAT credit `₦0.00`, and total `₦1,400.00`. Saving produced `VAT schedule entry saved`, and the UAT client appeared immediately in the list at `₦1,400.00`.
 
-The exact controlled audit message was opened in the Oluwakemi Hassan direct thread. Its sender-side Delete action was available. After explicit user confirmation, production displayed a `Message deleted` success toast and removed the message. A fresh navigation to [`/messages?qa=post-migration-rerun-messages-reload`](https://nifhdpe.vercel.app/messages?qa=post-migration-rerun-messages-reload) showed **1 message in scope · 0 unread**, with only the remaining `Hey` message present. The controlled audit text was absent from both the thread and conversation preview. This verifies the DELETE RLS policy, zero-row guard, cache invalidation, and persistence behavior.
+The overtime preview used monthly gross `₦240,000.00`, a 20-day working basis, and 2 overtime days. The live calculation displayed `₦24,000.00`. The form now persists a schedule note, but no overtime row was saved during this preview.
 
-The controlled audit message has therefore been cleaned from production.
+The staff-loan UAT used employee `DMX`, amount `₦60,000.00`, additional loan `₦5,000.00`, and five months. The preview displayed monthly repayment `₦13,000.00`. Saving with note `UAT staff loan repayment schedule QA — 2026-08-16` created an active loan with balance `₦65,000.00`. Recording a `₦13,000.00` repayment with note `UAT loan repayment reaction QA — first scheduled installment` immediately reduced the live balance to `₦52,000.00` and created the linked worker-payment record `WORKER_PAYMENTS/2026/0004`.
 
-## Connected workflow rerun results
+The connected Bank & Reconciliation Oversight view showed 1 statement, 1 bank line, 0 pending review, and director balance `₦0.00`. The visible linked line was `UAT payment for INVOICES/2026/0001` for `+₦205,518.79`. This confirms the current linked state but not a newly reconciled test line.
 
-| Workflow | Fresh live evidence | Result |
-|---|---|---|
-| Quotation → Proforma → Invoice | `QUOTATIONS/2026/0001` at ₦236,768.75 remains linked to accepted `PROFORMA_INVOICES/2026/0001` and its final invoice. Atomic/idempotent lifecycle guidance and Open invoice action rendered. | **PASS for existing controlled chain; fresh conversion not repeated to avoid duplicates.** |
-| Invoice → Finance → Receipt | Paid invoice, receipt `RECEIPTS/2026/0001`, bank-transfer method, ₦205,518.79, and `Linked via invoice` remained aligned. | **PASS** |
-| Invoice → Bank Analysis | One reviewed bank line and one linked line remain connected to the paid invoice; Awaiting ERP connection is 0. | **PASS for current linked state** |
-| PO → GRN → Inventory | Draft PO Receive GRN dialog opened from Purchase Orders with outstanding line and accepted/rejected fields. Received PO remains ₦120,000. Inventory remains 8 × ₦15,000 = ₦120,000 with minimum 10. | **PASS** |
-| Invoice → Delivery → Waybill | Existing waybill remains persisted and Reprinted in Document Registry. Logistics has no confirmed-order queue/project in the current UAT data, so a fresh positive delivery creation was not submitted. | **PASS for stored/reprint state; creation gate open.** |
-| HR Payroll → Finance → Registry | HR and Finance both show ₦269,000 across salary ₦239,000 plus loan repayments ₦20,000 and ₦10,000; Registry contains all 3 worker payments. | **PASS for record propagation; statutory calculation gate open.** |
-| Leave → HR/MD | Stored approved leave and current role attention remain visible. | **PASS for stored state; real MD authorization unavailable.** |
-| Notifications → Messages | Notification panel showed `All caught up!`; Messages showed 0 unread after deletion. | **PASS** |
+### Responsive QA
 
-## Route and module rerun summary
+At 390×844, Dashboard measured document and body scroll widths of `390px` with no offending elements. Opportunities initially exposed a real defect: the grid was `358px` wide, while the first card was `702.217px` wide because the long title imposed the grid item’s automatic minimum content size. The fix added `min-w-0`, `max-w-full`, and bounded overflow classes to the grid, cards, titles, and content. After CI, the live retest measured grid width `358px`, first-card width `358px`, first-title width `231px`, document/body scroll widths `390px`, and zero card offenders among the first 50 cards.
 
-| Module | Fresh observed result | Certification state |
-|---|---|---|
-| Dashboard | Net Cash ₦-64,481.21, Opportunities 643, Unread 0, Expenses ₦1,000.00, critical alerts clear, role switcher present. | **PASS for settled dashboard data** |
-| Analytics | Billed/collected ₦205,518.79, inventory ₦120,000.00, net profit ₦-64,481.21; cancelled invoice excluded. | **PASS for settled aggregates** |
-| Finance | Migration-corrected totals, invoice/receipt/payment/bank tabs stable, PDF action works. | **PASS for observed current flows** |
-| Messages | Deletion and persistence pass after migration. | **PASS** |
-| Documents | 12 records, 12 revisions, waybill Reprint/Reprinted state. | **PASS for registry state** |
-| Quotations | Existing sent quotation and accepted proforma/invoice chain stable. | **PASS for existing chain** |
-| Procurement | Vendors, POs, GRN tabs stable; Receive GRN dialog remains fixed. | **PASS for observed controls** |
-| Inventory | 1 SKU, 8 units, minimum 10, value ₦120,000, edit form non-destructive. | **PASS for observed record** |
-| Logistics | Clear 0-delivery/0-fleet state; New Delivery form enforces project/GPS/manual-exception safeguards. | **PASS for safeguards; positive creation blocked by data** |
-| HR | Ten tabs stable; payroll total and worker payments reconcile. | **PASS for observed propagation** |
-| Calculator | Fresh baseline 0.79 m/s, 0.68 m head loss, 314 kg. | **PASS for baseline** |
-| Opportunities | 643 records, ₦2.53551T pipeline, Won tab explicit zero state. | **PASS for settled data/filtering** |
-| Projects | Clear 0-project state and linked workflow guidance. | **PASS for route/empty state** |
-| Field Reports | 2 reports and review metrics visible; historical UAT text is poor quality. | **PASS for rendering; data-hygiene warning** |
-| Claims | Clear 0-claim inbox/submission state. | **PASS for empty state; submission flow open** |
-| HSE | Clear 0-incident/0-toolbox state. | **PASS for empty state; creation flow open** |
-| Compliance | Clear 0-document/expiry state with Add/Upload controls. | **PASS for empty state; upload flow open** |
-| Equipment | Clear 0-asset state with Add/CSV/PDF controls; transient skeleton-like rows observed during capture. | **Partial; longer settle and asset workflow open** |
-| BOQ | Clear 0-BOQ state with New BOQ. | **PASS for empty state; full BOQ lifecycle open** |
-| Clients | One clearly marked UAT client and Add/search/CRM surfaces. | **PASS for current master state** |
-| Settings | Organization, team, profile, policy, feedback, and office GPS 6.5528/3.3878 visible. | **PASS for configuration visibility** |
+HR, Finance, and Documents also passed app-level containment at 390×844. Their longer tab rows are intentionally bounded swipe surfaces: HR’s wrapper was `358px` wide with `scrollWidth=915`; Finance’s tablist was `358px` wide with `scrollWidth=565`; Documents’ document-type strip was `358px` wide with `scrollWidth=1859`. At 768×1024, Dashboard and Opportunities had no offenders, while HR, Finance, and Documents retained bounded `overflow-x:auto` tab strips and document/body widths equal to `768px`.
 
-## Role rerun and permission status
+### Document coverage
 
-All **11/11** role-switcher entries rendered after the migrations. Engineer and Technician showed technical responsibilities and restricted technical/workspace navigation. Warehouse showed low-stock intelligence and logistics/procurement/inventory scope. Finance showed expense/payment KPIs and accounts navigation. HR showed people-lifecycle scope and wider oversight. Reception/Sales showed one client and one recent quotation with commercial-only navigation. Knowledge Manager showed the corrected Institutional Knowledge workspace with real article/training counts and Registry/Training/Messages actions. SIWES, IT student, and NYSC trainees showed distinct responsibility copy and learning-only dashboards with no operational sidebar.
+The cumulative PDF inspection set covers the invoice, quotation, purchase order, payment receipt, waybill, field-report attachment, equipment allocation sheet, BOQ, and full Opportunities pipeline export. The corrected receipt is one A5 page with an unobstructed acknowledgement and Finance Verified badge. The corrected equipment sheet is one A5 page. The BOQ export is one A4 page with the seven-column table and exact total `₦25,000.00`. The field-report PDF contains an embedded 1055×1491 image. The Opportunities export is 61 A4 pages with repeated table headers and continuous page numbering. The PO is functionally complete in the text layer but remains visually sparse; this is recorded as a non-blocking quality warning rather than a missing-data defect.
 
-This is **navigation-level role coverage**, not real authorization certification. The live credential is a privileged maintenance administrator and route protection intentionally bypasses denial for that account. Direct deep-link denial, create/edit/approve boundaries, and a real non-maintenance session remain unverified. The current `app_role` schema still has no deployable `managing_director` enum value.
+## Authorization boundary status
 
-## Calculation and PDF rerun
+The live maintenance account is privileged by `isMaintenance=true` and receives effective role `administrator`. The source role matrix defines Administrator, Technical, Logistics, Accounts/Finance, HR, Marketing, Knowledge Manager, and Trainee roles. HR inherits Finance capability in the current organization model. Settings is administrator-only. Navigation-level role views were previously exercised through the maintenance role switcher, but that is not equivalent to a separate session with RLS and route denial enforced.
 
-The fresh Pipe Calculator baseline used HDPE 110mm, 100m, 5 L/s. Production displayed 16 bar, 0.79 m/s, 0.68 m head loss, and 314 kg. These agree with independent values 0.7859503363 m/s, 0.6751104566 m, and 314 kg. Cumulative evidence also includes zero-length rejection and small-decimal handling.
+The following remain unverified and cannot be marked PASS: direct-link denial, create/edit/delete authorization, Finance and HR approval separation, Managing Director decisions, cross-organization access, terminated-account blocking for a non-maintenance user, Knowledge Manager restrictions, and administrator-only Settings access. No non-maintenance credentials were available.
 
-The fresh invoice PDF `invoice-invoices_2026_0001-INVOICES_2026_0001 (6).pdf` is one A4 page with NIF branding, company header, FINAL watermark, line-item table, totals block, signatures, finance-verification stamp, footer reference, and Page 1 of 1. It shows the controlled ₦205,518.79 calculation exactly. The cumulative five-type PDF visual set remains invoice, quotation, purchase order, waybill, and receipt. The payment receipt’s previously observed unnecessary blank second page and sparse metadata hierarchy remain unresolved document-quality warnings; Claims, Equipment/Reports, BOQ, and other operational PDFs are not fully visually certified.
+## Automated and repository quality results
 
-## Responsive and automation status
+The final local regression completed the required typecheck, strict typecheck, 26 Vitest tests, production build, lint, and high-severity dependency audit. The result was **PASS**, with zero high-severity vulnerabilities. Lint emitted 107 existing warnings and no errors. GitHub Actions run `31964777644` also completed successfully across TypeScript, strict TypeScript, lint, behavior/regression tests, production build, dependency audit, diff hygiene, and production-marker audit. CI annotations were non-blocking existing `any`/Fast Refresh warnings and the GitHub Actions Node.js 20 deprecation notice.
 
-The authenticated production viewport remained fixed at 1280×1100. An attempted `window.resizeTo(390,844)` did not change the viewport or document width. The rerun therefore certifies desktop containment only; it does not certify protected mobile/tablet behavior, including the previously observed Opportunities mobile-overflow risk.
+## Required final closure sequence
 
-Dashboard automation copy remains visible: AI monitoring every 30 minutes, with financial actions flagged for review and no autonomous spending. This rerun verified visible configuration and settled data behavior but did not certify every scheduled/background integration, external callback, or autonomous action across all modules.
+Before a GO decision, apply the two forward migrations from `main`:
 
-## Open release gates
+1. `supabase/migrations/20260816120000_fix_waybill_delivery_item_lineage.sql`
+2. `supabase/migrations/20260816123000_add_nhf_to_hr_salary_schedules.sql`
 
-| Gate | Current evidence | Required closure before GO |
-|---|---|---|
-| Responsive QA | Authenticated browser cannot resize; protected mobile/tablet surfaces remain unverified. | Provide an authenticated resizable/device session and test Dashboard, Opportunities, HR, Finance, Documents, Procurement, Logistics, and other critical routes at tablet/mobile sizes. |
-| Real permissions and Managing Director | Maintenance override prevents real denial testing; `managing_director` is absent from current enum. | Create approved non-maintenance UAT role accounts, test direct-link denial and action boundaries, and configure MD only with management approval. |
-| Positive commercial delivery lifecycle | No confirmed sales order/project/dispatch queue in current UAT data. | Create one clearly labelled UAT confirmed order, trace reservation → delivery → waybill → Registry → Reprint, then clean up safely. |
-| HR/finance calculations | Payroll records propagate, but statutory deductions, VAT/WHT, overtime, complete loan schedule, forex, bank balances, and payslip output were not independently executed. | Execute controlled arithmetic cases and inspect all downstream Finance/Bank/Registry outputs. |
-| Full PDF/document certification | Five types are visually inspected; receipt blank-page/sparse layout warning remains; other operational PDFs are open. | Correct page fitting and metadata hierarchy, generate every required document type, and visually inspect each. |
-| Exhaustive interactive/error matrix | Route shells and major actions were rerun, but all CRUD, attachment, duplicate, unauthorized, and empty/invalid paths across every module were not exhaustively executed. | Complete the remaining action matrix with controlled UAT records and non-maintenance accounts. |
+Then retest the existing labeled UAT records without creating duplicate business chains. The waybill test must confirm the persisted PDF contains `UAT-PE100-110-SDR11` and quantity `1`. The HR test must create the labeled salary and overtime rows, approve them, create their worker payments, generate the payslip, and verify NHF, Finance, Registry, and Bank reactions. Finally, provide controlled non-maintenance accounts and run the authorization matrix.
 
-## Final requirement status
+## Evidence files
 
-| Governing requirement | Post-migration status |
-|---|---|
-| Every interactive element | **Partial / open**. Major route, dialog, export, edit, reprint, guided-tour, and migration-critical actions passed; exhaustive CRUD/action coverage is not certified. |
-| Every configured role | **11/11 navigation/dashboard PASS; real authorization BLOCKED; MD unavailable.** |
-| Dashboard figures | **PASS for settled Finance/Dashboard/Analytics reconciliation; broader transaction propagation remains open.** |
-| Complete business flows | **Existing quotation/proforma/invoice/payment/bank and PO/GRN/inventory chains PASS; positive delivery and several creation flows open.** |
-| Autonomous propagation | **PASS for observed commercial, finance, procurement, inventory, receipt, worker-payment, Registry, and notification chains; not all modules.** |
-| Every document/PDF | **5 types cumulatively inspected plus fresh invoice; full required set open.** |
-| Document lifecycles | **Existing quotation/proforma/invoice and waybill Registry/Reprint PASS; fresh conversion/delivery creation open.** |
-| Editing/version history | **Invoice/PO snapshots and inventory edit surface observed; all important record classes not fully tested.** |
-| Finance extreme QA | **Core current UAT path PASS; full payroll/loan/claims/petty cash/transfer/unmatched-link coverage open.** |
-| Calculation validation | **Pipe calculator and controlled invoice PASS; payroll/VAT/WHT/overtime/loan/forex cases open.** |
-| UI/UX | **Desktop is navigable and coherent; PDF density, UAT data hygiene, and first-use quality warnings remain.** |
-| Responsive QA | **BLOCKED.** |
-| Error/edge cases | **Migration, zero-input, source-error, cancellation, duplicate-guard, and GRN dialog cases pass; exhaustive matrix open.** |
-| Security/permissions | **Navigation scoping PASS; real-role authorization BLOCKED.** |
-| Repository deep audit | **Previously completed marker sweep remains green; this rerun introduced no code changes.** |
-| Fix everything safely possible | **No new code defect found in this rerun; prior GRN and Knowledge Manager fixes remain live.** |
-| Final full regression | **Fresh automated tests, typechecks, build, and all post-migration critical gates PASS; full production certification remains blocked by the six gates above.** |
+- [Live waybill lineage and Registry retest](./live-waybill-lineage-retest-2026-08-16.md)
+- [HR Finance implementation/test plan](./hr-finance-calculation-test-plan-2026-08-16.md)
+- [HR Finance live calculation evidence](./hr-finance-live-calculation-evidence-2026-08-16.md)
+- [Responsive mobile/tablet live evidence](./responsive-mobile-live-evidence-2026-08-16.md)
+- [Permission-boundary evidence](./permission-boundary-evidence-2026-08-16.md)
+- [Active release-gate evidence log](./remaining-release-gates-qa-2026-08-16.md)
+- [Live Document Registry](https://nifhdpe.vercel.app/documents?qa=certification-registry-2026-08-16)
+- [Live Logistics delivery](https://nifhdpe.vercel.app/logistics?qa=certification-waybill-lineage-2026-08-16)
+- [Live HR Finance](https://nifhdpe.vercel.app/hr?qa=certification-hr-finance-2026-08-16)
 
-## Final decision
+## Certification decision
 
-The migrations successfully remove the previously blocked Finance and Messages defects. The ERP is materially more production-ready than at the previous certification checkpoint, and the current live UAT chains are internally connected. However, the governing specification requires actual proof—not confidence—that every role boundary, responsive surface, document type, calculation family, complete workflow, and interactive action works in production.
+**NO-GO.** The current build is materially hardened and the tested surfaces are connected, but final production certification requires direct evidence for the two new live database migrations and real non-maintenance authorization boundaries. This decision is intentionally conservative and follows the requirement that a gate is marked PASS only after it has actually been tested.
 
-**Certification decision: NO-GO until the six open release gates are directly closed and retested.**
+### References
 
-## Evidence files and live links
-
-- [Post-migration rerun evidence log](./post-migration-live-qa-rerun-2026-08-16.md)
-- [Previous full certification report](./final-certification-report-2026-08-16.md)
-- [Authoritative live QA matrix](./final-live-production-qa-matrix-2026-08-15.md)
-- [Live Dashboard](https://nifhdpe.vercel.app/dashboard?qa=post-migration-rerun-dashboard)
-- [Live Finance invoices](https://nifhdpe.vercel.app/finance?tab=invoices&qa=post-migration-rerun-finance)
-- [Live Messages deletion retest](https://nifhdpe.vercel.app/messages?qa=post-migration-rerun-messages-reload)
-- [Live Document Registry](https://nifhdpe.vercel.app/documents?qa=post-migration-rerun-documents)
-- [Live Bank Analysis](https://nifhdpe.vercel.app/finance?tab=bank-analysis&qa=post-migration-rerun-payments)
-- [Live Procurement GRN retest](https://nifhdpe.vercel.app/procurement?qa=post-migration-rerun-procurement)
-- Fresh PDF artifact: `/home/ubuntu/Downloads/invoice-invoices_2026_0001-INVOICES_2026_0001 (6).pdf`
-
-**Supporting evidence:** downloaded PDFs under `/home/ubuntu/Downloads/`, browser page captures under `/home/ubuntu/page_texts/` and `/home/ubuntu/browser_html/`, local quality-gate output, and repository CI history.
-
-
-## Final CI confirmation
-
-The post-migration audit commit `a84cd51` triggered GitHub Actions run [`31947527897`](https://github.com/LRDMX69/nifhdpe/actions/runs/31947527897). The complete quality gate finished with **success**: TypeScript, strict TypeScript, lint, behavior/regression tests, production build, high-severity dependency audit, diff hygiene, and production-marker audit all completed. The workflow emitted only the repository’s existing non-blocking `any` and Fast Refresh annotations plus the Node.js 20 action deprecation notice; no CI errors occurred.
+[1]: https://nifhdpe.vercel.app "NIF Technical Operations Suite — live production application"
+[2]: https://github.com/LRDMX69/nifhdpe/commit/5599a5eb4363151dc044877f8d17850c401d89ef "Latest mobile overflow fix commit"
+[3]: https://github.com/LRDMX69/nifhdpe/actions/runs/31964777644 "NIFHDPE CI quality gate — successful run"
