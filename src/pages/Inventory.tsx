@@ -84,7 +84,8 @@ const Inventory = () => {
     queryKey: ["storage-locations", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("storage_locations").select("*").eq("organization_id", orgId).order("name");
+      const { data, error } = await supabase.from("storage_locations").select("*").eq("organization_id", orgId).order("name");
+      if (error) throw error;
       return (data as StorageLocation[]) ?? [];
     },
     enabled: !!orgId,
@@ -94,7 +95,8 @@ const Inventory = () => {
     queryKey: ["storage-boxes", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("storage_boxes").select("*, storage_locations(name)").eq("organization_id", orgId).order("box_code");
+      const { data, error } = await supabase.from("storage_boxes").select("*, storage_locations(name)").eq("organization_id", orgId).order("box_code");
+      if (error) throw error;
       return (data as unknown as StorageBox[]) ?? [];
     },
     enabled: !!orgId,

@@ -370,3 +370,7 @@ Procurement’s vendor, purchase-order, and material-requisition queries previou
 ## Source audit evidence — Logistics source failures
 
 Logistics’ project selector, vehicle list, and fuel-log queries previously discarded Supabase errors and could produce incomplete dispatch forms or misleading empty fleet records. Those queries now surface backend failures through the page’s error boundary. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live fleet and dispatch-source retesting remains deployment-gated.
+
+## Source audit evidence — Inventory source failures
+
+Inventory’s storage-location and storage-box queries previously ignored backend errors, which could leave warehouse selectors empty without explaining why. Both queries now surface source failures through the module’s existing error state. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live warehouse-source retesting remains deployment-gated.
