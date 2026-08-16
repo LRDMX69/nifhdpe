@@ -410,3 +410,7 @@ The shared `useHRData` hook duplicated HR attendance, profiles, memberships, lea
 ## Source audit evidence — Finance dashboard sources
 
 The Finance dashboard’s recent-expense, worker-payment, and AI-summary queries previously ignored backend errors, causing executive cards to display zeros or generic intelligence text when their sources were unavailable. Each query now throws into the dashboard’s query state. TypeScript and strict typecheck pass; lint completes with the existing non-blocking warning set; the 26-test suite passes; and `git diff --check` is clean.
+
+## Source audit evidence — HR dashboard sources
+
+The HR dashboard’s attendance, pending-leave, and AI-summary queries previously ignored backend errors, allowing workforce cards to show zero or generic intelligence when the source was unavailable. Each query now surfaces failures through query state. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live HR dashboard reconciliation remains deployment-gated.

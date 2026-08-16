@@ -16,11 +16,12 @@ const HRDashboard = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const today = new Date().toISOString().split("T")[0];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("attendance")
         .select("*")
         .eq("organization_id", orgId)
         .eq("date", today);
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId,
@@ -30,12 +31,13 @@ const HRDashboard = () => {
     queryKey: ["hr-pending-leaves", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("leave_requests")
         .select("*")
         .eq("organization_id", orgId)
         .eq("status", "pending")
         .order("created_at", { ascending: false });
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId,
@@ -45,7 +47,7 @@ const HRDashboard = () => {
     queryKey: ["ai-summary", "hr", orgId],
     queryFn: async () => {
       if (!orgId) return null;
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("ai_summaries")
         .select("*")
         .eq("organization_id", orgId)
@@ -53,6 +55,7 @@ const HRDashboard = () => {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (error) throw error;
       return data;
     },
     enabled: !!orgId,
