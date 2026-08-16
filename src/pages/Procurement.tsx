@@ -81,7 +81,8 @@ const Procurement = () => {
       if (!orgId) return [];
       // Select explicit columns only — bank_details is column-revoked at the
       // database level and must never be shipped to the browser.
-      const { data } = await supabase.from("vendors").select("id, name, email, phone, address, category, is_active, created_at, updated_at").eq("organization_id", orgId).order("name");
+      const { data, error } = await supabase.from("vendors").select("id, name, email, phone, address, category, is_active, created_at, updated_at").eq("organization_id", orgId).order("name");
+      if (error) throw error;
       return (data ?? []) as VendorRow[];
     },
     enabled: !!orgId,
@@ -91,7 +92,8 @@ const Procurement = () => {
     queryKey: ["purchase-orders", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("purchase_orders").select("*, vendors(name)").eq("organization_id", orgId).order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("purchase_orders").select("*, vendors(name)").eq("organization_id", orgId).order("created_at", { ascending: false });
+      if (error) throw error;
       return (data ?? []) as PoRow[];
     },
     enabled: !!orgId,
@@ -101,7 +103,8 @@ const Procurement = () => {
     queryKey: ["material-requisitions", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("material_requisitions").select("*").eq("organization_id", orgId).order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("material_requisitions").select("*").eq("organization_id", orgId).order("created_at", { ascending: false });
+      if (error) throw error;
       return (data ?? []) as MrRow[];
     },
     enabled: !!orgId,

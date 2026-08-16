@@ -362,3 +362,7 @@ Embedded project, field-report, and claim discussions previously discarded read 
 ## Source audit evidence — Finance source failures
 
 Finance’s worker-payment, expense, invoice, receipt, and employee-member queries previously ignored Supabase errors and converted permission/schema/network failures into empty arrays. The queries now throw errors so the page’s existing async/error states can identify an unavailable source instead of presenting an inaccurate zero-data view. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live source-error and aggregate-reconciliation retesting remains deployment-gated.
+
+## Source audit evidence — Procurement source failures
+
+Procurement’s vendor, purchase-order, and material-requisition queries previously ignored Supabase errors and could render empty procurement lists during a permission, schema, or network failure. The queries now surface errors through the existing page error states. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live procurement-source and workflow retesting remains deployment-gated.
