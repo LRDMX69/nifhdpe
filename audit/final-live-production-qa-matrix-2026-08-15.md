@@ -315,3 +315,12 @@ Production `/finance?tab=invoices&new=1` opened the canonical `Create complete i
 **Repository:** `LRDMX69/nifhdpe`, commit `ab34720`.
 
 `./node_modules/.bin/tsc --noEmit` passed after the Messages deletion and Dashboard unread-count changes. `./node_modules/.bin/vitest run --reporter=verbose` passed with **5 test files and 26 tests** passing, covering payroll, financial calculations, offline queue error classification, and print cleanup. The existing automated suite does not yet include a live Supabase RLS integration test for message deletion; that remains a deployment-gated live retest requirement.
+
+
+## Live evidence — Dashboard/message consistency and CI gate
+
+**Dashboard URL:** `https://nifhdpe.vercel.app/dashboard`.
+
+The live Dashboard showed `Unread Messages 0` while the controlled QA message was authored by the current user, which is consistent with the direct-message unread rule. The Dashboard also showed `Total Expenses ₦1,000.00`, `Net Cash ₦-64,481.21`, and `Opportunities 643`; these values require source-record reconciliation in the broader analytics pass. The pre-fix Dashboard unread query counted all unread broadcasts and did not exclude self-authored direct messages. That implementation was corrected in commit `ab34720` to match the NotificationBell and Messages semantics.
+
+**CI evidence:** The repository’s `.github/workflows/ci.yml` is present and runs `npm ci`, normal and strict TypeScript checks, lint, Vitest, production build, `npm audit --audit-level=high`, diff hygiene, and the production-marker audit on pushes, pull requests to `main`, and manual dispatch. The equivalent local npm gate passed: typecheck, strict typecheck, lint, 26 Vitest tests across 5 files, production build, and marker audit.
