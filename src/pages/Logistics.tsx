@@ -290,44 +290,52 @@ const Logistics = () => {
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             async (pos) => {
-              const userLat = pos.coords.latitude;
-              const userLng = pos.coords.longitude;
+              try {
+                const userLat = pos.coords.latitude;
+                const userLng = pos.coords.longitude;
 
-              // GPS geofence enforcement: 300m radius
-              if (destLat != null && destLng != null) {
-                const distance = haversineDistance(userLat, userLng, Number(destLat), Number(destLng));
-                if (distance > 300) {
-                  toast({
-                    title: "Delivery blocked",
-                    description: `You are ${Math.round(distance)}m from the destination. Must be within 300m to mark as delivered.`,
-                    variant: "destructive",
-                  });
-                  return;
+                // GPS geofence enforcement: 300m radius
+                if (destLat != null && destLng != null) {
+                  const distance = haversineDistance(userLat, userLng, Number(destLat), Number(destLng));
+                  if (distance > 300) {
+                    toast({
+                      title: "Delivery blocked",
+                      description: `You are ${Math.round(distance)}m from the destination. Must be within 300m to mark as delivered.`,
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                } else {
+                  toast({ title: "Warning", description: "No destination coordinates set — GPS validation skipped." });
                 }
-              } else {
-                toast({ title: "Warning", description: "No destination coordinates set — GPS validation skipped." });
-              }
 
-              const completed = await completeLinkedDelivery(id, { delivered_lat: userLat, delivered_lng: userLng, completed_at: new Date().toISOString(), source: "logistics_gps" });
-              if (!completed) {
-                const { error } = await supabase.from("deliveries").update({ ...payload, delivered_lat: userLat, delivered_lng: userLng }).eq("id", id);
-                if (error) throw error;
-                toast({ title: "Marked as delivered with GPS ✓" });
-                refetch();
+                const completed = await completeLinkedDelivery(id, { delivered_lat: userLat, delivered_lng: userLng, completed_at: new Date().toISOString(), source: "logistics_gps" });
+                if (!completed) {
+                  const { error } = await supabase.from("deliveries").update({ ...payload, delivered_lat: userLat, delivered_lng: userLng }).eq("id", id);
+                  if (error) throw error;
+                  toast({ title: "Marked as delivered with GPS ✓" });
+                  refetch();
+                }
+              } catch (err: unknown) {
+                toast({ title: "Could not update delivery", description: humanizeError(err), variant: "destructive" });
               }
             },
             async () => {
-              // No GPS available — block if destination coords exist
-              if (destLat != null && destLng != null) {
-                toast({ title: "GPS required", description: "Enable location services to verify delivery proximity.", variant: "destructive" });
-                return;
-              }
-              const completed = await completeLinkedDelivery(id, { completed_at: new Date().toISOString(), source: "logistics_no_gps" });
-              if (!completed) {
-                const { error } = await supabase.from("deliveries").update(payload).eq("id", id);
-                if (error) throw error;
-                toast({ title: "Marked as delivered (no GPS)" });
-                refetch();
+              try {
+                // No GPS available — block if destination coords exist
+                if (destLat != null && destLng != null) {
+                  toast({ title: "GPS required", description: "Enable location services to verify delivery proximity.", variant: "destructive" });
+                  return;
+                }
+                const completed = await completeLinkedDelivery(id, { completed_at: new Date().toISOString(), source: "logistics_no_gps" });
+                if (!completed) {
+                  const { error } = await supabase.from("deliveries").update(payload).eq("id", id);
+                  if (error) throw error;
+                  toast({ title: "Marked as delivered (no GPS)" });
+                  refetch();
+                }
+              } catch (err: unknown) {
+                toast({ title: "Could not update delivery", description: humanizeError(err), variant: "destructive" });
               }
             }
           );

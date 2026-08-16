@@ -350,3 +350,7 @@ Finance visibly lists two numbered invoices, including `INVOICES/2026/0001B` (ca
 ## Source audit evidence — Field Reports
 
 The Field Reports submission path required site photos but previously ignored storage-upload errors and photo-record insert errors during direct online submission, allowing a report to appear saved without its required evidence. Its list query also discarded database errors and returned an empty list. The path now throws and surfaces those failures, preserving the offline queue for retry and preventing silent loss of required attachments. TypeScript, strict typing, lint, and the 26-test suite pass after the change; a live photo-upload failure/retry retest remains scheduled for the live-fix phase.
+
+## Source audit evidence — Logistics delivery completion
+
+The Logistics `navigator.geolocation.getCurrentPosition` callbacks previously performed asynchronous linked-delivery RPCs and fallback updates outside the outer `try/catch`, so RPC, RLS, or update failures could become unhandled promise rejections with no operator feedback. Both GPS-success and GPS-failure callbacks now catch and toast delivery-update errors. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; the live linked-delivery completion and GPS denial paths remain scheduled for production retest.
