@@ -34,6 +34,8 @@ interface PdfOptions {
   logoUrl?: string | null;
   /** Optional diagonal watermark drawn on every page (e.g. "DRAFT", "FINAL", "COPY"). */
   watermark?: string | null;
+  /** Use a small paper format for genuinely short documents such as receipts. */
+  compact?: boolean;
 }
 
 const stampLabels: Record<string, string> = {
@@ -224,7 +226,8 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   const sections = contentSections || (content ? parseContentIntoSections(content) : []);
   const sectionTextLength = sections.reduce((total, section) => total + (section.body?.length ?? 0) + (section.bullets?.join(" ").length ?? 0), 0);
   const isCompactDocument = Boolean(
-    tableData && tableData.rows.length <= 8 && sections.length <= 1 && sectionTextLength < 700,
+    options.compact ||
+    (tableData && tableData.rows.length <= 8 && sections.length <= 1 && sectionTextLength < 700),
   );
   // Short invoices and similar detailed records need an A4 canvas, but not the
   // generous spacing used by long reports. This keeps the table, totals, and

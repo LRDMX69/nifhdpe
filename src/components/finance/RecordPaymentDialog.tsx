@@ -78,6 +78,7 @@ export const RecordPaymentDialog = ({ open, onOpenChange, invoice, onRecorded, f
         senderDepartment: "Accounts",
         stampType: "finance",
         showSignature: true,
+        compact: true,
         contentSections: [
           {
             heading: "Payment Details",
