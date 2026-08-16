@@ -25,7 +25,9 @@ import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
 import { industrialDb } from "@/lib/industrialDb";
 
-type InventoryItem = Database["public"]["Tables"]["inventory"]["Row"] & { 
+type InventoryItem = Database["public"]["Tables"]["inventory"]["Row"] & {
+  product_specification_id?: string | null;
+  product_specifications?: { product_code: string; product_name: string } | null;
   storage_locations?: { name: string } | null;
   storage_boxes?: { box_code: string; label: string | null } | null;
 };
@@ -59,6 +61,7 @@ const Inventory = () => {
   const [supplierPhone, setSupplierPhone] = useState("");
   const [locationId, setLocationId] = useState("");
   const [boxId, setBoxId] = useState("");
+  const [productSpecificationId, setProductSpecificationId] = useState("none");
 
   // Storage management dialogs
   const [locDialogOpen, setLocDialogOpen] = useState(false);
@@ -73,7 +76,7 @@ const Inventory = () => {
     queryKey: ["inventory", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data, error } = await supabase.from("inventory").select("*, storage_locations(name), storage_boxes(box_code, label)").eq("organization_id", orgId).order("item_name");
+      const { data, error } = await supabase.from("inventory").select("*, product_specifications(product_code, product_name), storage_locations(name), storage_boxes(box_code, label)").eq("organization_id", orgId).order("item_name");
       if (error) throw error;
       return (data as unknown as InventoryItem[]) ?? [];
     },
@@ -87,6 +90,17 @@ const Inventory = () => {
       const { data, error } = await supabase.from("storage_locations").select("*").eq("organization_id", orgId).order("name");
       if (error) throw error;
       return (data as StorageLocation[]) ?? [];
+    },
+    enabled: !!orgId,
+  });
+
+  const { data: productSpecifications = [] } = useQuery({
+    queryKey: ["inventory-product-specifications", orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await industrialDb.from("product_specifications").select("id, product_code, product_name").eq("organization_id", orgId).eq("is_active", true).order("product_code");
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; product_code: string; product_name: string }>;
     },
     enabled: !!orgId,
   });
@@ -105,7 +119,7 @@ const Inventory = () => {
   const resetForm = () => {
     setItemName(""); setItemType(""); setDiameter(""); setQuantity("");
     setMinStock(""); setUnitCost(""); setSupplier(""); setSupplierPhone("");
-    setLocationId(""); setBoxId("");
+    setLocationId(""); setBoxId(""); setProductSpecificationId("none");
     setEditingItem(null);
   };
 
@@ -121,6 +135,7 @@ const Inventory = () => {
     setSupplierPhone(item.supplier_phone || "");
     setLocationId(item.location_id || "none");
     setBoxId(item.box_id || "none");
+    setProductSpecificationId(item.product_specification_id || "none");
     setDialogOpen(true);
   };
 
@@ -129,7 +144,7 @@ const Inventory = () => {
     if (!orgId || !user || !itemName.trim()) return;
     setSaving(true);
     try {
-      const payload: Database["public"]["Tables"]["inventory"]["Insert"] = {
+      const payload = {
         organization_id: orgId,
         item_name: itemName.trim(),
         item_type: (itemType || "hdpe") as "hdpe" | "pvc" | "custom",
@@ -141,7 +156,8 @@ const Inventory = () => {
         supplier_phone: supplierPhone || null,
         location_id: locationId && locationId !== "none" ? locationId : null,
         box_id: boxId && boxId !== "none" ? boxId : null,
-      };
+        product_specification_id: productSpecificationId !== "none" ? productSpecificationId : null,
+      } as unknown as Database["public"]["Tables"]["inventory"]["Insert"];
       if (editingItem) {
         const { error } = await supabase.from("inventory").update(payload as Database["public"]["Tables"]["inventory"]["Update"]).eq("id", editingItem.id);
         if (error) throw error;
@@ -279,6 +295,15 @@ const Inventory = () => {
                       <SelectContent><SelectItem value="hdpe">HDPE</SelectItem><SelectItem value="pvc">PVC</SelectItem><SelectItem value="custom">Custom</SelectItem></SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-2 sm:col-span-2"><Label>Controlled product specification</Label>
+                    <Select value={productSpecificationId} onValueChange={setProductSpecificationId}><SelectTrigger><SelectValue placeholder="Unlinked stock item" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Unlinked stock item</SelectItem>
+                        {productSpecifications.map((spec) => <SelectItem key={spec.id} value={spec.id}>{spec.product_code} · {spec.product_name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Link stock to the approved catalogue so confirmed sales orders can reserve it automatically.</p>
+                  </div>
                   <div className="space-y-2"><Label>Diameter (mm)</Label><Input type="number" placeholder="110" value={diameter} onChange={(e) => setDiameter(e.target.value)} /></div>
                   <div className="space-y-2"><Label>Quantity (meters/pcs)</Label><Input type="number" placeholder="100" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></div>
                   <div className="space-y-2"><Label>Min Stock Level</Label><Input type="number" placeholder="50" value={minStock} onChange={(e) => setMinStock(e.target.value)} /></div>
@@ -392,6 +417,7 @@ const Inventory = () => {
                   <div className="min-w-0">
                     <p className="font-medium text-sm truncate">{item.item_name}</p>
                     <p className="text-xs text-muted-foreground">{item.supplier ?? "No supplier"} · {item.diameter_mm ?? "—"}mm · {formatCurrency(item.unit_cost ?? 0)}/unit</p>
+                    {item.product_specifications && <p className="text-xs text-primary truncate">{item.product_specifications.product_code} · {item.product_specifications.product_name}</p>}
                     {locName && (
                       <p className="text-xs text-primary flex items-center gap-1 mt-0.5">
                         <MapPin className="h-3 w-3" /> {locName}{boxCode ? ` → ${boxCode}` : ""}
