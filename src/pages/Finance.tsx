@@ -127,8 +127,10 @@ const Finance = () => {
     queryKey: ["members-finance", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data: mems } = await supabase.from("organization_memberships").select("user_id, role").eq("organization_id", orgId);
-      const { data: profs } = await supabase.from("profiles").select("user_id, full_name").eq("organization_id", orgId);
+      const { data: mems, error: membershipsError } = await supabase.from("organization_memberships").select("user_id, role").eq("organization_id", orgId);
+      if (membershipsError) throw membershipsError;
+      const { data: profs, error: profilesError } = await supabase.from("profiles").select("user_id, full_name").eq("organization_id", orgId);
+      if (profilesError) throw profilesError;
       const profMap = new Map((profs ?? []).map(p => [p.user_id, p.full_name]));
       const seen = new Set<string>();
       return (mems ?? []).filter(m => { if (seen.has(m.user_id)) return false; seen.add(m.user_id); return true; })
@@ -141,7 +143,8 @@ const Finance = () => {
     queryKey: ["worker-payments", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("worker_payments").select("*").eq("organization_id", orgId).order("date", { ascending: false }).limit(100);
+      const { data, error } = await supabase.from("worker_payments").select("*").eq("organization_id", orgId).order("date", { ascending: false }).limit(100);
+      if (error) throw error;
       return (data as PaymentItem[]) ?? [];
     },
     enabled: !!orgId,
@@ -153,7 +156,8 @@ const Finance = () => {
     queryKey: ["expenses", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("expenses").select("*").eq("organization_id", orgId).order("date", { ascending: false }).limit(100);
+      const { data, error } = await supabase.from("expenses").select("*").eq("organization_id", orgId).order("date", { ascending: false }).limit(100);
+      if (error) throw error;
       return (data as ExpenseItem[]) ?? [];
     },
     enabled: !!orgId,
@@ -163,7 +167,8 @@ const Finance = () => {
     queryKey: ["invoices", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("invoices").select("*, clients(name)").eq("organization_id", orgId).order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("invoices").select("*, clients(name)").eq("organization_id", orgId).order("created_at", { ascending: false });
+      if (error) throw error;
       return (data ?? []) as unknown as InvoiceItem[];
     },
     enabled: !!orgId,
@@ -173,7 +178,8 @@ const Finance = () => {
     queryKey: ["receipts", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("receipts").select("*, clients(name)").eq("organization_id", orgId).order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("receipts").select("*, clients(name)").eq("organization_id", orgId).order("created_at", { ascending: false });
+      if (error) throw error;
       return (data ?? []) as unknown as ReceiptItem[];
     },
     enabled: !!orgId,

@@ -358,3 +358,7 @@ The Logistics `navigator.geolocation.getCurrentPosition` callbacks previously pe
 ## Source audit evidence — Context discussions
 
 Embedded project, field-report, and claim discussions previously discarded read errors and had no send-error feedback, so permission or connectivity failures could look like empty discussions or no-op comments. Context reads now throw into the surrounding async boundary, and comment sends provide success/error feedback. TypeScript, strict typing, lint, and the 26-test suite pass after the change; live context-thread send/reload/error-path retesting remains deployment-gated.
+
+## Source audit evidence — Finance source failures
+
+Finance’s worker-payment, expense, invoice, receipt, and employee-member queries previously ignored Supabase errors and converted permission/schema/network failures into empty arrays. The queries now throw errors so the page’s existing async/error states can identify an unavailable source instead of presenting an inaccurate zero-data view. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live source-error and aggregate-reconciliation retesting remains deployment-gated.
