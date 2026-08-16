@@ -29,7 +29,7 @@ import { useSearchParams } from "react-router-dom";
 import { humanizeError } from "@/lib/humanizeError";
 import { industrialDb } from "@/lib/industrialDb";
 
-type DeliveryRow = Database["public"]["Tables"]["deliveries"]["Row"] & { projects?: { name: string } | null; manual_dispatch_reason?: string | null; document_number?: string | null; waybill_id?: string | null; sales_order_id?: string | null; client_id?: string | null };
+type DeliveryRow = Database["public"]["Tables"]["deliveries"]["Row"] & { projects?: { name: string } | null; clients?: { name: string } | null; sales_orders?: { order_number: string; total_amount: number | null } | null; manual_dispatch_reason?: string | null; document_number?: string | null; waybill_id?: string | null; sales_order_id?: string | null; client_id?: string | null };
 type DispatchOrder = { id: string; order_number: string; status: string; total_amount: number | null; project_id: string | null; clients?: { name: string } | null };
 type VehicleRow = Database["public"]["Tables"]["vehicles"]["Row"] & { name?: string | null };
 type FuelLogRow = Database["public"]["Tables"]["fuel_logs"]["Row"] & { vehicles?: { plate_number: string; name?: string | null } | null };
@@ -101,9 +101,9 @@ const Logistics = () => {
     queryKey: ["deliveries", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data, error } = await supabase.from("deliveries").select("*, projects(name), clients(name), sales_orders(order_number)").eq("organization_id", orgId).order("delivery_date", { ascending: false });
+      const { data, error } = await supabase.from("deliveries").select("*, projects(name), clients(name), sales_orders(order_number, total_amount)").eq("organization_id", orgId).order("delivery_date", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as DeliveryRow[];
+      return (data ?? []) as unknown as DeliveryRow[];
     },
     enabled: !!orgId,
   });
@@ -477,13 +477,18 @@ const Logistics = () => {
             }}
           >
           <div ref={listRef} className="space-y-3">
-            {filtered.map((d) => (
+            {filtered.map((d) => {
+              const delivery = d as DeliveryRow;
+              const linkedOrder = delivery.sales_orders;
+              const displayTitle = linkedOrder?.order_number ?? delivery.projects?.name ?? (delivery.clients?.name ? `Delivery for ${delivery.clients.name}` : "Unlinked delivery");
+              const displayValue = linkedOrder?.total_amount ?? d.cost ?? 0;
+              return (
               <Card key={d.id} className="gsap-card border-border/50 hover:border-primary/20 transition-all">
                 <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0"><Truck className="h-5 w-5" /></div>
                     <div className="min-w-0">
-                      <p className="font-semibold text-sm truncate">{(d as DeliveryRow).projects?.name ?? "Unlinked delivery"}</p>
+                      <p className="font-semibold text-sm truncate">{displayTitle}</p>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-0.5">
                         <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {d.destination}</span>
                         <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {d.delivery_date}</span>
@@ -494,7 +499,7 @@ const Logistics = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-bold text-sm">{formatCurrency(d.cost ?? 0)}</span>
+                    <span className="font-bold text-sm">{formatCurrency(displayValue)}</span>
                     <Badge variant={statusBadge[d.status || "pending"] ?? "outline"} className="capitalize text-xs">{(d.status ?? "pending").replace("_", " ")}</Badge>
                     {canEdit && (
                       <DropdownMenu>
@@ -543,7 +548,8 @@ const Logistics = () => {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
           </AsyncBoundary>
         </TabsContent>
