@@ -324,3 +324,25 @@ Production `/finance?tab=invoices&new=1` opened the canonical `Create complete i
 The live Dashboard showed `Unread Messages 0` while the controlled QA message was authored by the current user, which is consistent with the direct-message unread rule. The Dashboard also showed `Total Expenses ₦1,000.00`, `Net Cash ₦-64,481.21`, and `Opportunities 643`; these values require source-record reconciliation in the broader analytics pass. The pre-fix Dashboard unread query counted all unread broadcasts and did not exclude self-authored direct messages. That implementation was corrected in commit `ab34720` to match the NotificationBell and Messages semantics.
 
 **CI evidence:** The repository’s `.github/workflows/ci.yml` is present and runs `npm ci`, normal and strict TypeScript checks, lint, Vitest, production build, `npm audit --audit-level=high`, diff hygiene, and the production-marker audit on pushes, pull requests to `main`, and manual dispatch. The equivalent local npm gate passed: typecheck, strict typecheck, lint, 26 Vitest tests across 5 files, production build, and marker audit.
+
+
+## Live evidence — Document Registry inconsistency
+
+**Production URLs:** `https://nifhdpe.vercel.app/finance?tab=invoices` and `https://nifhdpe.vercel.app/documents`.
+
+Finance visibly lists two numbered invoices, including `INVOICES/2026/0001B` (cancelled) and `INVOICES/2026/0001` (paid), while Document Registry initially reported `0 numbered documents on file` and `0 revisions`. Navigating back to `/documents` immediately afterward reproduced a blank white screen with no interactive elements. This is a new live **FAIL** requiring root-cause diagnosis. The evidence indicates either a registry source-query/rendering failure or a deployment/runtime exception; it must not be accepted as a valid empty registry while Finance contains numbered records.
+
+
+**Reproduction update:** A second clean navigation to `/documents` again produced a blank white screen with no detected interactive elements. The failure is therefore reproducible, not merely a slow first load. The deployed bundle contains the Document Registry component, so the next diagnosis step is to capture runtime/network failure details or isolate a data-dependent render path; this route remains a production blocker.
+
+
+**Runtime diagnosis:** On the blank page, the root element had zero HTML and the browser resource table showed the application JavaScript resources with zero transfer size, although independent HTTP checks returned 200 for the corresponding asset URLs. A cache-busting navigation to `/documents?qa=1765932440` reproduced the blank screen. The failure is therefore not resolved by cache busting; it remains a production runtime/deployment blocker requiring deployment-level investigation or a defensive route error boundary before GO.
+
+
+**Boundary diagnosis:** The repository already wraps the application in `RootErrorBoundary`, whose fallback displays an actionable error and reload control. The live Document Registry remains completely blank with an empty `#root` and no boundary fallback, which strongly indicates the failure occurs before React mounts (asset/runtime/deployment loading) rather than as an ordinary component render exception. This needs partner-host deployment investigation; adding another page-level boundary would not explain the empty root.
+
+
+**PWA retest:** The live site had an active service worker at `/sw.js` with scope `/` and no named Cache Storage entries. The QA browser unregistered it and reloaded the cache-busted Document Registry route; the blank screen persisted. This rules out the active service worker as the sole cause in this session. The route remains a live blocker despite the repository’s existing root error boundary.
+
+
+**Session-wide blank-shell observation:** After unregistering the service worker, `/finance?tab=invoices` also rendered blank and remained blank after a reload shortcut. This indicates the QA browser session itself entered a failed asset/bootstrap state after the service-worker intervention; it does not prove Finance is independently broken in a fresh session. The earlier Document Registry blank was reproduced before this intervention and remains the primary route-specific failure evidence. A fresh browser context or partner-side deployment inspection is required for a clean retest.
