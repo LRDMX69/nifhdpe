@@ -133,7 +133,8 @@ const Projects = () => {
     queryKey: ["projects", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("projects").select("*, clients(name)").eq("organization_id", orgId).order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("projects").select("*, clients(name)").eq("organization_id", orgId).order("created_at", { ascending: false });
+      if (error) throw error;
       return (data as unknown as ProjectItem[]) ?? [];
     },
     enabled: !!orgId,
@@ -143,7 +144,8 @@ const Projects = () => {
     queryKey: ["clients-list", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("clients").select("id, name").eq("organization_id", orgId).order("name");
+      const { data, error } = await supabase.from("clients").select("id, name").eq("organization_id", orgId).order("name");
+      if (error) throw error;
       return (data as ClientItem[]) ?? [];
     },
     enabled: !!orgId,
@@ -195,7 +197,8 @@ const Projects = () => {
     queryKey: ["members-for-projects", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("profiles").select("user_id, full_name").eq("organization_id", orgId).order("full_name");
+      const { data, error } = await supabase.from("profiles").select("user_id, full_name").eq("organization_id", orgId).order("full_name");
+      if (error) throw error;
       return (data as MemberItem[]) ?? [];
     },
     enabled: !!orgId,

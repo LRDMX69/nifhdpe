@@ -386,3 +386,7 @@ HSE’s project selector, member selector, and toolbox-talk list previously igno
 ## Source audit evidence — Worker Claims source failures
 
 Worker Claims previously ignored errors while loading claims, claimant profiles, visible-member roles, and the 24-hour duplicate check. A failed duplicate lookup could allow a duplicate claim through, while failed inbox sources could appear empty. All four paths now surface errors and block the protected operation when the source is unavailable. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live claims submission, duplicate blocking, attachment persistence, and permission retesting remain deployment-gated.
+
+## Source audit evidence — Projects source failures
+
+Projects’ main project list, client selector, and member selector previously ignored backend errors, which could disconnect project execution from clients, teams, or commercial data while presenting an apparently valid empty state. The queries now surface source failures through the existing project error boundary. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live project-to-sales-order and team-assignment retesting remains deployment-gated.
