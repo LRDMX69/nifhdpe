@@ -455,3 +455,11 @@ The loaded registry is connected and complete, but the initial live capture expo
 ## Source audit evidence — Admin Dashboard CEO visibility
 
 Admin Dashboard unread-message counts and CEO overdue-invoice/cashflow queries previously ignored backend errors. Overdue and forecast invoice queries also included cancelled invoices. The dashboard now surfaces source failures and excludes cancelled invoices from overdue and expected-inflow metrics. TypeScript and strict typecheck pass; lint completes with the existing non-blocking warning set; the 26-test suite passes; and `git diff --check` is clean.
+
+
+## Live deployment retest — Document Registry loading hardening (2026-08-16)
+
+On the latest production navigation, the registry initially displayed `Loading numbered documents…` and a `Loading…` revision badge rather than a false zero. After the query completed on the same URL, it displayed 12 numbered documents and 12 revisions, including both Finance invoices and the reprintable waybill. This confirms the loading-state fix is deployed and behaves correctly in production.
+
+Evidence URL: https://nifhdpe.vercel.app/documents?qa=latest-hardening
+Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_documents_1786875180864.html
