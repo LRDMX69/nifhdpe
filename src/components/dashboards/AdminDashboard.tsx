@@ -227,7 +227,14 @@ const AdminDashboard = () => {
     queryKey: ["unread-msg-count", orgId, user?.id],
     queryFn: async () => {
       if (!orgId || !user) return 0;
-      const { count } = await supabase.from("messages").select("*", { count: "exact", head: true }).eq("organization_id", orgId).eq("is_read", false).or(`recipient_id.eq.${user.id},message_type.eq.broadcast`);
+      const { count } = await supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .eq("organization_id", orgId)
+        .eq("is_read", false)
+        .eq("message_type", "direct")
+        .eq("recipient_id", user.id)
+        .neq("sender_id", user.id);
       return count ?? 0;
     },
     enabled: !!orgId && !!user,
