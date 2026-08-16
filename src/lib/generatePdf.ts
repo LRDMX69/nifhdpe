@@ -282,6 +282,19 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
     doc.setTextColor(...GREEN);
     doc.text(String(watermark).toUpperCase(), pageW - margin - 8, y + 7, { align: "right" });
   }
+  if (stampType && isCompactDocument) {
+    const badgeLabel = stampLabels[stampType] || "APPROVED";
+    const badgeW = Math.min(52, contentW * 0.34);
+    const badgeX = pageW - margin - badgeW - 2;
+    const badgeY = y + 10;
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(...GREEN);
+    doc.roundedRect(badgeX, badgeY, badgeW, 8, 1.5, 1.5, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(5.5);
+    doc.setTextColor(...GREEN);
+    doc.text(badgeLabel, badgeX + badgeW / 2, badgeY + 5, { align: "center" });
+  }
   y += isCompactDocument ? 31 : isDenseDocument ? 25 : 31;
 
   if ((senderName || senderDepartment) && !isDenseDocument) {
@@ -482,7 +495,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   }
 
   // Stamp
-  if (stampType) {
+  if (stampType && !isCompactDocument) {
     const stampX = pageW - margin - 20;
     const stampY = Math.min(y + (isDenseDocument ? 3 : 5), pageH - contentBottom - 16);
     drawCircularStamp(doc, stampX, stampY, stampType, options.companyName);
