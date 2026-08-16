@@ -1,0 +1,270 @@
+---ROLE REFERENCES---
+src/contexts/AuthContext.tsx:18:  role: string;
+src/contexts/AuthContext.tsx:52:  switchRole: (role: string) => void;
+src/contexts/AuthContext.tsx:127:      // role_assignment_requests. Querying admin_requests here (the legacy
+src/contexts/AuthContext.tsx:129:      // and the user was routed into a role-less dead-end instead of the
+src/contexts/AuthContext.tsx:132:        .from("role_assignment_requests")
+src/contexts/AuthContext.tsx:152:          .select("organization_id, role, organizations(name)")
+src/contexts/AuthContext.tsx:185:          const pendingRolesStr = localStorage.getItem("nif_pending_roles");
+src/contexts/AuthContext.tsx:186:          let rolesToAssign: string[] = ["technician"];
+src/contexts/AuthContext.tsx:191:                rolesToAssign = parsed;
+src/contexts/AuthContext.tsx:194:              logger.error("Error parsing pending roles from localStorage:", e);
+src/contexts/AuthContext.tsx:198:          logger.info(`Auto-assigning memberships for user ${userId} to org ${profileData.organization_id} with roles ${rolesToAssign.join(", ")}`);
+src/contexts/AuthContext.tsx:204:              const message = "Missing access token for role assignment";
+src/contexts/AuthContext.tsx:208:              const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assign-pending-roles`;
+src/contexts/AuthContext.tsx:212:                body: JSON.stringify({ user_id: userId, organization_id: profileData.organization_id, roles: rolesToAssign.slice(0, 2) })
+src/contexts/AuthContext.tsx:217:                logger.error("assign-pending-roles failed", payload);
+src/contexts/AuthContext.tsx:220:                localStorage.removeItem("nif_pending_roles");
+src/contexts/AuthContext.tsx:225:            logger.error("assign-pending-roles request failed", e);
+src/contexts/AuthContext.tsx:232:            .select("organization_id, role, organizations(name)")
+src/contexts/AuthContext.tsx:247:          logger.error("Error fetching role assignment requests:", pendingRequestError);
+src/contexts/AuthContext.tsx:252:          role: membership.role,
+src/contexts/AuthContext.tsx:261:            authError: "This account has been terminated. Contact an administrator if you believe this is an error.",
+src/contexts/AuthContext.tsx:275:            activeRole: isMaintenanceAdmin ? "administrator" : activeMembership.role,
+src/contexts/AuthContext.tsx:291:              ? [{ organization_id: orgId, role: "administrator", organization_name: "System" }]
+src/contexts/AuthContext.tsx:293:            activeRole: "administrator",
+src/contexts/AuthContext.tsx:433:          requested_roles: requestedRoles.slice(0, 2),
+src/contexts/AuthContext.tsx:453:  const switchRole = (role: string) => {
+src/contexts/AuthContext.tsx:454:    if (isMaintenance || memberships.some((membership) => membership.role === role)) {
+src/contexts/AuthContext.tsx:455:      setActiveRole(role);
+src/contexts/AuthContext.tsx:465:    setActiveRole(membership.role);
+src/contexts/AuthContext.tsx:497:  if (!context) throw new Error("useAuth must be used within AuthProvider");
+src/pages/Analytics.tsx:38:      if (error) throw error;
+src/pages/Analytics.tsx:45:  const { data: financeReport, isLoading: loadingFinanceReport, refetch: refetchFinanceReport } = useQuery({
+src/pages/Analytics.tsx:46:    queryKey: ["analytics-finance-period", orgId, reportFrom, reportTo],
+src/pages/Analytics.tsx:47:    queryFn: async () => { if (!orgId) return null; const { data, error } = await industrialDb.rpc("get_finance_period_report", { _org_id: orgId, _from: reportFrom, _to: reportTo }); if (error) throw error; return data as unknown as { invoiced: number; collected: number; operating_expenses: number; worker_payments: number; monthly: Array<{ month: string; invoiced: number; collected: number; expenses: number; worker_payments: number }> }; },
+src/pages/Analytics.tsx:57:      if (error) throw error;
+src/pages/Analytics.tsx:68:      if (error) throw error;
+src/pages/Analytics.tsx:79:      if (error) throw error;
+src/pages/Analytics.tsx:90:      if (error) throw error;
+src/pages/Analytics.tsx:101:      if (error) throw error;
+src/pages/Analytics.tsx:112:      if (error) throw error;
+src/pages/Analytics.tsx:120:    const billed = Number(financeReport?.invoiced ?? invoices.filter((inv) => !["draft", "cancelled"].includes(inv.status)).reduce((s: number, inv) => s + Number(inv.total_amount ?? 0), 0));
+src/pages/Analytics.tsx:121:    const collected = Number(financeReport?.collected ?? receipts.reduce((s: number, r) => s + Number(r.amount_received ?? 0), 0));
+src/pages/Analytics.tsx:125:    const totalExpenses = Number(financeReport?.operating_expenses ?? expenses.reduce((s: number, e) => s + Number(e.amount ?? 0), 0));
+src/pages/Analytics.tsx:126:    const totalPayments = Number(financeReport?.worker_payments ?? payments.reduce((s: number, p) => s + Number(p.amount ?? 0), 0));
+src/pages/Analytics.tsx:160:    const revenueData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => ({ month: row.month, revenue: Number(row.invoiced ?? 0), expenses: Number(row.expenses ?? 0) })) : Array.from(monthlyMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([month, data]) => ({ month: monthLabel(month), ...data }));
+src/pages/Analytics.tsx:176:    const cashFlowData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => ({ month: row.month, billed: Number(row.invoiced ?? 0), collected: Number(row.collected ?? 0) })) : Array.from(cashMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([month, data]) => ({ month: monthLabel(month), ...data }));
+src/pages/Analytics.tsx:206:  }, [payments, expenses, quotations, inventory, invoices, receipts, financeReport]);
+src/pages/Analytics.tsx:234:        {operationalDashboard && <Card className="border-primary/20 bg-primary/5"><CardContent className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 lg:grid-cols-8"><div><p className="text-[10px] text-muted-foreground">Open demands</p><p className="text-lg font-semibold">{operationalDashboard.procurement?.open_demands ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Reserved stock</p><p className="text-lg font-semibold">{operationalDashboard.inventory?.reserved_stock_count ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Overdue invoices</p><p className="text-lg font-semibold">{operationalDashboard.receivables?.overdue_count ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Open service</p><p className="text-lg font-semibold">{operationalDashboard.service?.open_tickets ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">QA attention</p><p className="text-lg font-semibold">{operationalDashboard.quality?.qa_open ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Pending delivery</p><p className="text-lg font-semibold">{operationalDashboard.logistics?.pending_deliveries ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Accepted quotes</p><p className="text-lg font-semibold">{operationalDashboard.pipeline?.quotations_accepted ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">In-progress projects</p><p className="text-lg font-semibold">{operationalDashboard.projects?.in_progress ?? 0}</p></div></CardContent></Card>}
+src/pages/AppSettings.tsx:42:      if (error) throw error;
+src/pages/AppSettings.tsx:178:      if (queryError) throw queryError;
+src/pages/AppSettings.tsx:185:    if (!trimmed) throw new Error("A configuration value is required.");
+src/pages/AppSettings.tsx:193:      if (!orgId || !configKey.trim()) throw new Error("Choose or enter a configuration key.");
+src/pages/AppSettings.tsx:203:      if (saveError) throw saveError;
+src/pages/AppSettings.tsx:206:      toast({ title: "Configuration saved", description: "The value is awaiting administrator approval." });
+src/pages/AppSettings.tsx:215:      if (!userId) throw new Error("Signed-in administrator required.");
+src/pages/AppSettings.tsx:221:      if (updateError) throw updateError;
+src/pages/AppSettings.tsx:260:                <div className="flex items-center gap-2 shrink-0"><Badge variant={config.status === "approved" ? "default" : config.status === "disabled" ? "destructive" : "outline"}>{config.status.replace("_", " ")}</Badge>{config.status !== "approved" && <Button size="sm" variant="outline" onClick={() => updateStatus.mutate({ id: config.id, status: "approved" })} disabled={updateStatus.isPending}>Approve</Button>}{config.status !== "disabled" && <Button size="sm" variant="ghost" onClick={() => updateStatus.mutate({ id: config.id, status: "disabled" })} disabled={updateStatus.isPending}>Disable</Button>}</div>
+src/pages/AppSettings.tsx:274:  requested_roles: string[];
+src/pages/AppSettings.tsx:280:  const isAdmin = isMaintenance || memberships.some((m) => m.role === "administrator");
+src/pages/AppSettings.tsx:294:      return data.map((m: { user_id: string; id: string; role: string }) => ({
+src/pages/AppSettings.tsx:320:    if (!session?.access_token) throw new Error("Not authenticated");
+src/pages/AppSettings.tsx:332:      throw new Error(err.error || `Action failed (${res.status})`);
+src/pages/AppSettings.tsx:372:    queryKey: ["pending-role-requests", orgId],
+src/pages/AppSettings.tsx:376:        .from("role_assignment_requests")
+src/pages/AppSettings.tsx:377:        .select("id, user_id, organization_id, requested_roles, status")
+src/pages/AppSettings.tsx:381:      if (error) throw error;
+src/pages/AppSettings.tsx:388:    mutationFn: async ({ userId, roles, requestId }: { userId: string; roles: string[]; requestId?: string }) => {
+src/pages/AppSettings.tsx:389:      const unique = Array.from(new Set(roles.filter(Boolean))).slice(0, 2);
+src/pages/AppSettings.tsx:390:      if (unique.length === 0) throw new Error("Pick at least one role");
+src/pages/AppSettings.tsx:391:      const rows = unique.map((role) => ({
+src/pages/AppSettings.tsx:394:        role: role as Database["public"]["Enums"]["app_role"],
+src/pages/AppSettings.tsx:397:      if (error) throw error;
+src/pages/AppSettings.tsx:400:          .from("role_assignment_requests")
+src/pages/AppSettings.tsx:403:        if (requestError) throw requestError;
+src/pages/AppSettings.tsx:410:      queryClient.invalidateQueries({ queryKey: ["pending-role-requests"] });
+src/pages/AppSettings.tsx:418:      if (error) throw error;
+src/pages/AppSettings.tsx:452:      if (uploadError) throw uploadError;
+src/pages/AppSettings.tsx:457:      if (signError) throw signError;
+src/pages/AppSettings.tsx:459:      if (updateError) throw updateError;
+src/pages/AppSettings.tsx:475:        executiveSummary={`${teamMembers.length} active team members · ${pendingRoleRequests.length} pending role requests`}
+src/pages/AppSettings.tsx:480:        summary="Manage the organization profile, the team roster and your own account from a single place. Role changes here flow through to every module's permissions instantly."
+src/pages/AppSettings.tsx:483:          { actor: "Administrator", action: "assigns roles to team members (max 2 Admins). Pending users see the Awaiting Role screen until approved." },
+src/pages/AppSettings.tsx:532:                  const requestedRoles = pendingRequest?.requested_roles ?? [];
+src/pages/AppSettings.tsx:544:                            Requested: {requestedRoles.map((role) => ROLE_LABELS[role] ?? role).join(", ")}
+src/pages/AppSettings.tsx:557:                             <SelectTrigger className="w-full sm:w-36 h-8 text-xs"><SelectValue placeholder="Primary role" /></SelectTrigger>
+src/pages/AppSettings.tsx:571:                             onClick={() => assignRole.mutate({ userId: u.user_id, roles: [primary, secondary].filter(Boolean), requestId: pendingRequest?.id })}
+src/pages/AppSettings.tsx:586:            {teamMembers.map((m: { id: string; user_id: string; full_name: string | null; avatar_url: string | null; role: string; terminated?: boolean }) => (
+src/pages/AppSettings.tsx:590:                    <Avatar className="h-9 w-9 shrink-0">
+src/pages/AppSettings.tsx:597:                    <Badge variant={m.role === "administrator" ? "default" : "secondary"} className="capitalize text-xs">{ROLE_LABELS[m.role] ?? m.role}</Badge>
+src/pages/AppSettings.tsx:600:                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Remove role" onClick={() => removeMember.mutate(m.id)}>
+src/pages/BOQ.tsx:25:  total_amount: number; project_id: string | null; sales_order_id?: string | null; organization_id?: string | null; created_at: string;
+src/pages/BOQ.tsx:43:  const canEdit = isMaintenance || ["administrator", "engineer", "reception_sales", ...FINANCE_CAPABLE_ROLES].includes(activeRole ?? "");
+src/pages/BOQ.tsx:49:  const [form, setForm] = useState({ title: "", description: "", project_id: "", sales_order_id: "" });
+src/pages/BOQ.tsx:56:      if (error) throw error;
+src/pages/BOQ.tsx:62:  const { data: salesOrders = [] } = useQuery({
+src/pages/BOQ.tsx:63:    queryKey: ["boq-sales-orders", orgId],
+src/pages/BOQ.tsx:66:      const { data, error } = await industrialDb.from("sales_orders").select("id, order_number, status").eq("organization_id", orgId).neq("status", "cancelled").order("created_at", { ascending: false });
+src/pages/BOQ.tsx:67:      if (error) throw error;
+src/pages/BOQ.tsx:92:        sales_order_id: form.sales_order_id || null,
+src/pages/BOQ.tsx:95:      if (error) throw error;
+src/pages/BOQ.tsx:98:      setForm({ title: "", description: "", project_id: "", sales_order_id: "" });
+src/pages/BOQ.tsx:147:                  <Select value={form.sales_order_id} onValueChange={(v) => setForm({ ...form, sales_order_id: v })}>
+src/pages/BOQ.tsx:148:                    <SelectTrigger><SelectValue placeholder="No sales order" /></SelectTrigger>
+src/pages/BOQ.tsx:149:                    <SelectContent>{salesOrders.map((order) => <SelectItem key={order.id} value={order.id}>{order.order_number} · {order.status.replace("_", " ")}</SelectItem>)}</SelectContent>
+src/pages/BOQ.tsx:176:                {b.sales_order_id && <p className="text-muted-foreground">Sales order: {salesOrders.find((order) => order.id === b.sales_order_id)?.order_number ?? b.sales_order_id.slice(0, 8)}</p>}
+src/pages/BOQ.tsx:217:      if (error) throw error;
+src/pages/BOQ.tsx:226:      if (error) throw error;
+src/pages/BOQ.tsx:255:      if (error) throw error;
+src/pages/Clients.tsx:32:  const canEdit = activeRole === "administrator" || activeRole === "reception_sales" || activeRole === "hr" || isMaintenance;
+src/pages/Clients.tsx:33:  const canDelete = activeRole === "administrator" || isMaintenance;
+src/pages/Clients.tsx:56:      if (error) throw error;
+src/pages/Clients.tsx:99:        if (error) throw error;
+src/pages/Clients.tsx:103:        if (error) throw error;
+src/pages/Clients.tsx:120:      if (error) throw error;
+src/pages/Clients.tsx:139:        executiveSummary={`${clients.length} client${clients.length === 1 ? "" : "s"} in directory`}
+src/pages/Clients.tsx:210:          description: "Clients must be created here before Quotations, Invoices and Opportunities can reference them. Add the first one to unlock the sales workflow.",
+src/pages/Clients.tsx:226:                  <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+src/pages/Clients.tsx:249:                <p className="flex items-center gap-2"><Phone className="h-3 w-3 shrink-0" /> {client.phone ?? "—"}</p>
+src/pages/Clients.tsx:250:                <p className="flex items-center gap-2"><Mail className="h-3 w-3 shrink-0" /> {client.email ?? "—"}</p>
+src/pages/Clients.tsx:251:                <p className="flex items-center gap-2"><MapPin className="h-3 w-3 shrink-0" /> {client.address ?? "—"}</p>
+src/pages/Compliance.tsx:39:  const canEdit = activeRole === "administrator" || activeRole === "engineer" || isMaintenance;
+src/pages/Compliance.tsx:40:  const canDelete = activeRole === "administrator" || isMaintenance;
+src/pages/Compliance.tsx:60:      if (error) throw error;
+src/pages/Compliance.tsx:96:      if (uploadError) throw uploadError;
+src/pages/Compliance.tsx:117:        if (error) throw error;
+src/pages/Compliance.tsx:122:        if (error) throw error;
+src/pages/Compliance.tsx:135:      if (error) throw error;
+src/pages/Compliance.tsx:148:      if (error) throw error;
+src/pages/Compliance.tsx:254:              <s.icon className={`h-8 w-8 ${s.color} opacity-60 shrink-0`} />
+src/pages/DocumentRegistry.tsx:47:  invoice:   { label: "Invoice",          icon: FileText,      color: "text-blue-500",    route: "/finance" },
+src/pages/DocumentRegistry.tsx:50:  receipt:   { label: "Receipt",          icon: ReceiptIcon,   color: "text-emerald-500", route: "/finance" },
+src/pages/DocumentRegistry.tsx:53:  po:        { label: "Purchase Order",   icon: ShoppingCart,  color: "text-cyan-500",    route: "/procurement" },
+src/pages/DocumentRegistry.tsx:54:  grn:       { label: "Goods Received",   icon: Package,       color: "text-amber-500",   route: "/procurement" },
+src/pages/DocumentRegistry.tsx:56:  mr:        { label: "Material Req.",    icon: ClipboardList, color: "text-yellow-500",  route: "/procurement" },
+src/pages/DocumentRegistry.tsx:58:  payment:   { label: "Worker Payment",   icon: CreditCard,    color: "text-indigo-500",  route: "/finance" },
+src/pages/DocumentRegistry.tsx:92:          if (error) throw error;
+src/pages/DocumentRegistry.tsx:97:          if (error) throw error;
+src/pages/DocumentRegistry.tsx:102:          if (error) throw error;
+src/pages/DocumentRegistry.tsx:107:          if (error) throw error;
+src/pages/DocumentRegistry.tsx:112:          if (error) throw error;
+src/pages/DocumentRegistry.tsx:117:          if (error) throw error;
+src/pages/DocumentRegistry.tsx:125:          if (error) throw error;
+src/pages/DocumentRegistry.tsx:133:          if (error) throw error;
+src/pages/DocumentRegistry.tsx:138:          if (error) throw error;
+src/pages/DocumentRegistry.tsx:143:          if (error) throw error;
+src/pages/DocumentRegistry.tsx:148:          if (error) throw error;
+src/pages/DocumentRegistry.tsx:153:          if (error) throw error;
+src/pages/DocumentRegistry.tsx:233:    a.href = url;
+src/pages/DocumentRegistry.tsx:310:          <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+src/pages/Equipment.tsx:55:  const isAdmin = activeRole === "administrator" || isMaintenance;
+src/pages/Equipment.tsx:56:  const canManage = isAdmin || activeRole === "warehouse";
+src/pages/Equipment.tsx:57:  const canRequest = activeRole === "technician" || activeRole === "engineer";
+src/pages/Equipment.tsx:71:      if (error) throw error;
+src/pages/Equipment.tsx:82:      if (error) throw error;
+src/pages/Equipment.tsx:93:      if (error) throw error;
+src/pages/Equipment.tsx:104:      if (error) throw error;
+src/pages/Equipment.tsx:127:      if (!orgId || !user) throw new Error("Not authenticated");
+src/pages/Equipment.tsx:136:        if (error) throw error;
+src/pages/Equipment.tsx:139:        if (error) throw error;
+src/pages/Equipment.tsx:154:      if (error) throw error;
+src/pages/Equipment.tsx:167:      if (error) throw error;
+src/pages/Equipment.tsx:178:      if (!user || !orgId || !selectedEquipment) throw new Error("Missing data");
+src/pages/Equipment.tsx:183:      if (error) throw error;
+src/pages/Equipment.tsx:196:      if (!request) throw new Error("Equipment request is no longer available.");
+src/pages/Equipment.tsx:205:        if (assignmentError) throw assignmentError;
+src/pages/Equipment.tsx:208:      if (error) throw error;
+src/pages/Equipment.tsx:287:        summary="Register every machine, tool and vehicle so technicians can request what they need, and admins see usage, maintenance and request escalations in one place."
+src/pages/Equipment.tsx:363:              <s.icon className="h-5 w-5 sm:h-8 sm:w-8 text-primary opacity-60 shrink-0" />
+src/pages/Equipment.tsx:396:                        <div className="flex gap-1 shrink-0">
+src/pages/Equipment.tsx:399:                              <a href={`tel:${m.phone}`}><Phone className="h-3 w-3 mr-1" />Call</a>
+src/pages/Equipment.tsx:446:                  <div className="flex gap-1 shrink-0 flex-wrap">
+src/pages/Equipment.tsx:481:                  <div className="flex gap-1 shrink-0 flex-wrap">
+src/pages/Equipment.tsx:516:                    className="text-[10px] capitalize shrink-0"
+src/pages/Equipment.tsx:536:            : "Your administrator hasn't added any equipment yet. Once they do, you'll be able to request items from the field.",
+src/pages/Equipment.tsx:564:                <div className="flex gap-1 shrink-0">
+src/pages/FieldReports.tsx:113:  const [sendTo, setSendTo] = useState<"engineer" | "administrator">("engineer");
+src/pages/FieldReports.tsx:116:  const isTechnician = activeRole === "technician";
+src/pages/FieldReports.tsx:117:  const isAdmin = activeRole === "administrator" || isMaintenance;
+src/pages/FieldReports.tsx:139:              if (!res.ok) throw new Error("Could not read a stored photo from the queue");
+src/pages/FieldReports.tsx:143:              if (uploadError) throw uploadError;
+src/pages/FieldReports.tsx:161:          if (error) throw error;
+src/pages/FieldReports.tsx:165:            if (photoError) throw photoError;
+src/pages/FieldReports.tsx:226:  // Filter reports based on role & routing
+src/pages/FieldReports.tsx:243:      if (error) throw error;
+src/pages/FieldReports.tsx:272:      if (error) throw error;
+src/pages/FieldReports.tsx:373:      if (!profile?.organization_id) throw new Error("No organization found");
+src/pages/FieldReports.tsx:380:        if (uploadError) throw uploadError;
+src/pages/FieldReports.tsx:381:        if (!uploadData?.path) throw new Error("Site photo upload returned no storage path");
+src/pages/FieldReports.tsx:402:      if (reportError) throw reportError;
+src/pages/FieldReports.tsx:406:        if (photoError) throw photoError;
+src/pages/FieldReports.tsx:458:  // Get sender membership roles for admin inbox
+src/pages/FieldReports.tsx:460:    queryKey: ["report-sender-roles"],
+src/pages/FieldReports.tsx:465:      const { data } = await supabase.from("organization_memberships").select("user_id, role").in("user_id", userIds);
+src/pages/FieldReports.tsx:466:      return new Map((data ?? []).map((m: { user_id: string; role: string }) => [m.user_id, m.role]));
+src/pages/FieldReports.tsx:545:                    <RadioGroup value={sendTo} onValueChange={(v) => setSendTo(v as "engineer" | "administrator")} className="flex gap-4">
+src/pages/FieldReports.tsx:551:                        <RadioGroupItem value="administrator" id="send-admin" />
+src/pages/FieldReports.tsx:649:                  className="h-7 text-[10px] shrink-0"
+src/pages/FieldReports.tsx:696:                const preparerRole = activeRole ?? "technician";
+src/pages/FieldReports.tsx:816:              <s.icon className="h-5 w-5 sm:h-8 sm:w-8 text-primary opacity-60 shrink-0" />
+src/pages/FieldReports.tsx:833:            ? "Reports appear here the moment a technician or engineer submits one. AI structures the content automatically before it reaches you."
+src/pages/FieldReports.tsx:851:                        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+src/pages/FieldReports.tsx:868:                  <span className="text-[10px] sm:text-xs text-muted-foreground shrink-0">{r.report_date}</span>
+src/pages/Finance.tsx:3:import { InvoiceDialog } from "@/components/finance/InvoiceDialog";
+src/pages/Finance.tsx:4:import { RecordPaymentDialog } from "@/components/finance/RecordPaymentDialog";
+src/pages/Finance.tsx:40:type InvoiceItem = Database["public"]["Tables"]["invoices"]["Row"] & { clients?: { name: string } | null; sales_order_id?: string | null; project_id?: string | null; client_po_id?: string | null; delivery_id?: string | null; customer_reference?: string | null; client_name_snapshot?: string | null; client_tin_snapshot?: string | null; site_reference?: string | null; delivery_address?: string | null; delivery_contact?: string | null; delivery_state?: string | null; delivery_lga?: string | null; invoice_kind?: string | null; discount_amount?: number | null; overhead_amount?: number | null; transportation_cost?: number | null; tax_rate?: number | null; withholding_tax_rate?: number | null; withholding_tax_amount?: number | null; taxable_amount?: number | null; net_amount?: number | null; amount_paid?: number | null; payment_terms?: string | null; terms_and_conditions?: string | null; currency?: string | null; free_trade_zone?: boolean | null };
+src/pages/Finance.tsx:46:type FinanceLinkEntityType = "invoice" | "receipt" | "expense" | "worker_payment" | "purchase_order" | "fuel_log" | "director_account" | "staff_loan" | "loan_repayment" | "salary_schedule" | "overtime" | "vat_entry" | "external_loan";
+src/pages/Finance.tsx:57:  const canViewHistory = activeRole === "administrator" || isFinanceCapable(activeRole) || isMaintenance;
+src/pages/Finance.tsx:127:    queryKey: ["members-finance", orgId],
+src/pages/Finance.tsx:130:      const { data: mems, error: membershipsError } = await supabase.from("organization_memberships").select("user_id, role").eq("organization_id", orgId);
+src/pages/Finance.tsx:131:      if (membershipsError) throw membershipsError;
+src/pages/Finance.tsx:133:      if (profilesError) throw profilesError;
+src/pages/Finance.tsx:137:        .map(m => ({ value: m.user_id, label: profMap.get(m.user_id) ?? "Unknown", role: m.role }));
+src/pages/Finance.tsx:147:      if (error) throw error;
+src/pages/Finance.tsx:153:  const { data: financeAccounts = [] } = useQuery({ queryKey: ["finance-accounts-page", orgId], queryFn: async () => { if (!orgId) return []; const { data, error } = await industrialDb.from("finance_accounts").select("id, account_name, account_number").eq("organization_id", orgId).eq("is_active", true).order("account_name"); if (error) throw error; return data ?? []; }, enabled: !!orgId });
+src/pages/Finance.tsx:160:      if (error) throw error;
+src/pages/Finance.tsx:171:      if (error) throw error;
+src/pages/Finance.tsx:182:      if (error) throw error;
+src/pages/Finance.tsx:189:    queryKey: ["finance-bank-transactions", orgId],
+src/pages/Finance.tsx:193:      if (error) throw error;
+src/pages/Finance.tsx:200:    queryKey: ["finance-transaction-links", orgId],
+src/pages/Finance.tsx:203:      const { data, error } = await industrialDb.from("finance_transaction_links").select("id, bank_transaction_id, entity_type, entity_id, linked_amount, notes, linked_at").eq("organization_id", orgId).order("linked_at", { ascending: false }).limit(200);
+src/pages/Finance.tsx:204:      if (error) throw error;
+src/pages/Finance.tsx:210:    queryKey: ["finance-bank-linkable-sources", orgId],
+src/pages/Finance.tsx:213:      const [purchaseOrders, fuelLogs, directorEntries, staffLoans, loanRepayments, salarySchedules, overtimeEntries, vatEntries, externalLoans] = await Promise.all([
+src/pages/Finance.tsx:216:        industrialDb.from("director_account_entries").select("id, entry_date, amount, transaction_type, folio, description").eq("organization_id", orgId).order("entry_date", { ascending: false }).limit(200),
+src/pages/Finance.tsx:217:        industrialDb.from("hr_staff_loans").select("id, amount, outstanding_balance, status, employee_id, start_date").eq("organization_id", orgId).order("start_date", { ascending: false }).limit(200),
+src/pages/Finance.tsx:218:        industrialDb.from("hr_loan_repayments").select("id, amount, payment_date, loan_id, notes").eq("organization_id", orgId).order("payment_date", { ascending: false }).limit(200),
+src/pages/Finance.tsx:219:        industrialDb.from("hr_salary_schedules").select("id, net_pay, period_start, period_end, status, employee_id").eq("organization_id", orgId).order("period_end", { ascending: false }).limit(200),
+src/pages/Finance.tsx:220:        industrialDb.from("hr_overtime_entries").select("id, overtime_earnings, period_month, status, employee_id").eq("organization_id", orgId).order("period_month", { ascending: false }).limit(200),
+src/pages/Finance.tsx:222:        industrialDb.from("hr_external_loans").select("id, lender, loan_date, principal_amount, remaining_balance, status").eq("organization_id", orgId).order("loan_date", { ascending: false }).limit(200),
+src/pages/Finance.tsx:224:      const responses = [purchaseOrders, fuelLogs, directorEntries, staffLoans, loanRepayments, salarySchedules, overtimeEntries, vatEntries, externalLoans];
+src/pages/Finance.tsx:226:      if (failed?.error) throw failed.error;
+src/pages/Finance.tsx:230:        director_account: (directorEntries.data ?? []).map((row: any) => ({ id: row.id, label: `${row.entry_date} · ${row.transaction_type}${row.folio ? ` · ${row.folio}` : ""}`, amount: Number(row.amount ?? 0) })),
+src/pages/Finance.tsx:242:  const { data: financeReport, isLoading: financeReportLoading, refetch: refetchFinanceReport } = useQuery({
+src/pages/Finance.tsx:243:    queryKey: ["finance-period-report", orgId, reportFrom, reportTo],
+src/pages/Finance.tsx:244:    queryFn: async () => { if (!orgId) return null; const { data, error } = await industrialDb.rpc("get_finance_period_report", { _org_id: orgId, _from: reportFrom, _to: reportTo }); if (error) throw error; return data as unknown as { invoiced: number; collected: number; operating_expenses: number; worker_payments: number; invoice_count: number; receipt_count: number; aging: Record<string, number>; monthly: Array<{ month: string; invoiced: number; collected: number; expenses: number; worker_payments: number }> }; },
+src/pages/Finance.tsx:249:  const { data: financeInsights } = useQuery({
+src/pages/Finance.tsx:250:    queryKey: ["ai-insights-finance"],
+src/pages/Finance.tsx:252:      const { data } = await supabase.from("ai_summaries").select("*").eq("organization_id", orgId).eq("context", "finance").order("created_at", { ascending: false }).limit(1);
+src/pages/Finance.tsx:275:    const reportIncludesCancelled = Boolean(financeReport && cancelledInvoices.length > 0 && Number(financeReport.invoice_count ?? 0) >= reportPeriodInvoices.length);
+---AUTH FILES---
+src/components/layout/RoleBasedOnboarding.tsx
+src/contexts/AuthContext.tsx
+---ROUTE FILES---
+Analytics.tsx
+AppSettings.tsx
+BOQ.tsx
+Clients.tsx
+Compliance.tsx
+Dashboard.tsx
+DocumentRegistry.tsx
+Equipment.tsx
+FieldReports.tsx
+Finance.tsx
+HR.tsx
+HSE.tsx
+Inventory.tsx
+Login.tsx
+Logistics.tsx
+Messages.tsx
+NotFound.tsx
+Opportunities.tsx
+PendingApproval.tsx
+PipeCalculator.tsx
+Procurement.tsx
+Projects.tsx
+Quotations.tsx
+ResetPassword.tsx
+WorkerClaims.tsx
