@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   id: string;
@@ -31,6 +32,7 @@ export const NotificationBell = () => {
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: unreadMessages = [], refetch } = useQuery<Message[]>({
     queryKey: ["unread-notifications", orgId, user?.id],
@@ -38,7 +40,7 @@ export const NotificationBell = () => {
       if (!orgId || !user) return [];
       // Only count direct messages addressed to this user. Broadcasts share a single
       // `is_read` flag across all recipients, which would otherwise produce false counts.
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("messages")
         .select("id, subject, body, sender_id, message_type, created_at, is_read, recipient_id")
         .eq("organization_id", orgId)
@@ -48,6 +50,7 @@ export const NotificationBell = () => {
         .neq("sender_id", user.id)
         .order("created_at", { ascending: false })
         .limit(10);
+      if (error) throw error;
       return (data as Message[]) ?? [];
     },
     enabled: !!orgId && !!user,
@@ -60,7 +63,8 @@ export const NotificationBell = () => {
     queryKey: ["notif-sender-profiles", senderIds.join(",")],
     queryFn: async () => {
       if (senderIds.length === 0) return new Map<string, string>();
-      const { data } = await supabase.from("profiles").select("user_id, full_name").in("user_id", senderIds);
+      const { data, error } = await supabase.from("profiles").select("user_id, full_name").in("user_id", senderIds);
+      if (error) throw error;
       return new Map<string, string>((data ?? []).map((p) => [p.user_id, p.full_name ?? "Unknown"]));
     },
     enabled: senderIds.length > 0,
@@ -123,6 +127,7 @@ export const NotificationBell = () => {
     const { error } = await supabase.from("messages").update({ is_read: true }).eq("id", m.id);
     if (error) {
       logger.error("Failed to mark message as read:", error);
+      toast({ title: "Could not mark message as read", description: error.message, variant: "destructive" });
     }
     // Invalidate all unread message queries to update counts everywhere
     queryClient.invalidateQueries({ queryKey: ["unread-notifications", orgId, user?.id] });
@@ -139,6 +144,7 @@ export const NotificationBell = () => {
     const { error } = await supabase.from("messages").update({ is_read: true }).in("id", ids);
     if (error) {
       logger.error("Failed to mark all read:", error);
+      toast({ title: "Could not mark all messages as read", description: error.message, variant: "destructive" });
       return;
     }
     queryClient.invalidateQueries({ queryKey: ["unread-notifications", orgId, user.id] });

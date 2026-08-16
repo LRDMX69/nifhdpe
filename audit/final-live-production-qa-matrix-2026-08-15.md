@@ -414,3 +414,7 @@ The Finance dashboard’s recent-expense, worker-payment, and AI-summary queries
 ## Source audit evidence — HR dashboard sources
 
 The HR dashboard’s attendance, pending-leave, and AI-summary queries previously ignored backend errors, allowing workforce cards to show zero or generic intelligence when the source was unavailable. Each query now surfaces failures through query state. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live HR dashboard reconciliation remains deployment-gated.
+
+## Source audit evidence — NotificationBell state integrity
+
+NotificationBell previously discarded unread-message and sender-profile read errors, and only logged mark-read failures without informing the operator. Its reads now throw into query state, while single-message and mark-all read failures show destructive feedback. TypeScript and strict typecheck pass; lint completes with the existing non-blocking warning set; the 26-test suite passes; and `git diff --check` is clean.
