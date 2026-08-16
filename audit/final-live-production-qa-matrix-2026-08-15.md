@@ -497,3 +497,11 @@ The authenticated sandbox browser ignored `window.resizeTo(390,844)` and reporte
 ## Finance-side cancellation protection — follow-up fix
 
 The live Finance RPC still included the cancelled QA invoice because its production reporting migration was pending. Finance now cross-checks loaded invoice statuses against the report period, subtracts cancelled/void revenue and receivables only when the RPC count proves those rows were included, and excludes cancelled/void invoices from fallback monthly data. This protects the UI immediately while remaining safe after the database migration is applied. TypeScript, strict typecheck, lint, the 26-test suite, and diff hygiene pass. The database migration remains required for shared RPC consumers and other reporting surfaces.
+
+
+## Live retest evidence — Finance cancellation protection deployment gate (2026-08-16)
+
+After the Finance-side cancellation protection push, the live route still displayed Revenue ₦206,593.79 and Receivables ₦1,075.00 while showing the cancelled ₦1,075.00 invoice. The paid invoice and received total remained correct. This means the latest client-side protection is not yet present in the served production bundle, or its deployed report-period matching logic requires further correction; it cannot be marked as live-fixed until a subsequent deployment visibly reports Revenue ₦205,518.79 and Receivables ₦0.00. The database migration remains required regardless.
+
+Evidence URL: https://nifhdpe.vercel.app/finance?tab=invoices&qa=cancelled-kpi-retest
+Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_finance_1786875536576.html
