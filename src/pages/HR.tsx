@@ -116,7 +116,8 @@ const HR = () => {
     queryFn: async () => {
       if (!orgId) return new Map();
       // Payroll fields are gated by a SECURITY DEFINER RPC (HR/Admin/Finance only).
-      const { data: payroll } = await (supabase as any).rpc("get_org_payroll_profiles", { _org_id: orgId });
+      const { data: payroll, error } = await (supabase as any).rpc("get_org_payroll_profiles", { _org_id: orgId });
+      if (error) throw error;
       return new Map(((payroll as any[]) ?? []).map((p: any) => [p.user_id, p]));
     },
     enabled: !!orgId,
@@ -154,7 +155,8 @@ const HR = () => {
     queryKey: ["attendance-all", orgId, attendanceDate],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("attendance").select("*").eq("organization_id", orgId).eq("date", attendanceDate).order("check_in", { ascending: false });
+      const { data, error } = await supabase.from("attendance").select("*").eq("organization_id", orgId).eq("date", attendanceDate).order("check_in", { ascending: false });
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId,
@@ -165,7 +167,8 @@ const HR = () => {
     queryFn: async () => {
       if (!orgId) return [];
       const weekAgo = new Date(Date.now() - 7 * 86400000).toLocaleDateString("en-CA", { timeZone: "Africa/Lagos" });
-      const { data } = await supabase.from("attendance").select("*").eq("organization_id", orgId).gte("date", weekAgo).order("date", { ascending: false });
+      const { data, error } = await supabase.from("attendance").select("*").eq("organization_id", orgId).gte("date", weekAgo).order("date", { ascending: false });
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId && isHrOrAdmin,
@@ -200,7 +203,8 @@ const HR = () => {
     queryKey: ["members-list-hr", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("organization_memberships").select("user_id, role").eq("organization_id", orgId);
+      const { data, error } = await supabase.from("organization_memberships").select("user_id, role").eq("organization_id", orgId);
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId && isHrOrAdmin,
@@ -222,25 +226,27 @@ const HR = () => {
     queryKey: ["org-info-hr", orgId],
     queryFn: async () => {
       if (!orgId) return null;
-      const { data } = await supabase.from("organizations").select("name, logo_url").eq("id", orgId).maybeSingle();
+      const { data, error } = await supabase.from("organizations").select("name, logo_url").eq("id", orgId).maybeSingle();
+      if (error) throw error;
       return data;
     },
     enabled: !!orgId && isHrOrAdmin,
   });
 
-  const { data: leaveRequests = [], isLoading: leavesLoading, error: leavesError, refetch: refetchLeaves } = useQuery({ queryKey: ["leave-requests", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("leave_requests").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30); return data ?? []; }, enabled: !!orgId });
-  const { data: performanceLogs = [], isLoading: perfLoading, error: perfError, refetch: refetchPerf } = useQuery({ queryKey: ["performance-logs", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("performance_logs").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(20); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
-  const { data: recruitment = [], isLoading: recruitLoading, error: recruitError, refetch: refetchRecruit } = useQuery({ queryKey: ["recruitment", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("recruitment").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
-  const { data: trainingLogs = [], isLoading: trainingLoading, error: trainingError, refetch: refetchTraining } = useQuery({ queryKey: ["training-logs", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("training_logs").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
-  const { data: skills = [], isLoading: skillsLoading, error: skillsError, refetch: refetchSkills } = useQuery({ queryKey: ["employee-skills", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("employee_skills").select("*").eq("organization_id", orgId).order("skill_name"); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
-  const { data: disciplinary = [], isLoading: discLoading, error: discError, refetch: refetchDisc } = useQuery({ queryKey: ["disciplinary", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("disciplinary_records").select("*").eq("organization_id", orgId).order("incident_date", { ascending: false }).limit(20); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
-  const { data: promotions = [], isLoading: promoLoading, error: promoError, refetch: refetchPromo } = useQuery({ queryKey: ["promotions", orgId], queryFn: async () => { if (!orgId) return []; const { data } = await supabase.from("promotions").select("*").eq("organization_id", orgId).order("effective_date", { ascending: false }).limit(20); return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
+  const { data: leaveRequests = [], isLoading: leavesLoading, error: leavesError, refetch: refetchLeaves } = useQuery({ queryKey: ["leave-requests", orgId], queryFn: async () => { if (!orgId) return []; const { data, error } = await supabase.from("leave_requests").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30); if (error) throw error; return data ?? []; }, enabled: !!orgId });
+  const { data: performanceLogs = [], isLoading: perfLoading, error: perfError, refetch: refetchPerf } = useQuery({ queryKey: ["performance-logs", orgId], queryFn: async () => { if (!orgId) return []; const { data, error } = await supabase.from("performance_logs").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(20); if (error) throw error; return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
+  const { data: recruitment = [], isLoading: recruitLoading, error: recruitError, refetch: refetchRecruit } = useQuery({ queryKey: ["recruitment", orgId], queryFn: async () => { if (!orgId) return []; const { data, error } = await supabase.from("recruitment").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30); if (error) throw error; return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
+  const { data: trainingLogs = [], isLoading: trainingLoading, error: trainingError, refetch: refetchTraining } = useQuery({ queryKey: ["training-logs", orgId], queryFn: async () => { if (!orgId) return []; const { data, error } = await supabase.from("training_logs").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30); if (error) throw error; return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
+  const { data: skills = [], isLoading: skillsLoading, error: skillsError, refetch: refetchSkills } = useQuery({ queryKey: ["employee-skills", orgId], queryFn: async () => { if (!orgId) return []; const { data, error } = await supabase.from("employee_skills").select("*").eq("organization_id", orgId).order("skill_name"); if (error) throw error; return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
+  const { data: disciplinary = [], isLoading: discLoading, error: discError, refetch: refetchDisc } = useQuery({ queryKey: ["disciplinary", orgId], queryFn: async () => { if (!orgId) return []; const { data, error } = await supabase.from("disciplinary_records").select("*").eq("organization_id", orgId).order("incident_date", { ascending: false }).limit(20); if (error) throw error; return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
+  const { data: promotions = [], isLoading: promoLoading, error: promoError, refetch: refetchPromo } = useQuery({ queryKey: ["promotions", orgId], queryFn: async () => { if (!orgId) return []; const { data, error } = await supabase.from("promotions").select("*").eq("organization_id", orgId).order("effective_date", { ascending: false }).limit(20); if (error) throw error; return data ?? []; }, enabled: !!orgId && isHrOrAdmin });
 
   const { data: salaryPayments = [], isLoading: salaryLoading, error: salaryError, refetch: refetchSalary } = useQuery({
     queryKey: ["salary-payments", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("worker_payments").select("*").eq("organization_id", orgId).in("type", ["salary", "overtime", "loan_repayment"]).order("date", { ascending: false }).limit(100);
+      const { data, error } = await supabase.from("worker_payments").select("*").eq("organization_id", orgId).in("type", ["salary", "overtime", "loan_repayment"]).order("date", { ascending: false }).limit(100);
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId && isHrOrAdmin,

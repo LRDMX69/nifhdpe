@@ -390,3 +390,7 @@ Worker Claims previously ignored errors while loading claims, claimant profiles,
 ## Source audit evidence — Projects source failures
 
 Projects’ main project list, client selector, and member selector previously ignored backend errors, which could disconnect project execution from clients, teams, or commercial data while presenting an apparently valid empty state. The queries now surface source failures through the existing project error boundary. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live project-to-sales-order and team-assignment retesting remains deployment-gated.
+
+## Source audit evidence — HR source failures
+
+HR’s payroll-profile RPC, attendance views, membership list, organization branding, leave, performance, recruitment, training, skills, disciplinary, promotion, and salary-payment queries previously ignored backend errors and could render partial HR data as if it were complete. These sources now throw into their existing error states, preventing silent partial views. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live HR source, payroll, attendance, and workflow retesting remains deployment-gated.
