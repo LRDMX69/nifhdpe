@@ -220,7 +220,8 @@ const Quotations = () => {
     queryKey: ["clients-for-quotation", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("clients").select("id, name").eq("organization_id", orgId).order("name");
+      const { data, error } = await supabase.from("clients").select("id, name").eq("organization_id", orgId).order("name");
+      if (error) throw error;
       return (data as DbClient[]) ?? [];
     },
     enabled: !!orgId,
@@ -269,7 +270,11 @@ const Quotations = () => {
       setLumpSumDesc(q.notes ?? "");
     } else {
       // Load line items
-      const { data: lineItems } = await supabase.from("quotation_items").select("*").eq("quotation_id", q.id);
+      const { data: lineItems, error: lineItemsError } = await supabase.from("quotation_items").select("*").eq("quotation_id", q.id);
+      if (lineItemsError) {
+        toast({ title: "Could not load quotation items", description: humanizeError(lineItemsError), variant: "destructive" });
+        return;
+      }
       if (lineItems) {
         setItems((lineItems as DbQuotationItem[]).map((li) => ({
           id: li.id,

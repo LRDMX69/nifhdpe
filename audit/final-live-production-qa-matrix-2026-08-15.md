@@ -398,3 +398,7 @@ HR’s payroll-profile RPC, attendance views, membership list, organization bran
 ## Source audit evidence — Analytics source and accounting fallback
 
 Analytics’ payments, expenses, quotations, inventory, invoice, and receipt queries previously discarded source errors. Its invoice fallback also included cancelled invoices in billed and outstanding totals when the finance-report RPC was unavailable. All sources now surface errors, and fallback billed/outstanding calculations exclude cancelled invoices. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live Analytics-to-Finance reconciliation remains deployment-gated.
+
+## Source audit evidence — Quotations detail integrity
+
+Quotations’ client selector previously ignored source errors, and opening an existing quotation ignored quotation-item read errors, allowing an edit dialog to appear with missing commercial lines. The selector now surfaces failures and the edit path reports item-load failures before allowing incomplete editing. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live quotation edit and downstream conversion retesting remains deployment-gated.
