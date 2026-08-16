@@ -16,12 +16,13 @@ const FinanceDashboard = () => {
     queryKey: ["finance-expenses", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("expenses")
         .select("*")
         .eq("organization_id", orgId)
         .order("date", { ascending: false })
         .limit(20);
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId,
@@ -31,12 +32,13 @@ const FinanceDashboard = () => {
     queryKey: ["finance-payments", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("worker_payments")
         .select("*")
         .eq("organization_id", orgId)
         .order("date", { ascending: false })
         .limit(20);
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId,
@@ -46,7 +48,7 @@ const FinanceDashboard = () => {
     queryKey: ["ai-summary", "finance", orgId],
     queryFn: async () => {
       if (!orgId) return null;
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("ai_summaries")
         .select("*")
         .eq("organization_id", orgId)
@@ -54,6 +56,7 @@ const FinanceDashboard = () => {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (error) throw error;
       return data;
     },
     enabled: !!orgId,

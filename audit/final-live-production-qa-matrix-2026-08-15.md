@@ -406,3 +406,7 @@ Quotations’ client selector previously ignored source errors, and opening an e
 ## Source audit evidence — Shared HR hook
 
 The shared `useHRData` hook duplicated HR attendance, profiles, memberships, leave, performance, recruitment, training, skills, disciplinary, promotion, salary, and organization queries while discarding their errors. This created a second silent-failure path even after the HR page was hardened. The shared hook now throws source errors for every collection and metadata read. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live surfaces consuming this hook remain deployment-gated for retest.
+
+## Source audit evidence — Finance dashboard sources
+
+The Finance dashboard’s recent-expense, worker-payment, and AI-summary queries previously ignored backend errors, causing executive cards to display zeros or generic intelligence text when their sources were unavailable. Each query now throws into the dashboard’s query state. TypeScript and strict typecheck pass; lint completes with the existing non-blocking warning set; the 26-test suite passes; and `git diff --check` is clean.
