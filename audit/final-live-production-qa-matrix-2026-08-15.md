@@ -374,3 +374,7 @@ Logistics’ project selector, vehicle list, and fuel-log queries previously dis
 ## Source audit evidence — Inventory source failures
 
 Inventory’s storage-location and storage-box queries previously ignored backend errors, which could leave warehouse selectors empty without explaining why. Both queries now surface source failures through the module’s existing error state. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live warehouse-source retesting remains deployment-gated.
+
+## Source audit evidence — Equipment source failures
+
+Equipment’s asset, project, staff-profile, and equipment-request queries previously ignored backend errors, allowing assignment and maintenance screens to show incomplete or empty data without explanation. The queries now surface source failures through the module’s existing error state. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live equipment-source and request workflow retesting remains deployment-gated.

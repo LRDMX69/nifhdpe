@@ -67,7 +67,8 @@ const Equipment = () => {
     queryKey: ["equipment", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("equipment").select("*, projects(name)").eq("organization_id", orgId).order("name");
+      const { data, error } = await supabase.from("equipment").select("*, projects(name)").eq("organization_id", orgId).order("name");
+      if (error) throw error;
       return (data as unknown as EquipmentItem[]) ?? [];
     },
     enabled: !!orgId,
@@ -77,7 +78,8 @@ const Equipment = () => {
     queryKey: ["projects-list-eq", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("projects").select("id, name, team_member_ids, project_head_id").eq("organization_id", orgId).order("name");
+      const { data, error } = await supabase.from("projects").select("id, name, team_member_ids, project_head_id").eq("organization_id", orgId).order("name");
+      if (error) throw error;
       return (data as unknown as Project[]) ?? [];
     },
     enabled: !!orgId,
@@ -87,7 +89,8 @@ const Equipment = () => {
     queryKey: ["org-profiles-eq", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("profiles").select("user_id, full_name, phone").eq("organization_id", orgId);
+      const { data, error } = await supabase.from("profiles").select("user_id, full_name, phone").eq("organization_id", orgId);
+      if (error) throw error;
       return (data as OrgProfile[]) ?? [];
     },
     enabled: !!orgId,
@@ -97,7 +100,8 @@ const Equipment = () => {
     queryKey: ["equipment-requests", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("equipment_requests").select("*, equipment(name)").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30);
+      const { data, error } = await supabase.from("equipment_requests").select("*, equipment(name)").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30);
+      if (error) throw error;
       return (data as unknown as EquipmentRequest[]) ?? [];
     },
     enabled: !!orgId,
