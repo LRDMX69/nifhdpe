@@ -346,3 +346,7 @@ Finance visibly lists two numbered invoices, including `INVOICES/2026/0001B` (ca
 
 
 **Session-wide blank-shell observation:** After unregistering the service worker, `/finance?tab=invoices` also rendered blank and remained blank after a reload shortcut. This indicates the QA browser session itself entered a failed asset/bootstrap state after the service-worker intervention; it does not prove Finance is independently broken in a fresh session. The earlier Document Registry blank was reproduced before this intervention and remains the primary route-specific failure evidence. A fresh browser context or partner-side deployment inspection is required for a clean retest.
+
+## Source audit evidence — Field Reports
+
+The Field Reports submission path required site photos but previously ignored storage-upload errors and photo-record insert errors during direct online submission, allowing a report to appear saved without its required evidence. Its list query also discarded database errors and returned an empty list. The path now throws and surfaces those failures, preserving the offline queue for retry and preventing silent loss of required attachments. TypeScript, strict typing, lint, and the 26-test suite pass after the change; a live photo-upload failure/retry retest remains scheduled for the live-fix phase.

@@ -239,7 +239,8 @@ const FieldReports = () => {
         query = query.eq("created_by", user.id);
       }
 
-      const { data } = await query;
+      const { data, error } = await query;
+      if (error) throw error;
       if (!data) return [];
 
       // Engineer: only see reports routed to them or their own
@@ -375,8 +376,10 @@ const FieldReports = () => {
       for (let i = 0; i < photosToUpload.length; i++) {
         const photo = photosToUpload[i];
         const fileName = `${user.id}/${Date.now()}-${photo.name}`;
-        const { data: uploadData } = await supabase.storage.from("site-photos").upload(fileName, photo);
-        if (uploadData) photoUrls.push(uploadData.path);
+        const { data: uploadData, error: uploadError } = await supabase.storage.from("site-photos").upload(fileName, photo);
+        if (uploadError) throw uploadError;
+        if (!uploadData?.path) throw new Error("Site photo upload returned no storage path");
+        photoUrls.push(uploadData.path);
       }
 
       const { data: report, error: reportError } = await supabase
@@ -399,7 +402,8 @@ const FieldReports = () => {
       if (reportError) throw reportError;
 
       for (const url of photoUrls) {
-        await supabase.from("field_report_photos").insert({ field_report_id: report.id, photo_url: url });
+        const { error: photoError } = await supabase.from("field_report_photos").insert({ field_report_id: report.id, photo_url: url });
+        if (photoError) throw photoError;
       }
 
       // Success! Remove from offline queue
