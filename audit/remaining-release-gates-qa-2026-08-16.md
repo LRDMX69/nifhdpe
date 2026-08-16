@@ -46,3 +46,13 @@ The BOQ route initially had no export action; the UAT detail editor correctly ca
 ## Opportunities pipeline PDF — PASS for observed full-pipeline export
 
 The live Opportunities route initially showed a transient zero-record state, then settled to 643 live opportunities with pipeline value NGN 2,535,510,000,000.00. The Print action generated `opportunities-DOC-MSW2RT9N.pdf` (document ID from the footer). The artifact is 61 pages and the extracted text spans the pipeline records through the final pages, with Page 1 of 61 and continuous table headers/page footers. Visual inspection of page 1 confirms the branded letterhead, readable five-column opportunity table, full titles/sources/status/value/deadline data, and proportionate table layout. The Opportunities pipeline document gate passes for the observed full-pipeline export; the transient initial zero state remains a performance/loading observation, not an export defect.
+
+## Confirmed-order delivery lifecycle — reservation retest findings
+
+The first controlled UAT quotation `QUOTATIONS/2026/0001` was accepted and converted to `SALES_ORDERS/2026/0001`, but its free-text/unlinked line correctly produced the live Logistics error `Could not create delivery — No reserved inventory is available for this order` at `https://nifhdpe.vercel.app/logistics?qa=confirmed-order-delivery-lifecycle-2026-08-16&order=SALES_ORDERS%2F2026%2F0001`. The Inventory table already has the live `product_specification_id` connector from migration `20260813100000_complete_transaction_connectors.sql`; the UI did not expose it.
+
+A controlled `UAT-PE100-110-SDR11 · UAT HDPE Pipe 110mm SDR11` catalogue record was added and the existing 8-unit UAT inventory SKU was linked to it through the newly deployed Inventory selector. A second quotation `QUOTATIONS/2026/0002` was then created with the catalogue item, sent, accepted, converted to `SALES_ORDERS/2026/0001B`, and confirmed. Confirmation reported success, but the live delivery attempt at `https://nifhdpe.vercel.app/logistics?qa=confirmed-order-delivery-linked-rerun-2026-08-16&order=SALES_ORDERS%2F2026%2F0001B` again returned `No reserved inventory is available for this order`.
+
+Source diagnosis: in `src/pages/Quotations.tsx`, the product selector called `updateItem` twice in one event. Because `updateItem` used the closed-over `items` array, the second description update overwrote the first `productSpecificationId` update. The selector therefore visually reverted to `Free-text / unlinked`, even though it autofilled the product description, and `create_sales_order_from_quotation` copied a null specification ID. Fixing the updater to use a functional state transition is required before the third lifecycle rerun.
+
+EOF
