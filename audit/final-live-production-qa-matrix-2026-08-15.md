@@ -378,3 +378,7 @@ Inventory’s storage-location and storage-box queries previously ignored backen
 ## Source audit evidence — Equipment source failures
 
 Equipment’s asset, project, staff-profile, and equipment-request queries previously ignored backend errors, allowing assignment and maintenance screens to show incomplete or empty data without explanation. The queries now surface source failures through the module’s existing error state. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live equipment-source and request workflow retesting remains deployment-gated.
+
+## Source audit evidence — HSE source failures
+
+HSE’s project selector, member selector, and toolbox-talk list previously ignored backend errors and could leave safety workflows with incomplete context or an unexplained empty register. Those queries now surface source failures through the module’s existing error state. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live HSE incident/toolbox workflow retesting remains deployment-gated.

@@ -52,7 +52,8 @@ const HSE = () => {
     queryKey: ["hse-projects", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("projects").select("id, name").eq("organization_id", orgId).order("name");
+      const { data, error } = await supabase.from("projects").select("id, name").eq("organization_id", orgId).order("name");
+      if (error) throw error;
       return (data ?? []) as { id: string; name: string }[];
     },
     enabled: !!orgId,
@@ -62,7 +63,8 @@ const HSE = () => {
     queryKey: ["hse-members", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("profiles").select("user_id, full_name").eq("organization_id", orgId).order("full_name");
+      const { data, error } = await supabase.from("profiles").select("user_id, full_name").eq("organization_id", orgId).order("full_name");
+      if (error) throw error;
       return (data ?? []) as { user_id: string; full_name: string | null }[];
     },
     enabled: !!orgId,
@@ -136,7 +138,8 @@ const HSE = () => {
   const { data: tbts = [], isLoading: tbtsLoading, error: tbtsError, refetch: refetchTbts } = useQuery({
     queryKey: ["toolbox-talks", orgId],
     queryFn: async () => {
-      const { data } = await supabase.from("toolbox_talks").select("*").eq("organization_id", orgId).order("conducted_at", { ascending: false });
+      const { data, error } = await supabase.from("toolbox_talks").select("*").eq("organization_id", orgId).order("conducted_at", { ascending: false });
+      if (error) throw error;
       return (data ?? []) as TbtRow[];
     },
     enabled: !!orgId,
