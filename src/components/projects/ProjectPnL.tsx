@@ -21,22 +21,26 @@ export const ProjectPnL = ({ projectId, projectBudget }: ProjectPnLProps) => {
     queryKey: ["project-pnl", projectId],
     queryFn: async () => {
       // 1. Revenue (Invoices)
-      const { data: invoices } = await (supabase.from("invoices") as any).select("total_amount").eq("project_id", projectId);
-      const totalRevenue = invoices?.reduce((s, i) => s + Number(i.total_amount || 0), 0) || 0;
+      const { data: invoices, error: invoicesError } = await (supabase.from("invoices") as any).select("total_amount, status").eq("project_id", projectId);
+      if (invoicesError) throw invoicesError;
+      const totalRevenue = invoices?.filter((i) => i.status !== "cancelled" && i.status !== "draft").reduce((s, i) => s + Number(i.total_amount || 0), 0) || 0;
 
       // 2. Direct Expenses
-      const { data: expenses } = await supabase.from("expenses").select("*").eq("project_id", projectId);
+      const { data: expenses, error: expensesError } = await supabase.from("expenses").select("*").eq("project_id", projectId);
+      if (expensesError) throw expensesError;
       const totalDirectExpenses = expenses?.reduce((s, e) => s + Number(e.amount || 0), 0) || 0;
 
       // 3. Materials (from Material Requisitions)
       // We join MR items with inventory to get the cost
-      const { data: mrs } = await supabase.from("material_requisitions").select("id").eq("project_id", projectId);
+      const { data: mrs, error: mrsError } = await supabase.from("material_requisitions").select("id").eq("project_id", projectId);
+      if (mrsError) throw mrsError;
       const mrIds = mrs?.map(m => m.id) || [];
       let totalMaterialCost = 0;
       if (mrIds.length > 0) {
-        const { data: mrItems } = await (supabase.from("mr_items") as any)
+        const { data: mrItems, error: mrItemsError } = await (supabase.from("mr_items") as any)
           .select("quantity_issued, inventory(unit_cost)")
           .in("mr_id", mrIds);
+        if (mrItemsError) throw mrItemsError;
         
         totalMaterialCost = mrItems?.reduce((s, item) => {
           const inventory = item.inventory as unknown as { unit_cost: number } | null;
@@ -47,12 +51,18 @@ export const ProjectPnL = ({ projectId, projectBudget }: ProjectPnLProps) => {
 
       // 4. Labor Cost — sum each team member's (basic + housing + transport + other) / 22 working days
       //    × number of days they were present during the project window. No hardcoded rates.
-      const { data: project } = await supabase
+      const { data: project, error: projectError } = await supabase
         .from("projects")
         .select("organization_id, team_member_ids, start_date, end_date")
         .eq("id", projectId)
         .maybeSingle();
-      const { data: workingDayConfig } = project?.organization_id ? await industrialDb.from("management_configuration").select("config_value").eq("organization_id", project.organization_id).eq("config_key", "working_days_per_month").maybeSingle() : { data: null };
+      if (projectError) throw projectError;
+      let workingDayConfig: { config_value?: unknown } | null = null;
+      if (project?.organization_id) {
+        const { data, error } = await industrialDb.from("management_configuration").select("config_value").eq("organization_id", project.organization_id).eq("config_key", "working_days_per_month").maybeSingle();
+        if (error) throw error;
+        workingDayConfig = data as { config_value?: unknown } | null;
+      }
       const rawWorkingDays = (workingDayConfig as { config_value?: unknown } | null)?.config_value;
       const workingDaysPerMonth = typeof rawWorkingDays === "number" ? rawWorkingDays : Number(rawWorkingDays) || 22;
       const teamIds = (project?.team_member_ids as unknown as string[]) || [];
@@ -61,10 +71,11 @@ export const ProjectPnL = ({ projectId, projectBudget }: ProjectPnLProps) => {
 
       let totalLaborCost = 0;
       if (teamIds.length > 0) {
-        const { data: salaries } = await supabase
+        const { data: salaries, error: salariesError } = await supabase
           .from("profiles")
           .select("user_id, basic_salary, housing_allowance, transport_allowance, other_allowances")
           .in("user_id", teamIds);
+        if (salariesError) throw salariesError;
         const rateByUser = new Map<string, number>();
         (salaries || []).forEach((p) => {
           const monthly =
@@ -82,7 +93,8 @@ export const ProjectPnL = ({ projectId, projectBudget }: ProjectPnLProps) => {
           .eq("status", "present");
         if (projStart) attQuery = attQuery.gte("date", projStart);
         if (projEnd) attQuery = attQuery.lte("date", projEnd);
-        const { data: attendance } = await attQuery;
+        const { data: attendance, error: attendanceError } = await attQuery;
+        if (attendanceError) throw attendanceError;
 
         totalLaborCost = (attendance || []).reduce(
           (s, a) => s + (rateByUser.get(a.user_id as string) || 0),

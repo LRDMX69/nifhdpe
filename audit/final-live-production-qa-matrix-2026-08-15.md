@@ -418,3 +418,7 @@ The HR dashboard’s attendance, pending-leave, and AI-summary queries previousl
 ## Source audit evidence — NotificationBell state integrity
 
 NotificationBell previously discarded unread-message and sender-profile read errors, and only logged mark-read failures without informing the operator. Its reads now throw into query state, while single-message and mark-all read failures show destructive feedback. TypeScript and strict typecheck pass; lint completes with the existing non-blocking warning set; the 26-test suite passes; and `git diff --check` is clean.
+
+## Source audit evidence — Project P&L integrity
+
+Project P&L previously ignored failures while loading invoices, direct expenses, material requisitions, requisition items, project configuration, salaries, and attendance. It also counted draft and cancelled invoices as project revenue. The loader now surfaces every source failure and excludes non-operational invoice statuses from revenue. TypeScript and strict typecheck pass; lint completes with the existing non-blocking warning set; the 26-test suite passes; and `git diff --check` is clean.
