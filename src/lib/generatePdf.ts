@@ -444,10 +444,10 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       head: [tableData.columns.map(c => pdfText(c.header))],
       body: tableData.rows.map(row => tableData.columns.map(c => pdfText(row[c.dataKey] ?? ""))),
       margin: { top: contentTop, right: margin, bottom: contentBottom, left: margin },
-      styles: { font: "helvetica", fontSize: isCompactDocument ? 7.3 : isDenseDocument ? 7.5 : 8.3, cellPadding: isCompactDocument ? { top: 1.6, right: 2, bottom: 1.6, left: 2 } : isDenseDocument ? { top: 1.8, right: 2.5, bottom: 1.8, left: 2.5 } : { top: 2.7, right: 3, bottom: 2.7, left: 3 }, textColor: [35, 45, 55], lineColor: [218, 226, 221], lineWidth: 0.18, valign: "middle", overflow: "linebreak" },
+      styles: { font: "helvetica", fontSize: isCompactDocument ? 7.3 : isDenseDocument ? 7.5 : 8.3, cellPadding: isCompactDocument ? { top: 1.2, right: 2, bottom: 1.2, left: 2 } : isDenseDocument ? { top: 1.8, right: 2.5, bottom: 1.8, left: 2.5 } : { top: 2.7, right: 3, bottom: 2.7, left: 3 }, textColor: [35, 45, 55], lineColor: [218, 226, 221], lineWidth: 0.18, valign: "middle", overflow: "linebreak" },
       headStyles: { fillColor: BLUE as [number, number, number], textColor: [255, 255, 255], fontStyle: "bold", fontSize: isCompactDocument ? 7.2 : isDenseDocument ? 7.4 : 8.2, halign: "left", lineColor: BLUE as [number, number, number] },
       alternateRowStyles: { fillColor: LIGHT_GREEN as [number, number, number] },
-      bodyStyles: { minCellHeight: isCompactDocument ? 5.6 : isDenseDocument ? 6 : 8 },
+      bodyStyles: { minCellHeight: isCompactDocument ? 4.8 : isDenseDocument ? 6 : 8 },
       columnStyles: Object.fromEntries(tableData.columns.map((column, index) => [index, { cellWidth: column.width ?? "auto" }])),
       theme: "grid",
       willDrawPage: ({ doc: tableDoc }) => {
@@ -456,7 +456,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
     });
     // @ts-expect-error - autoTable adds lastAutoTable to jsPDF instance
     y = doc.lastAutoTable?.finalY ?? y + 10;
-    y += 4;
+    y += isCompactDocument ? 1.5 : 4;
 
     if (tableData.summary) {
       const summaryLineHeight = isCompactDocument ? 4.8 : isDenseDocument ? 4.8 : 6;
