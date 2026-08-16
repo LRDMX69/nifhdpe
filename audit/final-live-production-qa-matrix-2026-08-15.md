@@ -366,3 +366,7 @@ Finance’s worker-payment, expense, invoice, receipt, and employee-member queri
 ## Source audit evidence — Procurement source failures
 
 Procurement’s vendor, purchase-order, and material-requisition queries previously ignored Supabase errors and could render empty procurement lists during a permission, schema, or network failure. The queries now surface errors through the existing page error states. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live procurement-source and workflow retesting remains deployment-gated.
+
+## Source audit evidence — Logistics source failures
+
+Logistics’ project selector, vehicle list, and fuel-log queries previously discarded Supabase errors and could produce incomplete dispatch forms or misleading empty fleet records. Those queries now surface backend failures through the page’s error boundary. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live fleet and dispatch-source retesting remains deployment-gated.

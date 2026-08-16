@@ -123,7 +123,8 @@ const Logistics = () => {
     queryKey: ["projects-for-delivery", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("projects").select("id, name").eq("organization_id", orgId);
+      const { data, error } = await supabase.from("projects").select("id, name").eq("organization_id", orgId);
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId,
@@ -144,7 +145,8 @@ const Logistics = () => {
     queryKey: ["vehicles", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("vehicles").select("*").eq("organization_id", orgId).order("plate_number");
+      const { data, error } = await supabase.from("vehicles").select("*").eq("organization_id", orgId).order("plate_number");
+      if (error) throw error;
       return (data ?? []) as VehicleRow[];
     },
     enabled: !!orgId,
@@ -154,7 +156,8 @@ const Logistics = () => {
     queryKey: ["fuel-logs", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("fuel_logs").select("*, vehicles(plate_number, name)").eq("organization_id", orgId).order("log_date", { ascending: false });
+      const { data, error } = await supabase.from("fuel_logs").select("*, vehicles(plate_number, name)").eq("organization_id", orgId).order("log_date", { ascending: false });
+      if (error) throw error;
       return (data ?? []) as unknown as FuelLogRow[];
     },
     enabled: !!orgId,
