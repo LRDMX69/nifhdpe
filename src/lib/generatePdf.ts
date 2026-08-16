@@ -6,6 +6,8 @@ export interface ContentSection {
   heading?: string;
   body?: string;
   bullets?: string[];
+  /** Optional image URL rendered as an attachment without exposing the signed URL as text. */
+  imageUrl?: string;
 }
 
 export interface TableColumn {
@@ -359,7 +361,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
       doc.text(section.heading, margin, y);
       y += 6;
     }
-    if (section.body) {
+    if (section.body && !section.imageUrl) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(30, 30, 30);
@@ -375,11 +377,10 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
     if (
       section.heading &&
       /attach|proof|verification|image/i.test(section.heading) &&
-      section.body
+      (section.imageUrl || section.body)
     ) {
-      const urlMatch = section.body.match(/https?:\/\/[^\s)]+/);
-      if (urlMatch && /\.(jpe?g|png|gif|webp|bmp)(\?.*)?$/i.test(urlMatch[0])) {
-        const imgUrl = urlMatch[0];
+      const imgUrl = section.imageUrl ?? section.body?.match(/https?:\/\/[^\s)]+/)?.[0];
+      if (imgUrl && /\.(jpe?g|png|gif|webp|bmp)(\?.*)?$/i.test(imgUrl)) {
         const imgData = await loadImageAsBase64(imgUrl);
         if (imgData) {
           // Use natural aspect ratio when possible

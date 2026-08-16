@@ -768,20 +768,35 @@ const FieldReports = () => {
                 </Button>
               )}
               <Button size="sm" variant="outline" onClick={async () => {
-                const { generatePdf } = await import("@/lib/generatePdf");
-                const content = viewingReport.structured_reports?.[0]?.structured_content
-                  ? cleanMarkdown(viewingReport.structured_reports[0].structured_content)
-                  : [viewingReport.tasks_completed, viewingReport.crew_members, viewingReport.notes].filter(Boolean).join("\n");
-                const reportProfile = senderProfiles.get(viewingReport.created_by);
-                const preparerName = reportProfile?.full_name ?? "Field Specialist";
-                const preparerRole = senderRoles.get(viewingReport.created_by) ?? "operations";
-                generatePdf({
-                  title: `Report: ${viewingReport.projects?.name ?? "General"} — ${viewingReport.report_date}`,
-                  content,
-                  senderName: preparerName,
-                  senderDepartment: preparerRole.replace(/_/g, " ").toUpperCase() + " Department",
-                  stampType: "general",
-                });
+                try {
+                  const { generatePdf } = await import("@/lib/generatePdf");
+                  const content = viewingReport.structured_reports?.[0]?.structured_content
+                    ? cleanMarkdown(viewingReport.structured_reports[0].structured_content)
+                    : [viewingReport.tasks_completed, viewingReport.crew_members, viewingReport.notes].filter(Boolean).join("\n");
+                  const attachmentSections = await Promise.all((viewingReport.field_report_photos ?? []).map(async (photo, index) => {
+                    const photoUrl = photo.photo_url.startsWith("http")
+                      ? photo.photo_url
+                      : (await supabase.storage.from("site-photos").createSignedUrl(photo.photo_url, 3600)).data?.signedUrl;
+                    if (!photoUrl) return { heading: `Site Photo ${index + 1}`, body: "Attachment could not be signed for printing." };
+                    return { heading: `Site Photo ${index + 1}`, imageUrl: photoUrl };
+                  }));
+                  const reportProfile = senderProfiles.get(viewingReport.created_by);
+                  const preparerName = reportProfile?.full_name ?? "Field Specialist";
+                  const preparerRole = senderRoles.get(viewingReport.created_by) ?? "operations";
+                  await generatePdf({
+                    title: `Report: ${viewingReport.projects?.name ?? "General"} — ${viewingReport.report_date}`,
+                    contentSections: [
+                      { heading: "Report details", body: content || "No report details were supplied." },
+                      ...attachmentSections,
+                    ],
+                    senderName: preparerName,
+                    senderDepartment: preparerRole.replace(/_/g, " ").toUpperCase() + " Department",
+                    stampType: "general",
+                  });
+                  toast({ title: "Field report PDF generated", description: "The report details and site-photo attachments were included." });
+                } catch (error) {
+                  toast({ title: "Could not generate field report PDF", description: error instanceof Error ? error.message : "The report could not be printed.", variant: "destructive" });
+                }
               }}><Printer className="h-4 w-4 mr-1" />Print</Button>
               <Button size="sm" variant="outline" onClick={() => setViewingReport(null)}>Close</Button>
             </div>
