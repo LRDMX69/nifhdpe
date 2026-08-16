@@ -480,7 +480,17 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
   // Signature block
   if (showSignature) {
     const sigBlockHeight = isDenseDocument ? 16 : 20;
-    if (y + sigBlockHeight + 18 > pageH - contentBottom) { doc.addPage(); drawPageChrome(doc, letterheadDataUrl); y = contentTop; }
+    if (y + sigBlockHeight + 18 > pageH - contentBottom) {
+      if (isCompactDocument) {
+        // Compact allocation sheets have a deliberate lower whitespace reserve;
+        // use it for approvals instead of creating a mostly blank second page.
+        y = pageH - contentBottom - sigBlockHeight - 4;
+      } else {
+        doc.addPage();
+        drawPageChrome(doc, letterheadDataUrl);
+        y = contentTop;
+      }
+    }
     y = Math.min(y + (isDenseDocument ? 6 : 10), pageH - contentBottom - 14);
     doc.setDrawColor(50, 50, 50);
     doc.setLineWidth(0.3);
