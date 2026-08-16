@@ -422,3 +422,13 @@ NotificationBell previously discarded unread-message and sender-profile read err
 ## Source audit evidence — Project P&L integrity
 
 Project P&L previously ignored failures while loading invoices, direct expenses, material requisitions, requisition items, project configuration, salaries, and attendance. It also counted draft and cancelled invoices as project revenue. The loader now surfaces every source failure and excludes non-operational invoice statuses from revenue. TypeScript and strict typecheck pass; lint completes with the existing non-blocking warning set; the 26-test suite passes; and `git diff --check` is clean.
+
+
+## Live retest evidence — Finance after hardening pushes (2026-08-16)
+
+The live Finance route now renders normally after loading; the earlier blank-shell behavior was not reproduced on this clean route. Live records remain visible: paid invoice `INVOICES/2026/0001` at ₦205,518.79 and cancelled QA invoice `INVOICES/2026/0001B` at ₦1,075.00. The cancelled record is correctly labelled `cancelled` and `Unlinked`, but the live aggregate still reports Revenue ₦206,593.79 and Receivables ₦1,075.00, proving that the cancellation-exclusion migration has not yet been applied to the production database/reporting function. This is a confirmed NO-GO release gate until the migration is applied and the totals retested. The shell-rendering blocker is currently not reproduced on this clean Finance navigation.
+
+The live Finance page exposes the expected canonical controls (`CSV`, `Export PDF`, `New Invoice`, `Log Payment`, `Log Expense`, revision history, and PDF actions) and shows the paid invoice’s linked bank state. The cancelled QA record remains audit-visible as intended.
+
+Evidence URL: https://nifhdpe.vercel.app/finance?tab=invoices&qa=hardening-retest
+Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_finance_1786874896150.html
