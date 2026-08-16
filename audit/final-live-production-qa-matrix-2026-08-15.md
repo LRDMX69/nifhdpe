@@ -382,3 +382,7 @@ Equipment’s asset, project, staff-profile, and equipment-request queries previ
 ## Source audit evidence — HSE source failures
 
 HSE’s project selector, member selector, and toolbox-talk list previously ignored backend errors and could leave safety workflows with incomplete context or an unexplained empty register. Those queries now surface source failures through the module’s existing error state. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live HSE incident/toolbox workflow retesting remains deployment-gated.
+
+## Source audit evidence — Worker Claims source failures
+
+Worker Claims previously ignored errors while loading claims, claimant profiles, visible-member roles, and the 24-hour duplicate check. A failed duplicate lookup could allow a duplicate claim through, while failed inbox sources could appear empty. All four paths now surface errors and block the protected operation when the source is unavailable. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live claims submission, duplicate blocking, attachment persistence, and permission retesting remain deployment-gated.

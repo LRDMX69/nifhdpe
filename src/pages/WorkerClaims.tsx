@@ -97,12 +97,13 @@ const WorkerClaims = () => {
       if (!orgId) return [];
       // Explicit columns only (never bank/financial rows wholesale) and a cap
       // so the list stays bounded as the table grows. (Finding H-07.)
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("worker_claims")
         .select("id, organization_id, user_id, claim_type, category, amount, description, status, admin_notes, file_url, uploaded_at, reviewed_by, created_at, project_id, updated_at")
         .eq("organization_id", orgId)
         .order("created_at", { ascending: false })
         .limit(200);
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId,
@@ -112,7 +113,8 @@ const WorkerClaims = () => {
     queryKey: ["profiles-claims", orgId],
     queryFn: async () => {
       if (!orgId) return new Map();
-      const { data } = await supabase.from("profiles").select("user_id, full_name, avatar_url").eq("organization_id", orgId);
+      const { data, error } = await supabase.from("profiles").select("user_id, full_name, avatar_url").eq("organization_id", orgId);
+      if (error) throw error;
       return new Map((data ?? []).map((p: Profile) => [p.user_id, p]));
     },
     enabled: !!orgId && (isAdmin || isFinance),
@@ -122,7 +124,8 @@ const WorkerClaims = () => {
     queryKey: ["memberships-claims", orgId],
     queryFn: async () => {
       if (!orgId) return new Map();
-      const { data } = await supabase.rpc("get_visible_members", { _org_id: orgId });
+      const { data, error } = await supabase.rpc("get_visible_members", { _org_id: orgId });
+      if (error) throw error;
       return new Map((data ?? []).map((m: { user_id: string; role: string }) => [m.user_id, m.role]));
     },
     enabled: !!orgId && (isAdmin || isFinance),
@@ -136,7 +139,7 @@ const WorkerClaims = () => {
       // Block obvious duplicates: same user/category/amount in the last 24h
       const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
       const amt = amount ? parseFloat(amount) : 0;
-      const { data: dup } = await supabase
+      const { data: dup, error: duplicateCheckError } = await supabase
         .from("worker_claims")
         .select("id")
         .eq("user_id", user.id)
@@ -146,6 +149,7 @@ const WorkerClaims = () => {
         .in("status", ["pending", "approved", "flagged"])
         .gte("created_at", since)
         .limit(1);
+      if (duplicateCheckError) throw duplicateCheckError;
       if (dup && dup.length > 0) {
         throw new Error(
           "A similar claim (same category and amount) was already submitted in the last 24 hours. Please wait for it to be reviewed or update the existing one instead."
