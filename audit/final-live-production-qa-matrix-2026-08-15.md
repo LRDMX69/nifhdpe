@@ -309,3 +309,9 @@ Production `/finance?tab=invoices&new=1` opened the canonical `Create complete i
 **Fix prepared:** Migration `20260816093000_messages_delete_policy.sql` adds sender-scoped DELETE authorization for direct/context messages, while retaining administrator/maintenance moderation capability. `src/components/messaging/ChatView.tsx` now constrains deletion by message ID, organization, sender, and message type and displays success/error feedback.
 
 **Retest blocker:** The migration must be applied and the updated frontend deployed. After deployment, the exact QA message must be deleted and the list refreshed to confirm it is absent from both the thread and conversation preview. Until then, Messages deletion is not production-ready.
+
+## Automated regression evidence — Messages hardening
+
+**Repository:** `LRDMX69/nifhdpe`, commit `ab34720`.
+
+`./node_modules/.bin/tsc --noEmit` passed after the Messages deletion and Dashboard unread-count changes. `./node_modules/.bin/vitest run --reporter=verbose` passed with **5 test files and 26 tests** passing, covering payroll, financial calculations, offline queue error classification, and print cleanup. The existing automated suite does not yet include a live Supabase RLS integration test for message deletion; that remains a deployment-gated live retest requirement.
