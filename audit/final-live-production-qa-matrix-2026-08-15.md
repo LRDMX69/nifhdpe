@@ -402,3 +402,7 @@ Analytics’ payments, expenses, quotations, inventory, invoice, and receipt que
 ## Source audit evidence — Quotations detail integrity
 
 Quotations’ client selector previously ignored source errors, and opening an existing quotation ignored quotation-item read errors, allowing an edit dialog to appear with missing commercial lines. The selector now surfaces failures and the edit path reports item-load failures before allowing incomplete editing. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live quotation edit and downstream conversion retesting remains deployment-gated.
+
+## Source audit evidence — Shared HR hook
+
+The shared `useHRData` hook duplicated HR attendance, profiles, memberships, leave, performance, recruitment, training, skills, disciplinary, promotion, salary, and organization queries while discarding their errors. This created a second silent-failure path even after the HR page was hardened. The shared hook now throws source errors for every collection and metadata read. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live surfaces consuming this hook remain deployment-gated for retest.

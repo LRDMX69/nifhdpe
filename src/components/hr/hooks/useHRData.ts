@@ -7,7 +7,8 @@ export const useHRData = (orgId: string | undefined, isHrOrAdmin: boolean) => {
     queryFn: async () => {
       if (!orgId) return [];
       const today = new Date().toISOString().split("T")[0];
-      const { data } = await supabase.from("attendance").select("*").eq("organization_id", orgId).eq("date", today).order("check_in", { ascending: false });
+      const { data, error } = await supabase.from("attendance").select("*").eq("organization_id", orgId).eq("date", today).order("check_in", { ascending: false });
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId,
@@ -18,7 +19,8 @@ export const useHRData = (orgId: string | undefined, isHrOrAdmin: boolean) => {
     queryFn: async () => {
       if (!orgId) return [];
       const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
-      const { data } = await supabase.from("attendance").select("*").eq("organization_id", orgId).gte("date", weekAgo).order("date", { ascending: false });
+      const { data, error } = await supabase.from("attendance").select("*").eq("organization_id", orgId).gte("date", weekAgo).order("date", { ascending: false });
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId && isHrOrAdmin,
@@ -28,7 +30,8 @@ export const useHRData = (orgId: string | undefined, isHrOrAdmin: boolean) => {
     queryKey: ["profiles-for-hr", orgId],
     queryFn: async () => {
       if (!orgId) return new Map();
-      const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, avatar_url").eq("organization_id", orgId);
+      const { data: profiles, error } = await supabase.from("profiles").select("user_id, full_name, avatar_url").eq("organization_id", orgId);
+      if (error) throw error;
       return new Map((profiles ?? []).map((p) => [p.user_id, p]));
     },
     enabled: !!orgId,
@@ -38,7 +41,8 @@ export const useHRData = (orgId: string | undefined, isHrOrAdmin: boolean) => {
     queryKey: ["members-list-hr", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("organization_memberships").select("user_id, role").eq("organization_id", orgId);
+      const { data, error } = await supabase.from("organization_memberships").select("user_id, role").eq("organization_id", orgId);
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId && isHrOrAdmin,
@@ -48,7 +52,8 @@ export const useHRData = (orgId: string | undefined, isHrOrAdmin: boolean) => {
     queryKey: ["leave-requests", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("leave_requests").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30);
+      const { data, error } = await supabase.from("leave_requests").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30);
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId,
@@ -58,7 +63,8 @@ export const useHRData = (orgId: string | undefined, isHrOrAdmin: boolean) => {
     queryKey: ["performance-logs", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("performance_logs").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(20);
+      const { data, error } = await supabase.from("performance_logs").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(20);
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId && isHrOrAdmin,
@@ -68,7 +74,8 @@ export const useHRData = (orgId: string | undefined, isHrOrAdmin: boolean) => {
     queryKey: ["recruitment", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("recruitment").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30);
+      const { data, error } = await supabase.from("recruitment").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30);
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId && isHrOrAdmin,
@@ -78,7 +85,8 @@ export const useHRData = (orgId: string | undefined, isHrOrAdmin: boolean) => {
     queryKey: ["training-logs", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("training_logs").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30);
+      const { data, error } = await supabase.from("training_logs").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(30);
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId && isHrOrAdmin,
@@ -88,7 +96,8 @@ export const useHRData = (orgId: string | undefined, isHrOrAdmin: boolean) => {
     queryKey: ["employee-skills", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("employee_skills").select("*").eq("organization_id", orgId).order("skill_name");
+      const { data, error } = await supabase.from("employee_skills").select("*").eq("organization_id", orgId).order("skill_name");
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId && isHrOrAdmin,
@@ -98,7 +107,8 @@ export const useHRData = (orgId: string | undefined, isHrOrAdmin: boolean) => {
     queryKey: ["disciplinary", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("disciplinary_records").select("*").eq("organization_id", orgId).order("incident_date", { ascending: false }).limit(20);
+      const { data, error } = await supabase.from("disciplinary_records").select("*").eq("organization_id", orgId).order("incident_date", { ascending: false }).limit(20);
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId && isHrOrAdmin,
@@ -108,7 +118,8 @@ export const useHRData = (orgId: string | undefined, isHrOrAdmin: boolean) => {
     queryKey: ["promotions", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("promotions").select("*").eq("organization_id", orgId).order("effective_date", { ascending: false }).limit(20);
+      const { data, error } = await supabase.from("promotions").select("*").eq("organization_id", orgId).order("effective_date", { ascending: false }).limit(20);
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId && isHrOrAdmin,
@@ -118,7 +129,8 @@ export const useHRData = (orgId: string | undefined, isHrOrAdmin: boolean) => {
     queryKey: ["salary-payments", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("worker_payments").select("*").eq("organization_id", orgId).eq("type", "salary").order("date", { ascending: false }).limit(100);
+      const { data, error } = await supabase.from("worker_payments").select("*").eq("organization_id", orgId).eq("type", "salary").order("date", { ascending: false }).limit(100);
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!orgId && isHrOrAdmin,
@@ -128,7 +140,8 @@ export const useHRData = (orgId: string | undefined, isHrOrAdmin: boolean) => {
     queryKey: ["org-info-hr", orgId],
     queryFn: async () => {
       if (!orgId) return null;
-      const { data } = await supabase.from("organizations").select("name, logo_url").eq("id", orgId).maybeSingle();
+      const { data, error } = await supabase.from("organizations").select("name, logo_url").eq("id", orgId).maybeSingle();
+      if (error) throw error;
       return data;
     },
     enabled: !!orgId && isHrOrAdmin,
