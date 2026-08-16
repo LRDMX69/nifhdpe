@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ type ViewState = { type: "list" } | { type: "chat"; recipientId: string; recipie
 
 const Messages = () => {
   const { user, activeRole, memberships, isMaintenance } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const orgId = memberships[0]?.organization_id;
@@ -143,6 +145,25 @@ const Messages = () => {
     },
     enabled: !!orgId,
   });
+
+  // Open a direct thread when a notification deep-links to a sender.
+  useEffect(() => {
+    const targetId = searchParams.get("recipient");
+    if (!targetId || !user || targetId === user.id) return;
+    const member = teamMembers.find((m: { user_id: string }) => m.user_id === targetId);
+    const profile = profileMap.get(targetId);
+    if (!member && !profile) return;
+    setView({
+      type: "chat",
+      recipientId: targetId,
+      recipientName: profile?.full_name ?? member?.full_name ?? "Unknown",
+      recipientAvatar: profile?.avatar_url ?? member?.avatar_url,
+      recipientRole: member?.role,
+    });
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("recipient");
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams, teamMembers, profileMap, user]);
 
   // Build conversation list from direct messages
   const directMessages = messages.filter((m: Database["public"]["Tables"]["messages"]["Row"]) => m.message_type === "direct");

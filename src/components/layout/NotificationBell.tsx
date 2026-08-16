@@ -129,8 +129,8 @@ export const NotificationBell = () => {
     queryClient.invalidateQueries({ queryKey: ["messages", orgId, user?.id] });
     queryClient.invalidateQueries({ queryKey: ["unread-msg-count", orgId, user?.id] });
     setOpen(false);
-    // Navigate to messages page - the chat will be opened there
-    navigate("/messages");
+    // Deep-link to the originating conversation so the notification action is context-preserving.
+    navigate(`/messages?recipient=${encodeURIComponent(m.sender_id)}`);
   };
 
   const markAllRead = async () => {
