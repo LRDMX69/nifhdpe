@@ -278,6 +278,26 @@ const Procurement = () => {
         ]}
       />
 
+      <Dialog open={grnOpen} onOpenChange={setGrnOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Receive Goods via PO</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Purchase Order *</Label>
+              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={grnPoId} onChange={(e) => setGrnPoId(e.target.value)}>
+                <option value="">Select pending PO...</option>
+                {pos.filter((p: PoRow) => p.status !== 'received').map((p: PoRow) => <option key={p.id} value={p.id}>{p.document_number} - {p.vendors?.name}</option>)}
+              </select>
+            </div>
+            {grnPoId && (grnItemsLoading ? <p className="text-sm text-muted-foreground">Loading outstanding PO lines…</p> : grnLineItems.length === 0 ? <p className="text-sm text-muted-foreground rounded-lg border border-dashed p-3">No outstanding line items remain on this purchase order.</p> : <div className="space-y-3"><p className="text-xs text-muted-foreground">Enter the accepted and rejected quantities for this receipt. The combined quantity cannot exceed each line’s outstanding balance.</p>{grnLineItems.map((item) => <div key={item.id} className="rounded-lg border p-3 space-y-2"><p className="text-sm font-medium">{item.itemName} <span className="text-xs text-muted-foreground">· {item.remaining.toLocaleString()} outstanding</span></p><div className="grid gap-2 sm:grid-cols-3"><Input type="number" min="0" max={item.remaining} step="0.01" value={item.accepted} onChange={(e) => updateGrnLine(item.id, "accepted", e.target.value)} placeholder="Accepted" /><Input type="number" min="0" max={item.remaining} step="0.01" value={item.rejected} onChange={(e) => updateGrnLine(item.id, "rejected", e.target.value)} placeholder="Rejected" /><Input value={item.lotBatch} onChange={(e) => updateGrnLine(item.id, "lotBatch", e.target.value)} placeholder="Lot / batch (optional)" /></div></div>)}</div>)}
+            <Button className="w-full" onClick={() => { receiveGoods.mutate(grnPoId); setGrnOpen(false); }} disabled={!grnPoId || !grnLineItems.length || receiveGoods.isPending}>
+              {receiveGoods.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Receive GRN
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Tabs defaultValue="vendors" className="space-y-4">
         <div className="overflow-x-auto pb-2">
           <TabsList className="inline-flex w-auto min-w-full sm:min-w-0">
@@ -526,28 +546,7 @@ const Procurement = () => {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Goods Received Notes (GRN)</CardTitle>
               {(isAdmin || isWarehouse) && (
-                <Dialog open={grnOpen} onOpenChange={setGrnOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm"><Plus className="h-4 w-4 mr-1" />Receive Goods</Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader><DialogTitle>Receive Goods via PO</DialogTitle></DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label>Purchase Order *</Label>
-                        <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={grnPoId} onChange={(e) => setGrnPoId(e.target.value)}>
-                          <option value="">Select pending PO...</option>
-                          {pos.filter((p: PoRow) => p.status !== 'received').map((p: PoRow) => <option key={p.id} value={p.id}>{p.document_number} - {p.vendors?.name}</option>)}
-                        </select>
-                      </div>
-                      {grnPoId && (grnItemsLoading ? <p className="text-sm text-muted-foreground">Loading outstanding PO lines…</p> : grnLineItems.length === 0 ? <p className="text-sm text-muted-foreground rounded-lg border border-dashed p-3">No outstanding line items remain on this purchase order.</p> : <div className="space-y-3"><p className="text-xs text-muted-foreground">Enter the accepted and rejected quantities for this receipt. The combined quantity cannot exceed each line’s outstanding balance.</p>{grnLineItems.map((item) => <div key={item.id} className="rounded-lg border p-3 space-y-2"><p className="text-sm font-medium">{item.itemName} <span className="text-xs text-muted-foreground">· {item.remaining.toLocaleString()} outstanding</span></p><div className="grid gap-2 sm:grid-cols-3"><Input type="number" min="0" max={item.remaining} step="0.01" value={item.accepted} onChange={(e) => updateGrnLine(item.id, "accepted", e.target.value)} placeholder="Accepted" /><Input type="number" min="0" max={item.remaining} step="0.01" value={item.rejected} onChange={(e) => updateGrnLine(item.id, "rejected", e.target.value)} placeholder="Rejected" /><Input value={item.lotBatch} onChange={(e) => updateGrnLine(item.id, "lotBatch", e.target.value)} placeholder="Lot / batch (optional)" /></div></div>)}</div>)}
-                      <Button className="w-full" onClick={() => { receiveGoods.mutate(grnPoId); setGrnOpen(false); }} disabled={!grnPoId || !grnLineItems.length || receiveGoods.isPending}>
-                        {receiveGoods.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                        Receive GRN
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <Button size="sm" onClick={() => { setGrnPoId(""); setGrnLineItems([]); setGrnOpen(true); }}><Plus className="h-4 w-4 mr-1" />Receive Goods</Button>
               )}
             </CardHeader>
             <CardContent>

@@ -553,3 +553,72 @@ Guided-tour completion: the tour advanced to step 5 of 5 (`Quick navigation`) an
 
 Knowledge Manager role retest — FAIL: switching to `knowledge_manager` set the responsibility banner to institutional knowledge/SOP ownership, but the dashboard rendered the full Executive Command Center and the visible sidebar disappeared entirely. Source confirms DashboardRouter maps `knowledge_manager` to AdminDashboard while navConfig does not include `knowledge_manager` in any nav item role list; ROLE_LABELS also intentionally labels it Administrator. This creates an unusable, misleading role boundary and is a safely reproducible defect requiring code fix and live retest.
 Evidence URL: https://nifhdpe.vercel.app/dashboard?qa=all-role-live-audit&resume=remaining-roles
+
+
+Knowledge Manager fix — live retest PASS (2026-08-16): after CI success and deployment refresh, the role switcher showed `Knowledge Manager`; switching to it rendered the correct `Knowledge Manager` user label and onboarding title, the focused `Institutional Knowledge` dashboard, real `Knowledge articles 0` and `Training records 0` counts, and connected Registry/Training/Messages actions. The sidebar correctly exposed Dashboard, HR, Messages, and Documents only. The previous administrator-dashboard/no-sidebar defect is fixed in production.
+Evidence URL: https://nifhdpe.vercel.app/dashboard?qa=knowledge-manager-retest-v2
+Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_dashboard_1786881139368.html
+
+
+SIWES trainee role retest: switching to the first trainee entry rendered the Trainee Dept. Dashboard with Submit Reflection, My Reflections 0, a Pipe Calculator practice card, and an explicit empty state for reflections. The responsibility banner stated the read-only learning and weekly-reflection purpose, and the trainee onboarding dialog opened with the generic navigation guidance. Full navigation restriction and reflection submission behavior remain to be checked for all three trainee aliases.
+Evidence URL: https://nifhdpe.vercel.app/dashboard?qa=knowledge-manager-retest-v2
+
+
+IT student role retest: switching to the second trainee alias preserved the Trainee Dept. Dashboard with Submit Reflection, My Reflections 0, Pipe Calculator practice, and the same empty reflection state, while the responsibility banner correctly changed to IT placement/observation and weekly reflections. The modal onboarding remained functional.
+Evidence URL: https://nifhdpe.vercel.app/dashboard?qa=knowledge-manager-retest-v2
+
+
+NYSC member role retest: switching to the third trainee alias preserved the Trainee Dept. Dashboard with Submit Reflection, My Reflections 0, Pipe Calculator practice, and the explicit empty reflection state, while the responsibility banner correctly changed to NYSC posting, guided contribution, learning, and reflections. All three trainee aliases therefore rendered the expected learning-focused dashboard variant and did not expose operational sidebar modules.
+Evidence URL: https://nifhdpe.vercel.app/dashboard?qa=knowledge-manager-retest-v2
+
+
+Role-permission certification limitation: the live role switcher successfully exercised all 11 roles represented by DashboardRouter (administrator, engineer, technician, warehouse, finance, hr, reception_sales, knowledge_manager, siwes_trainee, it_student, nysc_member). Action-level RLS/URL-boundary certification remains BLOCKED because the only authenticated live credential is the privileged maintenance administrator and ProtectedRoute intentionally bypasses route gating for `isMaintenance`; no separate real HR/MD/Finance/engineering/technician/warehouse/sales accounts were available. The current Supabase `app_role` enum migration defines seven operational roles plus knowledge/trainee aliases and contains no `managing_director` value, so MD is not actually deployable/configured in this production schema. This must remain a blocked configuration gap rather than an invented role or unverified PASS.
+
+
+Workflow-session reset: after completing the trainee aliases, the live role switcher returned to Administrator and restored the full ERP sidebar (technical, marketing, logistics, accounts, people, workspace) with the administrator dashboard and live UAT/finance KPIs. Connected workflow tracing proceeds from this authorized session without changing any business records.
+
+
+Commercial lifecycle trace — Quotations (2026-08-16): the live route showed `1 awaiting client · 0 accepted of 1`, quotation `QUOTATIONS/2026/0001` for UAT - NIFHDPE QA 2026-08-15 at ₦236,768.75 with Sent status, and linked accepted proforma `PROFORMA_INVOICES/2026/0001` issued 2026-08-15, valid until 2026-09-15, with final invoice link `96e50307`. The page explicitly states that acceptance creates one final invoice atomically and repeated clicks return the same linked result. Export CSV, Proforma, New Quotation, catalogue, search, Refresh, Open invoice, and a row action were visible; actual new-record conversion was not repeated to avoid duplicate UAT documents.
+Evidence URL: https://nifhdpe.vercel.app/quotations?qa=connected-commercial-trace
+Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_quotations_1786881274003.html
+
+
+Commercial-to-finance propagation PASS: the Quotations `Open invoice` action navigated to `/finance?tab=invoices`; Finance showed the linked UAT invoice `INVOICES/2026/0001` as paid, bank-linked, gross/net ₦205,518.79, amount paid ₦205,518.79, balance ₦0.00, Total Revenue ₦205,518.79, Total Received ₦205,518.79, and Receivables ₦0.00. The cancelled sibling remained visible but excluded from totals. Both invoice rows exposed Revision history and Download PDF actions.
+Evidence URL: https://nifhdpe.vercel.app/finance?tab=invoices
+Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_finance_1786881294240.html
+
+
+Invoice revision-history trace PASS: opening Revision history for `INVOICES/2026/0001` displayed Insert Snapshot v1, Update Snapshot v2, Update Snapshot v3, and Current Snapshot v4, with system actor and timestamps. The current revision explicitly showed `Status unpaid → paid`, `Amount Paid 0 → 205,518.79`, and `Balance Due 205,518.79 → 0`, while prior snapshots were marked Superseded and the original values were preserved.
+Evidence URL: https://nifhdpe.vercel.app/finance?tab=invoices
+
+
+Document download evidence: the live paid-invoice PDF action created `invoice-invoices_2026_0001-INVOICES_2026_0001 (5).pdf` from nifhdpe.vercel.app and the browser download history also contained quotation, purchase-order, waybill, and earlier invoice PDFs from the same UAT lifecycle. The latest invoice download completed successfully; visual PDF inspection follows using the local artifact.
+
+
+PDF visual inspection notes (2026-08-16):
+- Invoice PDF `invoice-invoices_2026_0001-INVOICES_2026_0001 (5).pdf` renders as a single-page branded document with the NIF logo, address/phone/email/web header strip, a centered diagonal PAID watermark, one item row (`UAT HDPE pipe test item`, qty 10, unit price 12,000, total 120,000), and a totals panel showing Subtotal 120,000.00, Discount -1,000.00, Overhead/site cost 20,000.00, Transportation 50,000.00, Tax 16,518.79, Gross total 205,518.79, Net due 205,518.79, and Balance Due 0.00. It also shows a finance-verification stamp and signature lines, but the document is visually over-spacious for the amount of content, with weak semantic labeling, no visible client block/TIN/invoice meta in the captured page, and an amateur footer-scale layout despite improved branding. Source: /home/ubuntu/Downloads/invoice-invoices_2026_0001-INVOICES_2026_0001 (5).pdf
+- Quotation PDF `quotation-quotations_2026_0001-QUOTATIONS_2026_0001.pdf` renders as a single-page branded draft/quotation document with the same header shell, a diagonal DRAFT watermark, one line item, and totals including Subtotal 120,000.00, Labor 500.00/m, Transport 50,000.00, Profit (15
+PDF visual inspection notes (2026-08-16):
+- Invoice PDF `invoice-invoices_2026_0001-INVOICES_2026_0001 (5).pdf` renders as a single-page branded document with the NIF logo, address/phone/email/web header strip, a centered diagonal PAID watermark, one item row (`UAT HDPE pipe test item`, qty 10, unit price 12,000, total 120,000), and a totals panel showing Subtotal 120,000.00, Discount -1,000.00, Overhead/site cost 20,000.00, Transportation 50,000.00, Tax 16,518.79, Gross total 205,518.79, Net due 205,518.79, and Balance Due 0.00. It also shows a finance-verification stamp and signature lines, but the document is visually over-spacious for the amount of content, with weak semantic labeling, no visible client block/TIN/invoice meta in the captured page, and an amateur footer-scale layout despite improved branding. Source: `/home/ubuntu/Downloads/invoice-invoices_2026_0001-INVOICES_2026_0001 (5).pdf`
+- Quotation PDF `quotation-quotations_2026_0001-QUOTATIONS_2026_0001.pdf` renders as a single-page branded draft/quotation document with the same header shell, a diagonal DRAFT watermark, one line item, and totals including Subtotal 120,000.00, Labor 500.00/m, Transport 50,000.00, Profit (15%) Included, Discount -1,000.00, Overhead/site cost 20,000.00, Tax 16,518.75, and Grand Total 236,768.75. It also remains visually over-spacious for one row of content and, in the captured page, lacks a clearly visible client detail block and stronger quotation metadata hierarchy expected in a production commercial document. Source: `/home/ubuntu/Downloads/quotation-quotations_2026_0001-QUOTATIONS_2026_0001.pdf`
+
+Additional PDF visual inspection notes (2026-08-16):
+- Purchase Order PDF `purchase-order-purchase_orders_2026_0001-DOC-MSUZ74D7.pdf` renders as a single-page branded document with the NIF logo and company contact strip, one item row (`UAT procurement line for inventory and GRN testing`, qty 8, unit price 15,000, total 120,000), a compact totals block showing Grand Total 120,000, signature lines, and an `ADMIN APPROVED` stamp. Like the invoice and quotation, it is visually sparse for the amount of content and the captured page does not show a strong vendor block, PO metadata hierarchy, or richer commercial identity expected in an industrial purchasing document. Source: `/home/ubuntu/Downloads/purchase-order-purchase_orders_2026_0001-DOC-MSUZ74D7.pdf`
+- Waybill PDF `waybill-—-waybills_2026_0001-WAYBILLS_2026_0001 (2).pdf` renders as a single-page branded reprint with the same header shell, a diagonal REPRINT watermark, one item row (`UAT HDPE Pipe 110mm SDR11`, quantity 8, unit m), signature lines, and a `COMPANY SEAL` stamp. The page is very sparse and, in the captured page, lacks clearly visible client, delivery, linked-invoice, consignee, driver, and dispatch metadata that should be prominent on a production logistics document. Source: `/home/ubuntu/Downloads/waybill-—-waybills_2026_0001-WAYBILLS_2026_0001 (2).pdf`
+
+Document Registry lifecycle trace PASS (2026-08-16): after loading, the registry showed 12 numbered documents and 12 operational revisions. Type tabs counted Invoice 2, Proforma Invoice 1, Quotation 1, Receipt 1, Delivery 0, Waybill 1, Purchase Order 2, Goods Received 1, HSE Incident 0, Material Req. 0, Worker Claim 0, and Worker Payment 3. The table contained the UAT quotation, accepted proforma, paid and cancelled invoices, issued receipt, reprinted waybill, two POs (draft and received), accepted GRN, and three worker payments (salary plus two loan repayments). The waybill row was marked `Reprinted` and exposed a `Reprint` action. Revision history showed current/superseded snapshots with actor Ola and timestamps. This confirms autonomous document propagation for the tested UAT chain and the waybill persistence fix.
+Evidence URL: https://nifhdpe.vercel.app/documents?qa=document-lifecycle-trace
+Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_documents_1786881428706.html
+
+Waybill reprint retest PASS (2026-08-16): clicking the Document Registry `Reprint` action generated `WAYBILLS/2026/0001 copy 4 was generated and recorded`, showed a success notification, and returned the row to stable `Reprinted` status with the Reprint action available. The registry count remained 12 numbered documents, confirming reprints create recorded copies without creating a duplicate base waybill row.
+Evidence URL: https://nifhdpe.vercel.app/documents?qa=document-lifecycle-trace
+Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_documents_1786881453995.html
+
+Bank Analysis trace (2026-08-16): the live Finance Bank Analysis tab showed Reviewed bank lines 1, Linked lines 1, Awaiting ERP connection 0. The existing connection was `2026-08-15 · UAT payment for INVOICES/2026/0001`, ERP type invoice, linked amount ₦205,518.79, with the invoice UUID and link timestamp. The Link bank line dialog opened successfully with ERP record type default Receipt, ERP record selector, approved bank transaction selector, linked amount, audit note, Save bank link, and Close. Its explanatory text states that only approved/suggested lines can be linked and organization ownership is database-validated. No new link was saved to avoid duplicate finance data.
+Evidence URL: https://nifhdpe.vercel.app/finance?tab=bank-analysis&qa=full-bank-ecosystem
+
+Procurement trace (2026-08-16): the live Procurement route showed 1 active UAT vendor, 2 open POs, and 0 pending requisitions. The Purchase Orders tab showed `PURCHASE_ORDERS/2026/0002` in Draft at ₦30,000 and `PURCHASE_ORDERS/2026/0001` in Received state at ₦120,000 for UAT Supplier HDPE 2026-08-15. The draft exposed PDF and Receive GRN actions; the received PO exposed PDF. The page guidance states that GRNs close the PO loop and update inventory. No new PO or GRN was created during this trace to avoid duplicate UAT stock.
+Evidence URL: https://nifhdpe.vercel.app/procurement?qa=procurement-to-stock-trace
+
+Procurement Receive GRN retest — FAIL (2026-08-16): on `PURCHASE_ORDERS/2026/0002` in Draft state, the visible `Receive GRN` button was present but neither the semantic click nor a coordinate click opened a dialog, toast, validation state, or route change. The page remained unchanged. This is a safely reproducible dead/blocked interactive element and requires source diagnosis before the procurement-to-stock workflow can be certified.
+Evidence URL: https://nifhdpe.vercel.app/procurement?qa=procurement-to-stock-trace
