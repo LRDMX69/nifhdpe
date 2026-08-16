@@ -586,21 +586,21 @@ const Opportunities = () => {
           secondaryAction: { label: scanning ? "Scanning…" : "Refresh intelligence", onClick: handleRefreshIntelligence },
         }}
       >
-      <div className="print-container grid gap-3 md:grid-cols-2">
+      <div className="print-container grid min-w-0 gap-3 md:grid-cols-2">
         {filtered.map((o) => {
           const info = parseContactInfo(o.description ?? "");
           const lineage = commercialByOpportunity.get(o.id);
           const quoteStatus = lineage?.quotation?.status;
           const orderStatus = lineage?.order?.status;
           return (
-            <Card key={o.id} className="hover:border-primary/30 transition-colors cursor-pointer" onClick={() => setViewingOpp(o)}>
+            <Card key={o.id} className="min-w-0 max-w-full overflow-hidden hover:border-primary/30 transition-colors cursor-pointer" onClick={() => setViewingOpp(o)}>
               <CardHeader className="pb-2">
-                <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-sm sm:text-base break-words-safe">{o.title}</CardTitle>
+                <div className="flex min-w-0 items-start justify-between gap-2">
+                  <CardTitle className="min-w-0 flex-1 text-sm sm:text-base break-words-safe">{o.title}</CardTitle>
                   <Badge className={statusColors[o.status || "identified"] || ""} variant="outline">{o.status}</Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="min-w-0 space-y-2">
                 {info.description && <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 break-words-safe">{info.description}</p>}
 
                 <div className="flex flex-wrap gap-1.5">
