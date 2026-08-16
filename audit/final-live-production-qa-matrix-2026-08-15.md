@@ -354,3 +354,7 @@ The Field Reports submission path required site photos but previously ignored st
 ## Source audit evidence — Logistics delivery completion
 
 The Logistics `navigator.geolocation.getCurrentPosition` callbacks previously performed asynchronous linked-delivery RPCs and fallback updates outside the outer `try/catch`, so RPC, RLS, or update failures could become unhandled promise rejections with no operator feedback. Both GPS-success and GPS-failure callbacks now catch and toast delivery-update errors. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; the live linked-delivery completion and GPS denial paths remain scheduled for production retest.
+
+## Source audit evidence — Context discussions
+
+Embedded project, field-report, and claim discussions previously discarded read errors and had no send-error feedback, so permission or connectivity failures could look like empty discussions or no-op comments. Context reads now throw into the surrounding async boundary, and comment sends provide success/error feedback. TypeScript, strict typing, lint, and the 26-test suite pass after the change; live context-thread send/reload/error-path retesting remains deployment-gated.

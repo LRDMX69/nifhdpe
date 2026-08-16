@@ -6,6 +6,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Send, Loader2, MessageSquare } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { humanizeError } from "@/lib/humanizeError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -20,13 +22,14 @@ interface ContextMessagesProps {
 
 export const ContextMessages = ({ contextType, contextId, orgId }: ContextMessagesProps) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ["context-messages", contextType, contextId],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("messages")
         .select("*")
         .eq("organization_id", orgId)
@@ -34,6 +37,7 @@ export const ContextMessages = ({ contextType, contextId, orgId }: ContextMessag
         .eq("context_id", contextId)
         .eq("message_type", "context")
         .order("created_at", { ascending: true });
+      if (error) throw error;
       return (data ?? []) as MessageRow[];
     },
     enabled: !!orgId && !!contextId,
@@ -64,7 +68,11 @@ export const ContextMessages = ({ contextType, contextId, orgId }: ContextMessag
     },
     onSuccess: () => {
       setMessage("");
+      toast({ title: "Comment added" });
       queryClient.invalidateQueries({ queryKey: ["context-messages", contextType, contextId] });
+    },
+    onError: (error: unknown) => {
+      toast({ title: "Could not add comment", description: humanizeError(error as Error), variant: "destructive" });
     },
   });
 
