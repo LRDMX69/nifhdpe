@@ -505,3 +505,51 @@ After the Finance-side cancellation protection push, the live route still displa
 
 Evidence URL: https://nifhdpe.vercel.app/finance?tab=invoices&qa=cancelled-kpi-retest
 Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_finance_1786875536576.html
+
+
+## Post-migration Finance retest — latest production state (2026-08-16)
+
+The latest reported production database state is now live and the Finance route passes the cancelled-invoice accounting correction. The cancelled QA invoice `INVOICES/2026/0001B` remains visible and truthfully labelled `cancelled`, with ₦1,075.00 balance and no bank link. The legitimate paid invoice `INVOICES/2026/0001` remains `paid`, linked, and fully received at ₦205,518.79. Finance now reports Total Revenue ₦205,518.79, Total Received ₦205,518.79, and Receivables ₦0.00. This confirms the cancelled-invoice report migration and deployed Finance correction are active in production.
+
+Evidence URL: https://nifhdpe.vercel.app/finance?tab=invoices&qa=post-migration-full-audit
+Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_finance_1786880393388.html
+
+
+## Full role switcher live evidence — Administrator to Engineer (2026-08-16)
+
+The maintenance-admin testing session exposed the supported Operational Role Testing Switcher with 11 role entries: Administrator, Engineer (shown as Technical Dept.), Technician (shown as Technical Dept.), Warehouse (Logistics), Finance (Accounts), HR, Reception/Sales (Marketing), Knowledge Manager (Administrator label), and three trainee roles (Trainee Dept.). Switching to Engineer opened the role-specific onboarding modal, which contained Engineer guidance for Pipe Calculator, Project Planning, Field Reports, and Quotations. Closing the modal left the Engineer dashboard with the Engineer responsibility banner, Needs Attention leave item, Active Projects, AI Technical Validation, and a role-filtered sidebar containing Projects, Equipment, Field Reports, HSE, Compliance, Calculator, BOQ, HR, Claims, Messages, and Documents. No financial, procurement, inventory, logistics, opportunities, quotations, or clients navigation was exposed in Engineer mode. This is evidence for role visibility and dashboard behavior; full action-level permission tests continue.
+
+Evidence URL: https://nifhdpe.vercel.app/dashboard?qa=all-role-live-audit
+Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_dashboard_1786880427847.html
+
+Technician role retest: switching to Technician rendered the Technician Field Guide with Site Check-in, Field Reports, Inventory, and Safety Claims guidance; the dashboard showed the role responsibility banner, Needs Attention leave item, My Assignments, and Submit Report action, while the sidebar remained restricted to technical, people, and workspace modules. The first semantic close-element click did not visibly dismiss the modal in the browser harness, but clicking the rendered close icon did dismiss it. Source review confirms the modal uses a wired Dialog `onOpenChange` handler and a wired Get Started handler, so this is recorded as a browser interaction inconsistency rather than a confirmed production defect.
+
+
+Warehouse role retest: switching to Warehouse rendered the Warehouse & Inventory Control onboarding guidance and Warehouse Overview. Live KPIs showed Total Items 1 and Low Stock 1, with UAT HDPE Pipe 110mm SDR11 at 8/10 in Low Stock Alerts. The role-filtered sidebar exposed Equipment, Inventory, Logistics, Procurement, HR, Claims, Messages, and Documents, while Finance, Projects, Field Reports, HSE, Compliance, Calculator, BOQ, Opportunities, Quotations, Clients, Analytics, and Settings were not exposed. The modal dismissed successfully through the rendered close icon after one coordinate attempt did not register.
+Evidence URL: https://nifhdpe.vercel.app/dashboard?qa=all-role-live-audit
+
+
+Finance role retest: switching to Finance rendered the Finance & Accounting onboarding guidance and Financial Overview. Live dashboard figures showed Recent Expenses ₦1,000.00 and Recent Payments ₦269,000.00, with the UAT expense workflow test labor record visible. The role-filtered sidebar exposed BOQ, Finance, Procurement, Analytics, HR, Claims, Messages, and Documents, while operational technical, commercial, inventory, logistics, and Settings navigation was not exposed. The modal dismissed successfully through the rendered close icon after a first coordinate attempt did not register.
+Evidence URL: https://nifhdpe.vercel.app/dashboard?qa=all-role-live-audit
+
+
+HR role retest: the HR role switch exposed HSE, BOQ, Quotations, Clients, Logistics, Finance, Procurement, Analytics, HR, Claims, Messages, and Documents navigation, matching the requested broader HR oversight surface. The live HR route loaded with 0 checked in today and 0 pending leave requests, Request Leave, Check In, Open connected view, Refresh, and ten functional tabs: Attendance, Leaves, Payroll, ID Cards, Performance, Recruitment, Training, Skills, Disciplinary, and Promotions. The Attendance tab showed an explicit empty state for 2026-08-16 and a Holidays Add action with no holidays configured.
+Evidence URL: https://nifhdpe.vercel.app/hr?qa=hr-role-live-audit
+
+
+Reception/Sales role retest: switching to Marketing rendered the Sales & Reception dashboard with Total Clients 1, Recent Quotes 1, and an Opportunities KPI shown as an em dash; the Recent Quotations panel displayed `QUOTATIONS/2026/0001`, the UAT client, ₦236,768.75, and sent status. The role-filtered sidebar exposed BOQ, Opportunities, Quotations, Clients, Analytics, HR, Claims, Messages, and Documents, with finance, procurement, logistics, and technical execution modules not exposed. A generic marketing onboarding guide appeared and was dismissible through the rendered close icon.
+Evidence URL: https://nifhdpe.vercel.app/dashboard?qa=all-role-live-audit&resume=remaining-roles
+
+
+Guided-tour interaction retest: while Marketing onboarding was open, the global Help/tour overlay appeared at `1 of 5`; clicking Next advanced it to `2 of 5` and changed the highlighted content to Needs Your Attention. The tour therefore responds to interaction; its remaining steps and close behavior are included in the ongoing interactive-element sweep.
+Evidence URL: https://nifhdpe.vercel.app/dashboard?qa=all-role-live-audit&resume=remaining-roles
+
+
+Guided-tour continuation: Next advanced the tour from step 3 of 5 (`Opportunities → Quotations → Invoices`) to step 4 of 5 (`AI scans bids hourly`). Both content transitions and highlighted targets rendered correctly while the Marketing onboarding dialog remained behind the tour.
+
+
+Guided-tour completion: the tour advanced to step 5 of 5 (`Quick navigation`) and the Got it control closed the tour successfully. The underlying Marketing onboarding dialog remained as the only modal, so the global tour did not leave a stale overlay or block the dashboard.
+
+
+Knowledge Manager role retest — FAIL: switching to `knowledge_manager` set the responsibility banner to institutional knowledge/SOP ownership, but the dashboard rendered the full Executive Command Center and the visible sidebar disappeared entirely. Source confirms DashboardRouter maps `knowledge_manager` to AdminDashboard while navConfig does not include `knowledge_manager` in any nav item role list; ROLE_LABELS also intentionally labels it Administrator. This creates an unusable, misleading role boundary and is a safely reproducible defect requiring code fix and live retest.
+Evidence URL: https://nifhdpe.vercel.app/dashboard?qa=all-role-live-audit&resume=remaining-roles

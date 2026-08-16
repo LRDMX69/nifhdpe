@@ -28,7 +28,7 @@ export const ROLE_LABELS: Record<string, string> = {
   finance: "Accounts",
   hr: "HR",
   reception_sales: "Marketing",
-  knowledge_manager: "Administrator",
+  knowledge_manager: "Knowledge Manager",
   siwes_trainee: "Trainee Dept.",
   it_student: "Trainee Dept.",
   nysc_member: "Trainee Dept.",

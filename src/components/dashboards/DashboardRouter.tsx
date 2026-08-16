@@ -10,6 +10,7 @@ import FinanceDashboard from "./FinanceDashboard";
 import HRDashboard from "./HRDashboard";
 import SalesDashboard from "./SalesDashboard";
 import TraineeDashboard from "./TraineeDashboard";
+import KnowledgeManagerDashboard from "./KnowledgeManagerDashboard";
 import { NeedsAttentionPanel } from "./NeedsAttentionPanel";
 
 const dashboardMap: Record<string, React.FC> = {
@@ -25,8 +26,8 @@ const dashboardMap: Record<string, React.FC> = {
   hr: HRDashboard,
   // Marketing
   reception_sales: SalesDashboard,
-  // Knowledge Manager — treat as administrator-lite view of KB + reports
-  knowledge_manager: AdminDashboard,
+  // Knowledge Manager — focused knowledge, training and registry workspace
+  knowledge_manager: KnowledgeManagerDashboard,
   // Trainees — dedicated learning-focused dashboard
   siwes_trainee: TraineeDashboard,
   it_student: TraineeDashboard,

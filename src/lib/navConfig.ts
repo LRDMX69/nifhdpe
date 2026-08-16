@@ -43,11 +43,12 @@ const LOGISTICS = ["warehouse"];
 const ACCOUNTS  = ["finance", "hr"];
 const MARKETING = ["reception_sales"];
 const HR_ROLE   = ["hr"];
+const KNOWLEDGE = ["knowledge_manager"];
 const ADMIN     = ["administrator"];
 const ALL_DEPTS = [...ADMIN, ...TECHNICAL, ...LOGISTICS, ...ACCOUNTS, ...MARKETING, ...HR_ROLE];
 
 export const navItems: NavItem[] = [
-  { label: "Dashboard",     icon: LayoutDashboard, path: "/dashboard",     roles: ALL_DEPTS, group: "Overview" },
+  { label: "Dashboard",     icon: LayoutDashboard, path: "/dashboard",     roles: [...ALL_DEPTS, ...KNOWLEDGE], group: "Overview" },
   // Technical Dept.
   { label: "Projects",      icon: FolderKanban,    path: "/projects",      roles: [...ADMIN, ...TECHNICAL], group: "Technical" },
   { label: "Equipment",     icon: Wrench,          path: "/equipment",     roles: [...ADMIN, ...TECHNICAL, ...LOGISTICS], group: "Technical" },
@@ -60,7 +61,7 @@ export const navItems: NavItem[] = [
   { label: "Opportunities", icon: Target,          path: "/opportunities", roles: [...ADMIN, ...MARKETING], group: "Marketing" },
   { label: "Quotations",    icon: FileText,        path: "/quotations",    roles: [...ADMIN, ...MARKETING, ...HR_ROLE], group: "Marketing" },
   { label: "BOQ",           icon: FileSpreadsheet, path: "/boq",           roles: [...ADMIN, ...TECHNICAL, ...MARKETING, ...ACCOUNTS], group: "Technical" },
-  { label: "Clients",       icon: Users,           path: "/clients",       roles: [...ADMIN, ...MARKETING, ...HR_ROLE], group: "Marketing" },
+  { label: "Clients",       icon: Users,            path: "/clients",       roles: [...ADMIN, ...MARKETING, ...HR_ROLE], group: "Marketing" },
 
   // Logistics
   { label: "Inventory",     icon: Package,         path: "/inventory",     roles: [...ADMIN, ...LOGISTICS], group: "Logistics" },
@@ -72,12 +73,12 @@ export const navItems: NavItem[] = [
   { label: "Analytics",     icon: BarChart3,       path: "/analytics",     roles: [...ADMIN, ...ACCOUNTS, ...MARKETING], group: "Accounts" },
 
   // HR
-  { label: "HR",            icon: UserCog,         path: "/hr",            roles: ALL_DEPTS, group: "People" },
+  { label: "HR",            icon: UserCog,         path: "/hr",            roles: [...ALL_DEPTS, ...KNOWLEDGE], group: "People" },
 
   // Cross-department
   { label: "Claims",        icon: AlertCircle,     path: "/claims",        roles: ALL_DEPTS, group: "People" },
-  { label: "Messages",      icon: MessageSquare,   path: "/messages",      roles: ALL_DEPTS, group: "Workspace" },
-  { label: "Documents",     icon: FileText,        path: "/documents",     roles: ALL_DEPTS, group: "Workspace" },
+  { label: "Messages",      icon: MessageSquare,   path: "/messages",      roles: [...ALL_DEPTS, ...KNOWLEDGE], group: "Workspace" },
+  { label: "Documents",     icon: FileText,        path: "/documents",     roles: [...ALL_DEPTS, ...KNOWLEDGE], group: "Workspace" },
 
   { label: "Settings",      icon: Settings,        path: "/settings",      roles: ADMIN, group: "Workspace" },
 ];
