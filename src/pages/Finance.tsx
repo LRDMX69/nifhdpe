@@ -255,16 +255,6 @@ const Finance = () => {
   });
 
   const financials = useMemo(() => {
-    const totalRevenue = Number(financeReport?.invoiced ?? invoices.reduce((s, inv) => s + Number(inv.total_amount || 0), 0));
-    const totalReceived = Number(financeReport?.collected ?? receipts.reduce((s, r) => s + Number(r.amount_received || 0), 0));
-    const totalExpenses = Number(financeReport?.operating_expenses ?? expenses.reduce((s: number, e: ExpenseItem) => s + Number(e.amount ?? 0), 0));
-    const totalPayments = Number(financeReport?.worker_payments ?? payments.reduce((s: number, p: PaymentItem) => s + Number(p.amount ?? 0), 0));
-    const netProfit = totalReceived - totalExpenses - totalPayments;
-    const aging = financeReport?.aging ?? {};
-    const receivables = financeReport
-      ? calculateReceivablesFromAging(aging)
-      : invoices.filter((invoice) => !["paid", "cancelled", "draft"].includes(String(invoice.status))).reduce((sum, invoice) => sum + Number(invoice.balance_due ?? invoice.total_amount ?? 0), 0);
-
     const monthKey = (value: string | null | undefined) => {
       if (!value) return "unknown";
       const date = new Date(value);
@@ -272,15 +262,31 @@ const Finance = () => {
     };
     const monthLabel = (key: string) => {
       if (key === "unknown") return "Unknown";
-      return new Date(`${key}-01T00:00:00`).toLocaleString("en", { month: "short", year: "2-digit" });
+      return new Date(`${key}-01T00:00:00`).toLocaleString("en", { month: "short", year: "2-digit" }).replace(/^./, (character) => character.toUpperCase());
     };
-    const monthlyMap = new Map<string, { revenue: number; expenses: number }>();
     const inReportPeriod = (value: string | null | undefined) => {
       if (!value) return false;
       const date = value.slice(0, 10);
       return date >= reportFrom && date <= reportTo;
     };
-    invoices.filter((invoice) => invoice.status !== "draft" && inReportPeriod(invoice.invoice_date)).forEach((inv) => {
+    const reportPeriodInvoices = invoices.filter((invoice) => invoice.status !== "draft" && inReportPeriod(invoice.invoice_date));
+    const operationalInvoices = reportPeriodInvoices.filter((invoice) => !["cancelled", "void"].includes(String(invoice.status).toLowerCase()));
+    const cancelledInvoices = reportPeriodInvoices.filter((invoice) => ["cancelled", "void"].includes(String(invoice.status).toLowerCase()));
+    const reportIncludesCancelled = Boolean(financeReport && cancelledInvoices.length > 0 && Number(financeReport.invoice_count ?? 0) >= reportPeriodInvoices.length);
+    const cancelledRevenue = reportIncludesCancelled ? cancelledInvoices.reduce((sum, invoice) => sum + Number(invoice.total_amount ?? 0), 0) : 0;
+    const cancelledReceivables = reportIncludesCancelled ? cancelledInvoices.reduce((sum, invoice) => sum + Number(invoice.balance_due ?? invoice.total_amount ?? 0), 0) : 0;
+    const reportRevenue = Number(financeReport?.invoiced ?? operationalInvoices.reduce((sum, invoice) => sum + Number(invoice.total_amount ?? 0), 0));
+    const totalRevenue = Math.max(0, reportRevenue - cancelledRevenue);
+    const totalReceived = Number(financeReport?.collected ?? receipts.reduce((s, r) => s + Number(r.amount_received || 0), 0));
+    const totalExpenses = Number(financeReport?.operating_expenses ?? expenses.reduce((s: number, e: ExpenseItem) => s + Number(e.amount ?? 0), 0));
+    const totalPayments = Number(financeReport?.worker_payments ?? payments.reduce((s: number, p: PaymentItem) => s + Number(p.amount ?? 0), 0));
+    const netProfit = totalReceived - totalExpenses - totalPayments;
+    const aging = financeReport?.aging ?? {};
+    const receivables = financeReport
+      ? Math.max(0, calculateReceivablesFromAging(aging) - cancelledReceivables)
+      : operationalInvoices.filter((invoice) => !["paid", "draft"].includes(String(invoice.status))).reduce((sum, invoice) => sum + Number(invoice.balance_due ?? invoice.total_amount ?? 0), 0);
+    const monthlyMap = new Map<string, { revenue: number; expenses: number }>();
+    operationalInvoices.forEach((inv) => {
       const month = monthKey(inv.invoice_date);
       const entry = monthlyMap.get(month) ?? { revenue: 0, expenses: 0 };
       entry.revenue += Number(inv.total_amount ?? 0);
@@ -298,7 +304,10 @@ const Finance = () => {
       entry.expenses += Number(payment.amount ?? 0);
       monthlyMap.set(month, entry);
     });
-    const chartData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => ({ month: row.month, revenue: Number(row.invoiced ?? 0), expenses: Number(row.expenses ?? 0) + Number(row.worker_payments ?? 0) })) : Array.from(monthlyMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([month, data]) => ({ month: monthLabel(month), ...data }));
+    const chartData = financeReport?.monthly?.length ? financeReport.monthly.map((row) => {
+      const cancelledForMonth = reportIncludesCancelled ? cancelledInvoices.filter((invoice) => monthKey(invoice.invoice_date) === row.month || monthLabel(monthKey(invoice.invoice_date)) === row.month).reduce((sum, invoice) => sum + Number(invoice.total_amount ?? 0), 0) : 0;
+      return { month: row.month, revenue: Math.max(0, Number(row.invoiced ?? 0) - cancelledForMonth), expenses: Number(row.expenses ?? 0) + Number(row.worker_payments ?? 0) };
+    }) : Array.from(monthlyMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([month, data]) => ({ month: monthLabel(month), ...data }));
 
     return { totalRevenue, totalReceived, receivables, totalExpenses: totalExpenses + totalPayments, netProfit, totalPayments, chartData };
   }, [payments, expenses, invoices, receipts, financeReport, reportFrom, reportTo]);

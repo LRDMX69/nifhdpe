@@ -493,3 +493,7 @@ Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_opportunities_178
 ## Responsive QA evidence — authenticated browser resize limitation (2026-08-16)
 
 The authenticated sandbox browser ignored `window.resizeTo(390,844)` and reported an actual viewport of 1280×1100 with document/body width 1280. Therefore the authenticated session cannot be used to claim a genuine mobile viewport check; the earlier dedicated resized session redirected to login. Mobile and tablet protected-route evidence remain blocked pending an authenticated resizable browser session.
+
+## Finance-side cancellation protection — follow-up fix
+
+The live Finance RPC still included the cancelled QA invoice because its production reporting migration was pending. Finance now cross-checks loaded invoice statuses against the report period, subtracts cancelled/void revenue and receivables only when the RPC count proves those rows were included, and excludes cancelled/void invoices from fallback monthly data. This protects the UI immediately while remaining safe after the database migration is applied. TypeScript, strict typecheck, lint, the 26-test suite, and diff hygiene pass. The database migration remains required for shared RPC consumers and other reporting surfaces.
