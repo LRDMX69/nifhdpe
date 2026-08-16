@@ -295,3 +295,17 @@ Production `/finance?tab=invoices&new=1` opened the canonical `Create complete i
 **Fix prepared:** Migration `20260816090000_exclude_cancelled_invoices_from_finance_reports.sql` changes revenue, invoice counts, ageing buckets, and monthly invoicing to exclude both `draft` and `cancelled` invoices. `src/pages/Finance.tsx` also adds a supported **Cancel draft** action with an audit-preserving confirmation and prevents cancelled invoices from offering payment recording.
 
 **Retest status:** TypeScript compilation passed with `./node_modules/.bin/tsc --noEmit`. Production RPC retest remains blocked until the migration is applied to Supabase and the corresponding PR is deployed.
+
+## Live evidence — Messages end-to-end audit
+
+**Production URL:** `https://nifhdpe.vercel.app/messages`.
+
+**Send and persistence:** Opened **New Chat**, selected `Oluwakemi Hassan (hr)`, entered the unique message `QA MESSAGE — production audit 2026-08-16 09:41. Delete this exact message after verifying the thread.`, and sent it. The UI displayed `Message sent`, navigated into the direct thread, and rendered the message with a timestamp. Returning to the Messages list showed `2 messages in scope` and the conversation preview contained the exact QA text. This confirms the compose, insert, thread navigation, list propagation, and persistence paths.
+
+**Delete retest:** The sender-side action menu exposed **Delete** for the exact QA message. Selecting it did not remove the message, did not display an error toast, and returning to the list still showed the conversation and exact QA text. This is a live **FAIL**.
+
+**Root cause:** The `messages` table had no DELETE RLS policy, and `ChatView` did not scope the delete mutation to organization/sender or surface mutation errors. The test QA message remains in production because the deployed policy correctly rejected the delete.
+
+**Fix prepared:** Migration `20260816093000_messages_delete_policy.sql` adds sender-scoped DELETE authorization for direct/context messages, while retaining administrator/maintenance moderation capability. `src/components/messaging/ChatView.tsx` now constrains deletion by message ID, organization, sender, and message type and displays success/error feedback.
+
+**Retest blocker:** The migration must be applied and the updated frontend deployed. After deployment, the exact QA message must be deleted and the list refreshed to confirm it is absent from both the thread and conversation preview. Until then, Messages deletion is not production-ready.

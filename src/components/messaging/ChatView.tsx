@@ -7,6 +7,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, ArrowLeft, Loader2, Trash2, MoreVertical } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { humanizeError } from "@/lib/humanizeError";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { Database } from "@/integrations/supabase/types";
@@ -22,6 +24,7 @@ interface ChatViewProps {
 
 export const ChatView = ({ recipientId, recipientName, recipientAvatar, recipientRole, orgId, onBack }: ChatViewProps) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -98,11 +101,23 @@ export const ChatView = ({ recipientId, recipientName, recipientAvatar, recipien
 
   const deleteMsg = useMutation({
     mutationFn: async (msgId: string) => {
-      const { error } = await supabase.from("messages").delete().eq("id", msgId);
+      if (!user) throw new Error("You must be signed in to delete a message");
+      const { error } = await supabase
+        .from("messages")
+        .delete()
+        .eq("id", msgId)
+        .eq("organization_id", orgId)
+        .eq("sender_id", user.id)
+        .in("message_type", ["direct", "context"]);
       if (error) throw error;
     },
     onSuccess: () => {
+      toast({ title: "Message deleted" });
       refetch();
+      queryClient.invalidateQueries({ queryKey: ["messages", orgId, user?.id] });
+    },
+    onError: (error: unknown) => {
+      toast({ title: "Could not delete message", description: humanizeError(error as Error), variant: "destructive" });
     },
   });
 
