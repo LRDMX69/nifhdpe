@@ -290,7 +290,7 @@ const DocumentRegistry = () => {
       <PageHeader
         title="Document Registry"
         description="Every numbered document ever issued in the system — invoices, receipts, quotations, waybills, POs and more."
-        executiveSummary={`${docs.length} numbered documents on file`}
+        executiveSummary={isLoading ? "Loading numbered documents…" : error ? "Unable to load numbered documents" : `${docs.length} numbered documents on file`}
         lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
         onRefresh={() => refetch()}
       />
@@ -316,7 +316,7 @@ const DocumentRegistry = () => {
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2"><History className="h-4 w-4 text-primary" /><div><p className="text-sm font-semibold">Operational revision history</p><p className="text-xs text-muted-foreground">Snapshots created before controlled document edits.</p></div></div>
-            <Badge variant="outline">{revisions.length} revisions</Badge>
+            <Badge variant="outline">{isLoading ? "Loading…" : `${revisions.length} revisions`}</Badge>
           </div>
           {revisions.length === 0 ? <p className="text-sm text-muted-foreground rounded-lg border border-dashed p-4">No operational document revisions have been recorded in this organization.</p> : (
             <div className="overflow-x-auto rounded-lg border">

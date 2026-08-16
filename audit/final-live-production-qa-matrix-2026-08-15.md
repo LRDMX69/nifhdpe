@@ -432,3 +432,22 @@ The live Finance page exposes the expected canonical controls (`CSV`, `Export PD
 
 Evidence URL: https://nifhdpe.vercel.app/finance?tab=invoices&qa=hardening-retest
 Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_finance_1786874896150.html
+
+
+## Live retest evidence — Document Registry source inconsistency (2026-08-16)
+
+The live Documents Registry now renders cleanly on a fresh navigation, so the earlier blank-screen observation is not reproduced on this route. However, it reports `0 numbered documents on file`, `0 revisions`, and zero counts in every document category while live Finance contains two numbered invoices (`INVOICES/2026/0001` and cancelled `INVOICES/2026/0001B`). This confirms a real cross-module connectivity defect: Finance records are not being retrieved into the Document Registry for the current organization, or the registry is querying an incorrect/empty source. The registry controls (search, date range, CSV export, category filters) render, but registry persistence/reprint cannot receive a PASS until the source mismatch is fixed and retested.
+
+Evidence URL: https://nifhdpe.vercel.app/documents?qa=hardening-retest
+
+
+## Live retest evidence — Document Registry loaded state (2026-08-16)
+
+After allowing the registry query to complete, the live Documents route reported `12 numbered documents on file` and `12 revisions`. The registry contained both Finance invoices (`INVOICES/2026/0001` paid and `INVOICES/2026/0001B` cancelled), one proforma, one quotation, one receipt, one waybill, two purchase orders, one goods-received note, and three worker payments. The waybill row displayed `Reprint` and status `Reprinted`; revision history showed invoice and purchase-order snapshots with current/superseded states. This proves the earlier `0` count was a transient loading capture, not a confirmed source mismatch. The route should still be tested for loading-state clarity because the initial content snapshot exposed a misleading zero before completion.
+
+Evidence URL: https://nifhdpe.vercel.app/documents?qa=hardening-retest
+Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_documents_1786875001352.html
+
+## UX hardening evidence — Document Registry loading state
+
+The loaded registry is connected and complete, but the initial live capture exposed `0` documents before the asynchronous source query completed. The registry now displays `Loading numbered documents…` in the page summary and `Loading…` in the revision badge during the query, and displays an explicit unavailable summary when the query errors. TypeScript, strict typing, lint, and the 26-test suite pass after the correction.
