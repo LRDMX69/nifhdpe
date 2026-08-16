@@ -53,7 +53,8 @@ const Analytics = () => {
     queryKey: ["analytics-payments", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("worker_payments").select("amount, date, type").eq("organization_id", orgId).order("date", { ascending: false }).limit(500);
+      const { data, error } = await supabase.from("worker_payments").select("amount, date, type").eq("organization_id", orgId).order("date", { ascending: false }).limit(500);
+      if (error) throw error;
       return (data ?? []) as PaymentRow[];
     },
     enabled: !!orgId,
@@ -63,7 +64,8 @@ const Analytics = () => {
     queryKey: ["analytics-expenses", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("expenses").select("amount, date, category").eq("organization_id", orgId).order("date", { ascending: false }).limit(500);
+      const { data, error } = await supabase.from("expenses").select("amount, date, category").eq("organization_id", orgId).order("date", { ascending: false }).limit(500);
+      if (error) throw error;
       return (data ?? []) as ExpenseRow[];
     },
     enabled: !!orgId,
@@ -73,7 +75,8 @@ const Analytics = () => {
     queryKey: ["analytics-quotations", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("quotations").select("total_amount, status, created_at, client_id, clients(name)").eq("organization_id", orgId).limit(500);
+      const { data, error } = await supabase.from("quotations").select("total_amount, status, created_at, client_id, clients(name)").eq("organization_id", orgId).limit(500);
+      if (error) throw error;
       return (data ?? []) as QuotationRow[];
     },
     enabled: !!orgId,
@@ -83,7 +86,8 @@ const Analytics = () => {
     queryKey: ["analytics-inventory", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("inventory").select("item_name, diameter_mm, quantity_meters, unit_cost, item_type").eq("organization_id", orgId);
+      const { data, error } = await supabase.from("inventory").select("item_name, diameter_mm, quantity_meters, unit_cost, item_type").eq("organization_id", orgId);
+      if (error) throw error;
       return (data ?? []) as InventoryRow[];
     },
     enabled: !!orgId,
@@ -93,7 +97,8 @@ const Analytics = () => {
     queryKey: ["analytics-invoices", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("invoices").select("total_amount, balance_due, status, created_at, due_date").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(500);
+      const { data, error } = await supabase.from("invoices").select("total_amount, balance_due, status, created_at, due_date").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(500);
+      if (error) throw error;
       return (data ?? []) as InvoiceRow[];
     },
     enabled: !!orgId,
@@ -103,7 +108,8 @@ const Analytics = () => {
     queryKey: ["analytics-receipts", orgId],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase.from("receipts").select("amount_received, payment_date").eq("organization_id", orgId).order("payment_date", { ascending: false }).limit(500);
+      const { data, error } = await supabase.from("receipts").select("amount_received, payment_date").eq("organization_id", orgId).order("payment_date", { ascending: false }).limit(500);
+      if (error) throw error;
       return (data ?? []) as ReceiptRow[];
     },
     enabled: !!orgId,
@@ -111,9 +117,9 @@ const Analytics = () => {
 
   const analytics = useMemo(() => {
     // Money actually on the books (invoices/receipts) — not just accepted quotes.
-    const billed = Number(financeReport?.invoiced ?? invoices.filter((inv) => inv.status !== "draft").reduce((s: number, inv) => s + Number(inv.total_amount ?? 0), 0));
+    const billed = Number(financeReport?.invoiced ?? invoices.filter((inv) => !["draft", "cancelled"].includes(inv.status)).reduce((s: number, inv) => s + Number(inv.total_amount ?? 0), 0));
     const collected = Number(financeReport?.collected ?? receipts.reduce((s: number, r) => s + Number(r.amount_received ?? 0), 0));
-    const outstanding = invoices.reduce((s: number, inv) => s + Number(inv.balance_due ?? 0), 0);
+    const outstanding = invoices.filter((inv) => inv.status !== "cancelled").reduce((s: number, inv) => s + Number(inv.balance_due ?? 0), 0);
 
     const totalRevenue = quotations.filter((q) => q.status === "accepted").reduce((s: number, q) => s + Number(q.total_amount ?? 0), 0);
     const totalExpenses = Number(financeReport?.operating_expenses ?? expenses.reduce((s: number, e) => s + Number(e.amount ?? 0), 0));

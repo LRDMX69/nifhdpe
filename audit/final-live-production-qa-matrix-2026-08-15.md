@@ -394,3 +394,7 @@ Projects’ main project list, client selector, and member selector previously i
 ## Source audit evidence — HR source failures
 
 HR’s payroll-profile RPC, attendance views, membership list, organization branding, leave, performance, recruitment, training, skills, disciplinary, promotion, and salary-payment queries previously ignored backend errors and could render partial HR data as if it were complete. These sources now throw into their existing error states, preventing silent partial views. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live HR source, payroll, attendance, and workflow retesting remains deployment-gated.
+
+## Source audit evidence — Analytics source and accounting fallback
+
+Analytics’ payments, expenses, quotations, inventory, invoice, and receipt queries previously discarded source errors. Its invoice fallback also included cancelled invoices in billed and outstanding totals when the finance-report RPC was unavailable. All sources now surface errors, and fallback billed/outstanding calculations exclude cancelled invoices. TypeScript, strict typing, lint, and the 26-test suite pass after the correction; live Analytics-to-Finance reconciliation remains deployment-gated.
