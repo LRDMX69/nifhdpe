@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Loader2, ArrowLeft, FileSpreadsheet } from "lucide-react";
+import { Plus, Trash2, Loader2, ArrowLeft, FileSpreadsheet, FileDown } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { supabase as supa } from "@/integrations/supabase/client";
@@ -275,10 +275,59 @@ const BoqDetail = ({ boq, orgId, onBack, canEdit }: { boq: Boq; orgId: string; o
     if (error) toast({ title: "Status update failed", variant: "destructive" });
   };
 
+  const handleExportPdf = async () => {
+    try {
+      const { generatePdf } = await import("@/lib/generatePdf");
+      await generatePdf({
+        title: `Bill of Quantities — ${boq.title}`,
+        companyName: "NIF Technical Services",
+        senderName: "Projects & Estimating",
+        senderDepartment: "PROJECTS & ESTIMATING",
+        contentSections: [{
+          heading: "BOQ Summary",
+          body: [
+            boq.description,
+            `Status: ${status.toUpperCase()}`,
+            boq.projects?.name ? `Project: ${boq.projects.name}` : null,
+          ].filter(Boolean).join("\\n"),
+        }],
+        tableData: {
+          columns: [
+            { header: "#", dataKey: "position" },
+            { header: "Code", dataKey: "code" },
+            { header: "Description", dataKey: "description" },
+            { header: "Qty", dataKey: "quantity" },
+            { header: "Unit", dataKey: "unit" },
+            { header: "Rate", dataKey: "rate" },
+            { header: "Amount", dataKey: "amount" },
+          ],
+          rows: items.map((item) => ({
+            position: item.position,
+            code: item.item_code ?? "—",
+            description: item.description + (item.notes ? `\\n${item.notes}` : ""),
+            quantity: Number(item.quantity).toLocaleString(),
+            unit: item.unit,
+            rate: formatCurrency(Number(item.rate)),
+            amount: formatCurrency(Number(item.amount)),
+          })),
+          summary: [{ label: "BOQ Total", value: formatCurrency(total) }],
+        },
+        stampType: status === "approved" ? "admin" : null,
+        showSignature: true,
+      });
+      toast({ title: "BOQ PDF generated", description: "The BOQ title, line items, total, and approval block were included." });
+    } catch (error) {
+      toast({ title: "Could not generate BOQ PDF", description: error instanceof Error ? error.message : "The BOQ could not be printed.", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader title={boq.title} description={boq.description ?? "Bill of Quantities detail"}>
-        <Button variant="outline" onClick={onBack}><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handleExportPdf}><FileDown className="h-4 w-4 mr-1" /> Download PDF</Button>
+          <Button variant="outline" onClick={onBack}><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button>
+        </div>
       </PageHeader>
 
       <Card>
