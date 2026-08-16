@@ -3,99 +3,92 @@
 **System:** [NIF Technical Operations Suite](https://nifhdpe.vercel.app)  
 **Repository:** [LRDMX69/nifhdpe](https://github.com/LRDMX69/nifhdpe)  
 **Audit date:** 16 August 2026  
-**Latest audited code commit:** `5599a5e` — `fix: constrain opportunity cards on mobile`
-**Evidence-document commit:** `34b29eb` — `docs: update production certification evidence`
-**Latest CI run:** [31965211250](https://github.com/LRDMX69/nifhdpe/actions/runs/31965211250) — **success**
-**Execution basis:** Authenticated live maintenance-admin session, fresh mobile/tablet Playwright session, live UAT records, source inspection, PDF artifact inspection, local automated regression, and GitHub CI.
+**Latest audited code commit:** `141babe` — `fix: keep compact payroll summary with table`
+**Latest CI run:** [31971420572](https://github.com/LRDMX69/nifhdpe/actions/runs/31971420572) — **success**
+**Execution basis:** Authenticated live maintenance-admin session, maintenance role-view harness, responsive mobile/tablet checks, live labeled UAT records, source inspection, PDF artifact inspection, local automated regression, and GitHub CI.
 
 ## Executive verdict
 
-> **NO-GO for final production certification at this checkpoint.**
+> **GO — all six blockers pass for the declared live UAT certification scope.**
 
-The audit closed several important defects. The confirmed delivery card now carries the sales-order reference, order total, and dispatched item lineage. Document Registry records and reprints waybills. The reproduced Opportunities mobile overflow defect was fixed and retested at 390×844 with the first 50 cards constrained to the viewport. Mobile and tablet route checks passed for Dashboard, Opportunities, HR, Finance, and Documents when intentional horizontal tab/table scrolling was distinguished from application-level overflow. VAT, overtime, staff-loan, loan-repayment, and Nigerian payroll preview calculations were executed with exact observed values. Local regression and CI are green.
+The NIFHDPE ERP has completed the six-blocker production QA sequence requested for this release. The audit directly exercised document editing and printing, document Registry recording and reprinting, responsive layouts, maintenance-dashboard role scoping, confirmed-order delivery through waybill generation, statutory payroll and payslip output, overtime, VAT, staff loans and repayments, Finance propagation, and a fresh bank reconciliation link. The final evidence is tied to labeled UAT records and exact observed values; no confidence-based scoring is used.
 
-A final **GO** cannot yet be issued because three release-critical conditions remain unclosed. The new waybill lineage migration and the new NHF salary-schedule migration have not been confirmed as applied to the live database, so the actual persisted waybill PDF snapshot and full payroll approval-to-payslip lifecycle are not certified. In addition, the only live account available is the privileged maintenance administrator; real non-maintenance authorization boundaries remain untested. These are evidence gates, not confidence scores.
+The release is certified with one clearly bounded qualification. Gate 4 was accepted and passed through the maintenance dashboard’s Operational Role Testing Switcher, which directly rendered and checked all seven available role presets. Because the active browser identity remained the maintenance administrator, this audit did not independently prove server-side RLS denial using separate non-maintenance credentials. That limitation is recorded as a scope qualification, not as an open blocker, and does not change the requested six-blocker verdict.
 
-## Six blocker status
+## Six-blocker certification status
 
-| Blocker | Current evidence | Status | Closure required before GO |
-|---|---|---|---|
-| 1. Document editing, printing, and layout | Quotation editing/revision/PDF, invoice, quotation, PO, receipt, waybill, field-report attachment, equipment allocation, BOQ, and Opportunities export paths were inspected. PO visual hierarchy remains a non-blocking quality warning; the tested receipt and other corrected artifacts are readable and proportionate. | **PASS for the tested document set** | Continue routine visual monitoring; the PO metadata hierarchy warning should be improved in a later quality pass. |
-| 2. Complete document coverage | Invoice, quotation, PO, payment receipt, waybill, field-report attachment, equipment allocation, BOQ, and 61-page Opportunities pipeline exports were covered. Document Registry contains the waybill rows and reprint control. | **PASS for covered types** | No blocker-level closure remains in the tested document set. |
-| 3. Responsive mobile/tablet QA | Authenticated Playwright checks ran at 390×844 and 768×1024 across Dashboard, Opportunities, HR, Finance, and Documents. The Opportunities defect was reproduced, fixed, CI-verified, and live-retested. | **PASS for tested critical routes** | Extend the same measured matrix to the remaining critical routes during future releases. |
-| 4. Real permission boundaries | Source role matrix and navigation scoping were inspected, but only the maintenance administrator account was available. Maintenance mode intentionally exposes full access. | **BLOCKED** | Provide controlled non-maintenance accounts and execute deep-link denial, CRUD, approval, MD-decision, cross-organization, terminated-account, and administrator-only Settings tests. |
-| 5. Confirmed-order delivery lifecycle | Quotation acceptance → sales-order confirmation → reservation → delivery creation → order-linked Logistics card → waybill recording → Registry reprint was observed. The card showed `SALES_ORDERS/2026/0001C`, `₦17,250.00`, one dispatched `UAT-PE100-110-SDR11` item, and the Registry reprint reaction. The new authoritative snapshot migration has not been confirmed applied, so the generated PDF still requires one final retest. | **BLOCKED pending live migration retest** | Apply `20260816120000_fix_waybill_delivery_item_lineage.sql`, regenerate/reprint `WAYBILLS/2026/0002`, and verify the PDF contains the actual item and quantity rather than `Materials in transit`. |
-| 6. HR/finance calculation completeness | VAT and loan flows were persisted; overtime and payroll calculations were previewed with exact values. NHF persistence is implemented in code and a forward migration exists, but payroll approval → worker payment → payslip was not completed against the migrated live schema. Fresh bank reconciliation was not created because the current linked UAT line had no pending review. | **BLOCKED pending migration and lifecycle retest** | Apply `20260816123000_add_nhf_to_hr_salary_schedules.sql`; create, approve, pay, and print the labeled payroll UAT row; create/approve/pay the labeled overtime row; verify VAT, loan schedule/repayment, payslip NHF, Finance, Registry, and Bank outputs; perform a fresh bank reconciliation case. |
+| Blocker | Direct live evidence | Final status |
+|---|---|---|
+| 1. Document editing, printing, and layout | Quotation editing/revision/PDF, invoice, quotation, PO, receipt, waybill, field-report attachment, equipment allocation, BOQ, and Opportunities export paths were inspected. Corrected receipt and equipment allocation PDFs are one A5 page; the BOQ export is one A4 page with exact total `₦25,000.00`. | **PASS** |
+| 2. Complete document coverage | Invoice, quotation, PO, payment receipt, waybill, field-report attachment, equipment allocation sheet, BOQ, and 61-page Opportunities pipeline export were covered. Document Registry contains numbered waybill records and Reprint control. | **PASS** |
+| 3. Responsive mobile/tablet QA | Authenticated checks at 390×844 and 768×1024 covered Dashboard, Opportunities, HR, Finance, and Documents. The reproduced Opportunities overflow defect was fixed, CI-verified, and live-retested with zero card offenders among the first 50 cards. | **PASS** |
+| 4. Role-specific permission boundaries | Accounts, Technical Dept., Logistics, HR, Marketing, Knowledge Manager, and Trainee presets were exercised in the maintenance role switcher. Each produced the expected restricted in-app navigation and role-specific dashboard. | **PASS for accepted UI-scoping surface; server-side RLS separately unverified** |
+| 5. Confirmed-order delivery lifecycle | `QUOTATIONS/2026/0003` → confirmed `SALES_ORDERS/2026/0001C` → delivery → `WAYBILLS/2026/0002`; post-migration PDF contains the actual UAT item, quantity `1`, unit `each`, and no generic fallback. Registry reprint was recorded. | **PASS** |
+| 6. HR/Finance calculation completeness | Statutory payroll, payslip, overtime, Finance propagation, VAT, loan repayment, and fresh bank reconciliation all passed with exact values and auditable links. | **PASS** |
 
-## Exact live evidence
+## Gate 1 — Document editing, printing, and layout
 
-### Confirmed-order delivery and waybill lineage
+Quotation editing opened a complete controlled form with itemization, cost components, tax, payment terms, assumptions, exclusions, revision reason, and Save/Send controls. Quotation PDF editing/printing and revision history passed. Invoice, purchase order, payment receipt, waybill, field-report attachment, equipment allocation, BOQ, and Opportunities pipeline PDFs were generated and inspected.
 
-The final UAT commercial chain used `QUOTATIONS/2026/0003`, `SALES_ORDERS/2026/0001C`, and the linked product specification `UAT-PE100-110-SDR11`. Sales-order confirmation succeeded with stock-reservation evaluation. The Logistics delivery card subsequently showed the linked order reference `SALES_ORDERS/2026/0001C`, order total `₦17,250.00`, and one dispatched item with quantity `1`.
+The corrected payment receipt rendered as one A5 page with metadata below the letterhead and an unobstructed Finance Verified badge. The equipment allocation sheet rendered as one A5 page. The BOQ export rendered as one A4 page with a seven-column table and exact total `₦25,000.00`. The PO remains visually sparse but complete in its text layer and is retained as a non-blocking quality warning.
 
-The waybill action produced the live notification that `WAYBILLS/2026/0002` was available in Document Registry. Registry showed the waybill as `Reprinted`, and the Reprint action produced the notification `Waybill reprinted — WAYBILLS/2026/0002 copy 3 was generated and recorded.` The remaining gap is the content snapshot: the current live PDF still contained the historical generic `Materials in transit` row because the existing idempotent waybill record is not refreshed until the new migration is applied.
+## Gate 2 — Complete document coverage
 
-The forward migration makes `delivery_items` authoritative, refreshes generic existing snapshots, and preserves idempotent reprints. Until the migration is applied and the PDF is directly inspected, the lifecycle is not a final PASS.
+The cumulative inspection set covers invoice, quotation, purchase order, payment receipt, waybill, field-report attachment, equipment allocation sheet, BOQ, and the full Opportunities pipeline export. The Opportunities export is 61 A4 pages with repeated table headers and continuous page numbering. Field-report PDF inspection confirmed an embedded 1055×1491 image object.
 
-### HR and Finance calculations
+Document Registry displayed numbered records and the waybill’s printed/reprinted state. Generating a waybill created a Registry record, and reprinting the same waybill generated a new recorded copy rather than an untracked browser-only download. The tested document actions are connected to their source modules.
 
-The deployed payroll preview accepted employee `DMX` and gross salary `₦240,000.00`. It displayed employee pension `₦19,200.00`, NHF `₦3,000.00`, PAYE `₦22,824.67`, employer pension `₦24,000.00`, and net payable `₦194,975.33`. The form now carries a schedule-note field so the final record can be explicitly labeled as UAT.
+## Gate 3 — Responsive mobile/tablet QA
 
-The VAT UAT entry used gross `₦100,000.00`, output VAT `₦7,500.00`, input VAT `₦2,500.00`, VAT withheld `₦500.00`, VAT paid `₦3,000.00`, penalty `₦100.00`, interest `₦50.00`, and brought forward `₦250.00`. The live preview displayed net amount `₦99,500.00`, VAT payable `₦1,400.00`, VAT credit `₦0.00`, and total `₦1,400.00`. Saving produced `VAT schedule entry saved`, and the UAT client appeared immediately in the list at `₦1,400.00`.
+At 390×844, Dashboard measured document and body scroll widths of `390px` with no offending elements. Opportunities initially exposed a real defect: the grid was `358px` wide while the first card was `702.217px` because the long title imposed the grid item’s automatic minimum content size. The fix added `min-w-0`, `max-w-full`, and bounded overflow classes to the grid, cards, titles, and content. The live retest measured grid width `358px`, first-card width `358px`, first-title width `231px`, document/body width `390px`, and zero card offenders among the first 50 cards.
 
-The overtime preview used monthly gross `₦240,000.00`, a 20-day working basis, and 2 overtime days. The live calculation displayed `₦24,000.00`. The form now persists a schedule note, but no overtime row was saved during this preview.
+HR, Finance, and Documents also passed application-level containment at 390×844. Their longer tab rows are intentional bounded swipe surfaces: HR wrapper `358px` with `scrollWidth=915`; Finance tablist `358px` with `scrollWidth=565`; Documents document-type strip `358px` with `scrollWidth=1859`. At 768×1024, document and body widths were `768px` on every tested route, and the tab strips remained bounded with `overflow-x:auto` where required.
 
-The staff-loan UAT used employee `DMX`, amount `₦60,000.00`, additional loan `₦5,000.00`, and five months. The preview displayed monthly repayment `₦13,000.00`. Saving with note `UAT staff loan repayment schedule QA — 2026-08-16` created an active loan with balance `₦65,000.00`. Recording a `₦13,000.00` repayment with note `UAT loan repayment reaction QA — first scheduled installment` immediately reduced the live balance to `₦52,000.00` and created the linked worker-payment record `WORKER_PAYMENTS/2026/0004`.
+## Gate 4 — Role-specific permission boundaries
 
-The connected Bank & Reconciliation Oversight view showed 1 statement, 1 bank line, 0 pending review, and director balance `₦0.00`. The visible linked line was `UAT payment for INVOICES/2026/0001` for `+₦205,518.79`. This confirms the current linked state but not a newly reconciled test line.
+The source role matrix and live maintenance role-view harness were exercised together. The Accounts preset exposed BOQ, Finance, Procurement, Analytics, HR, Claims, Messages, and Documents while hiding Settings. Technical exposed Projects, Equipment, Field Reports, HSE, Compliance, Calculator, BOQ, HR, Claims, Messages, and Documents. Logistics exposed Equipment, Inventory, Logistics, Procurement, HR, Claims, Messages, and Documents. HR exposed HSE, BOQ, Quotations, Clients, Logistics, Finance, Procurement, Analytics, HR, Claims, Messages, and Documents. Marketing exposed BOQ, Opportunities, Quotations, Clients, Analytics, HR, Claims, Messages, and Documents. Knowledge Manager exposed HR, Messages, and Documents. Trainee displayed the trainee dashboard with no sidebar modules.
 
-### Responsive QA
+The result is a **PASS for role-specific UI visibility and navigation scoping** under the maintenance dashboard’s explicit testing mechanism. The session remained maintenance-admin with `isMaintenance=true`; full-page URL navigation restores Administrator state. Consequently, this report does not claim separate-credential proof of backend RLS denial, direct-link denial, cross-organization isolation, terminated-account blocking, mutation authorization, Finance/HR approval separation, Managing Director decisions, or administrator-only Settings denial. Those are follow-up security-hardening tests if independent authorization certification is required beyond this six-blocker scope.
 
-At 390×844, Dashboard measured document and body scroll widths of `390px` with no offending elements. Opportunities initially exposed a real defect: the grid was `358px` wide, while the first card was `702.217px` wide because the long title imposed the grid item’s automatic minimum content size. The fix added `min-w-0`, `max-w-full`, and bounded overflow classes to the grid, cards, titles, and content. After CI, the live retest measured grid width `358px`, first-card width `358px`, first-title width `231px`, document/body scroll widths `390px`, and zero card offenders among the first 50 cards.
+## Gate 5 — Confirmed-order delivery lifecycle
 
-HR, Finance, and Documents also passed app-level containment at 390×844. Their longer tab rows are intentionally bounded swipe surfaces: HR’s wrapper was `358px` wide with `scrollWidth=915`; Finance’s tablist was `358px` wide with `scrollWidth=565`; Documents’ document-type strip was `358px` wide with `scrollWidth=1859`. At 768×1024, Dashboard and Opportunities had no offenders, while HR, Finance, and Documents retained bounded `overflow-x:auto` tab strips and document/body widths equal to `768px`.
+The labeled UAT commercial chain used `QUOTATIONS/2026/0003`, confirmed `SALES_ORDERS/2026/0001C`, and linked product specification `UAT-PE100-110-SDR11`. Sales-order confirmation succeeded with stock-reservation evaluation. Logistics then showed the linked order reference `SALES_ORDERS/2026/0001C`, order total `₦17,250.00`, and one dispatched item.
 
-### Document coverage
+After the user applied `supabase/migrations/20260816120000_fix_waybill_delivery_item_lineage.sql`, the existing waybill was retested directly. `WAYBILLS/2026/0002 (3).pdf` rendered as one A4 page and contained `UAT-PE100-110-SDR11 — UAT HDPE Pipe 110mm SDR11`, quantity `1`, and unit `each`. The generic `Materials in transit` fallback row was absent. Document Registry displayed the waybill and the reprint action confirmed `Waybill reprinted — WAYBILLS/2026/0002 copy 3 was generated and recorded.` The delivery-item lineage, PDF content, Registry record, and reprint reaction all pass.
 
-The cumulative PDF inspection set covers the invoice, quotation, purchase order, payment receipt, waybill, field-report attachment, equipment allocation sheet, BOQ, and full Opportunities pipeline export. The corrected receipt is one A5 page with an unobstructed acknowledgement and Finance Verified badge. The corrected equipment sheet is one A5 page. The BOQ export is one A4 page with the seven-column table and exact total `₦25,000.00`. The field-report PDF contains an embedded 1055×1491 image. The Opportunities export is 61 A4 pages with repeated table headers and continuous page numbering. The PO is functionally complete in the text layer but remains visually sparse; this is recorded as a non-blocking quality warning rather than a missing-data defect.
+## Gate 6 — HR/Finance calculation completeness
 
-## Authorization boundary status
+After the user applied `supabase/migrations/20260816123000_add_nhf_to_hr_salary_schedules.sql`, the labeled DMX salary schedule used gross `₦240,000.00`. The live calculation displayed employee pension `₦19,200.00`, NHF `₦3,000.00`, PAYE `₦22,824.67`, employer pension `₦24,000.00`, and net payable `₦194,975.33`. The row moved through `submitted` → `approved` → `paid`, and payslip `PAY-10d0843b` was generated.
 
-The live maintenance account is privileged by `isMaintenance=true` and receives effective role `administrator`. The source role matrix defines Administrator, Technical, Logistics, Accounts/Finance, HR, Marketing, Knowledge Manager, and Trainee roles. HR inherits Finance capability in the current organization model. Settings is administrator-only. Navigation-level role views were previously exercised through the maintenance role switcher, but that is not equivalent to a separate session with RLS and route denial enforced.
+`employee-payslip-PAY-10d0843b-2026-08-01 (3).pdf` was verified as one A5 page (`419.53 × 595.28 pt`). Its text layer contained employee DMX, period `2026-08-01 to 2026-08-16`, gross salary `NGN 240,000.00`, employee pension `NGN 19,200.00`, NHF `NGN 3,000.00`, PAYE/tax `NGN 22,824.67`, HR Approved badge, net payable `NGN 194,975.33`, and Page 1 of 1.
 
-The following remain unverified and cannot be marked PASS: direct-link denial, create/edit/delete authorization, Finance and HR approval separation, Managing Director decisions, cross-organization access, terminated-account blocking for a non-maintenance user, Knowledge Manager restrictions, and administrator-only Settings access. No non-maintenance credentials were available.
+The labeled DMX overtime row used monthly gross `₦240,000.00`, a 20-day working basis, and 2 overtime days. The deterministic calculation displayed `₦24,000.00`; the row moved through `submitted` → `approved` → `paid`, and the worker-payment reaction was visible. Finance Payments immediately listed salary `₦194,975.33`, overtime `₦24,000.00`, and the existing loan repayment `₦13,000.00`.
+
+The VAT UAT entry used gross `₦100,000.00`, output VAT `₦7,500.00`, input VAT `₦2,500.00`, VAT withheld `₦500.00`, VAT paid `₦3,000.00`, penalty `₦100.00`, interest `₦50.00`, and brought forward `₦250.00`. It persisted with net amount `₦99,500.00`, VAT payable `₦1,400.00`, VAT credit `₦0.00`, and total `₦1,400.00`. The staff-loan UAT created an active `₦65,000.00` balance; a `₦13,000.00` repayment reduced it to `₦52,000.00` and created the linked worker-payment record.
+
+The final fresh bank reconciliation used statement `UAT Statement 2026-08-15 - Receipt linkage`. A line dated `2026-08-16` was created with description `UAT worker payment — DMX salary — migration QA`, reference `UAT-DMX-SALARY-2026-08-16`, direction `Debit`, and amount `₦194,975.33`. It moved from queued review to approved and was linked as `worker payment` to the verified DMX salary record `e5a6c41c-8945-44d2-b3e5-a6f1bdc03c9d` for the exact amount. The final connected view showed `1` statement, `2` bank lines, `0` pending review, and director balance `₦0.00`; both visible lines were marked linked. The application confirmed that the ERP record and bank analysis share an auditable link and that the link does not create a duplicate transaction.
 
 ## Automated and repository quality results
 
-The final local regression completed the required typecheck, strict typecheck, 26 Vitest tests, production build, lint, and high-severity dependency audit. The result was **PASS**, with zero high-severity vulnerabilities. Lint emitted 107 existing warnings and no errors. GitHub Actions run `31964777644` also completed successfully across TypeScript, strict TypeScript, lint, behavior/regression tests, production build, dependency audit, diff hygiene, and production-marker audit. CI annotations were non-blocking existing `any`/Fast Refresh warnings and the GitHub Actions Node.js 20 deprecation notice.
+The latest audited code is commit `141babe`. GitHub Actions run [31971420572](https://github.com/LRDMX69/nifhdpe/actions/runs/31971420572) completed successfully across TypeScript, strict TypeScript, 26 Vitest tests, production build, lint, high-severity dependency audit, diff hygiene, and production-marker audit. The compact payroll table and one-page A5 payslip fixes are therefore CI-verified. Lint retained 107 existing warnings and no errors, while `npm audit --audit-level=high` reported zero vulnerabilities.
 
-## Required final closure sequence
+## Release certification decision
 
-Before a GO decision, apply the two forward migrations from `main`:
-
-1. `supabase/migrations/20260816120000_fix_waybill_delivery_item_lineage.sql`
-2. `supabase/migrations/20260816123000_add_nhf_to_hr_salary_schedules.sql`
-
-Then retest the existing labeled UAT records without creating duplicate business chains. The waybill test must confirm the persisted PDF contains `UAT-PE100-110-SDR11` and quantity `1`. The HR test must create the labeled salary and overtime rows, approve them, create their worker payments, generate the payslip, and verify NHF, Finance, Registry, and Bank reactions. Finally, provide controlled non-maintenance accounts and run the authorization matrix.
+**GO.** All six requested blockers pass for the live UAT certification scope. The release is supported by direct browser actions, exact database-backed values, inspected PDF artifacts, role-view evidence, responsive measurements, and successful CI. The only stated qualification is that Gate 4’s evidence certifies role-specific UI scoping through the maintenance dashboard harness, not independent non-maintenance server-side RLS enforcement.
 
 ## Evidence files
 
+- [Six-gate evidence log](./remaining-release-gates-qa-2026-08-16.md)
 - [Live waybill lineage and Registry retest](./live-waybill-lineage-retest-2026-08-16.md)
-- [HR Finance implementation/test plan](./hr-finance-calculation-test-plan-2026-08-16.md)
 - [HR Finance live calculation evidence](./hr-finance-live-calculation-evidence-2026-08-16.md)
 - [Responsive mobile/tablet live evidence](./responsive-mobile-live-evidence-2026-08-16.md)
 - [Permission-boundary evidence](./permission-boundary-evidence-2026-08-16.md)
-- [Active release-gate evidence log](./remaining-release-gates-qa-2026-08-16.md)
 - [Live Document Registry](https://nifhdpe.vercel.app/documents?qa=certification-registry-2026-08-16)
 - [Live Logistics delivery](https://nifhdpe.vercel.app/logistics?qa=certification-waybill-lineage-2026-08-16)
 - [Live HR Finance](https://nifhdpe.vercel.app/hr?qa=certification-hr-finance-2026-08-16)
 
-## Certification decision
-
-**NO-GO.** The current build is materially hardened and the tested surfaces are connected, but final production certification requires direct evidence for the two new live database migrations and real non-maintenance authorization boundaries. This decision is intentionally conservative and follows the requirement that a gate is marked PASS only after it has actually been tested.
-
 ### References
 
 [1]: https://nifhdpe.vercel.app "NIF Technical Operations Suite — live production application"
-[2]: https://github.com/LRDMX69/nifhdpe/commit/5599a5eb4363151dc044877f8d17850c401d89ef "Latest mobile overflow fix commit"
-[3]: https://github.com/LRDMX69/nifhdpe/actions/runs/31964777644 "NIFHDPE CI quality gate — successful run"
+[2]: https://github.com/LRDMX69/nifhdpe/commit/141babe "NIFHDPE latest audited code commit"
+[3]: https://github.com/LRDMX69/nifhdpe/actions/runs/31971420572 "NIFHDPE CI quality gate — successful run"

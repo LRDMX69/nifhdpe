@@ -19,3 +19,9 @@ Document Registry loaded 24 numbered documents and showed two waybill rows. `WAY
 ## Current gate status
 
 Confirmed-order delivery lineage: **IN PROGRESS**, because the UI lineage and registry lifecycle pass but the authoritative waybill PDF item snapshot cannot be certified until the migration is applied and the PDF is retested. Document Registry recording/reprint: **PASS for workflow reaction**, with content certification pending the same migration-dependent PDF retest.
+
+## Final post-migration retest — PASS
+
+After the user confirmed `20260816120000_fix_waybill_delivery_item_lineage.sql` was applied, the existing confirmed delivery was printed again. The live Logistics card still showed `SALES_ORDERS/2026/0001C`, `₦17,250.00`, and one `UAT-PE100-110-SDR11 · UAT HDPE Pipe 110mm SDR11` item with quantity `1`. The action displayed `Waybill generated and recorded — WAYBILLS/2026/0002 is now available in Document Registry for reprint.`
+
+The newest artifact `waybill-—-waybills_2026_0002-WAYBILLS_2026_0002 (3).pdf` is one A4 page (`595.28 × 841.89 pt`). `pdftotext` confirms the document ID `WAYBILLS/2026/0002`, sales-order origin note, driver, destination, `Print history: copy 4`, and the actual table row `UAT-PE100-110-SDR11 — UAT HDPE Pipe 110mm SDR11`, quantity `1`, unit `each`, with Page 1 of 1. The generic `Materials in transit` fallback is absent. Confirmed-order delivery and waybill item lineage: **PASS**.
