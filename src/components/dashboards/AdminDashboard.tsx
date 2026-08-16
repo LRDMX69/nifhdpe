@@ -227,7 +227,7 @@ const AdminDashboard = () => {
     queryKey: ["unread-msg-count", orgId, user?.id],
     queryFn: async () => {
       if (!orgId || !user) return 0;
-      const { count } = await supabase
+      const { count, error } = await supabase
         .from("messages")
         .select("*", { count: "exact", head: true })
         .eq("organization_id", orgId)
@@ -235,6 +235,7 @@ const AdminDashboard = () => {
         .eq("message_type", "direct")
         .eq("recipient_id", user.id)
         .neq("sender_id", user.id);
+      if (error) throw error;
       return count ?? 0;
     },
     enabled: !!orgId && !!user,
@@ -249,15 +250,17 @@ const AdminDashboard = () => {
     queryKey: ["ceo-overdue-invoices", orgId, todayIso],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("invoices")
         .select("id, document_number, due_date, balance_due, status, clients(name)")
         .eq("organization_id", orgId)
         .lt("due_date", todayIso)
         .gt("balance_due", 0)
         .neq("status", "paid")
+        .neq("status", "cancelled")
         .order("due_date", { ascending: true })
         .limit(5);
+      if (error) throw error;
       return (data ?? []) as unknown as Array<{ id: string; document_number: string; due_date: string; balance_due: number; status: string; clients: { name: string } | null }>;
     },
     enabled: !!orgId,
@@ -268,9 +271,11 @@ const AdminDashboard = () => {
     queryFn: async () => {
       if (!orgId) return { expectedInflow: 0, recentOutflow: 0, projectedNet: 0 };
       const [inflow, outflow] = await Promise.all([
-        supabase.from("invoices").select("balance_due").eq("organization_id", orgId).gte("due_date", todayIso).lte("due_date", in30Iso).neq("status", "paid"),
+        supabase.from("invoices").select("balance_due").eq("organization_id", orgId).gte("due_date", todayIso).lte("due_date", in30Iso).neq("status", "paid").neq("status", "cancelled"),
         supabase.from("expenses").select("amount").eq("organization_id", orgId).gte("date", minus30Iso),
       ]);
+      if (inflow.error) throw inflow.error;
+      if (outflow.error) throw outflow.error;
       const expectedInflow = (inflow.data ?? []).reduce((s, r: { balance_due: number | null }) => s + Number(r.balance_due ?? 0), 0);
       const recentOutflow = (outflow.data ?? []).reduce((s, r: { amount: number | null }) => s + Number(r.amount ?? 0), 0);
       return { expectedInflow, recentOutflow, projectedNet: expectedInflow - recentOutflow };

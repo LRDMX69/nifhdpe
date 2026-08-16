@@ -451,3 +451,7 @@ Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_documents_1786875
 ## UX hardening evidence — Document Registry loading state
 
 The loaded registry is connected and complete, but the initial live capture exposed `0` documents before the asynchronous source query completed. The registry now displays `Loading numbered documents…` in the page summary and `Loading…` in the revision badge during the query, and displays an explicit unavailable summary when the query errors. TypeScript, strict typing, lint, and the 26-test suite pass after the correction.
+
+## Source audit evidence — Admin Dashboard CEO visibility
+
+Admin Dashboard unread-message counts and CEO overdue-invoice/cashflow queries previously ignored backend errors. Overdue and forecast invoice queries also included cancelled invoices. The dashboard now surfaces source failures and excludes cancelled invoices from overdue and expected-inflow metrics. TypeScript and strict typecheck pass; lint completes with the existing non-blocking warning set; the 26-test suite passes; and `git diff --check` is clean.
