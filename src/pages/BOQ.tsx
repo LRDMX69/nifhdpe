@@ -289,7 +289,7 @@ const BoqDetail = ({ boq, orgId, onBack, canEdit }: { boq: Boq; orgId: string; o
             boq.description,
             `Status: ${status.toUpperCase()}`,
             boq.projects?.name ? `Project: ${boq.projects.name}` : null,
-          ].filter(Boolean).join("\\n"),
+          ].filter(Boolean).join("\n"),
         }],
         tableData: {
           columns: [
@@ -304,7 +304,7 @@ const BoqDetail = ({ boq, orgId, onBack, canEdit }: { boq: Boq; orgId: string; o
           rows: items.map((item) => ({
             position: item.position,
             code: item.item_code ?? "—",
-            description: item.description + (item.notes ? `\\n${item.notes}` : ""),
+            description: item.description + (item.notes ? `\n${item.notes}` : ""),
             quantity: Number(item.quantity).toLocaleString(),
             unit: item.unit,
             rate: formatCurrency(Number(item.rate)),
