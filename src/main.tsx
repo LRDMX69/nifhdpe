@@ -1,7 +1,8 @@
+import { lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { RootErrorBoundary } from "./components/RootErrorBoundary";
-import App from "./App.tsx";
+const App = lazy(() => import("./App.tsx"));
 import "./index.css";
 import { initPushNotifications } from "./lib/pushNotifications";
 
@@ -34,7 +35,9 @@ if (missingEnv) {
   createRoot(rootEl).render(
     <RootErrorBoundary>
       <ThemeProvider>
-        <App />
+        <Suspense fallback={<main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#061829", color: "#eef7f1", fontFamily: "Inter, system-ui, sans-serif" }}>Loading application…</main>}>
+          <App />
+        </Suspense>
       </ThemeProvider>
     </RootErrorBoundary>
   );
