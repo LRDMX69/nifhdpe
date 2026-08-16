@@ -480,3 +480,16 @@ Live testing showed that the deployed delete mutation could return no database e
 ## Responsive QA gate — authenticated viewport limitation (2026-08-16)
 
 A dedicated browser session was navigated to the live Dashboard and then resized to tablet dimensions (1024×768). The session was unauthenticated and redirected to `/login`, with one console error recorded; therefore protected-route tablet/mobile checks cannot be treated as PASS from that session. The existing authenticated browser session remains suitable for live desktop/shell verification, but a fully authenticated viewport-specific U02/U03 retest requires a browser session with the maintenance-admin login or an equivalent authorized test session.
+
+
+## Live retest evidence — Opportunities loading and card grid (2026-08-16)
+
+The authenticated Opportunities route initially exposed a loading capture with zero KPIs and placeholder cards, then resolved to `643 live opportunities`, pipeline value ₦2,535,510,000,000.00, and a populated two-column card grid at the current viewport. The route’s live controls include Export CSV, Refresh, Print, Add, search/filter tabs, and opportunity cards with status, relevance, probability, value, source, quotation link state, and deadline. The initial zero was a transient loading view rather than a confirmed data defect; mobile-width protected-route testing remains separately gated by authenticated viewport access.
+
+Evidence URL: https://nifhdpe.vercel.app/opportunities?qa=responsive
+Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_opportunities_1786875407475.html
+
+
+## Responsive QA evidence — authenticated browser resize limitation (2026-08-16)
+
+The authenticated sandbox browser ignored `window.resizeTo(390,844)` and reported an actual viewport of 1280×1100 with document/body width 1280. Therefore the authenticated session cannot be used to claim a genuine mobile viewport check; the earlier dedicated resized session redirected to login. Mobile and tablet protected-route evidence remain blocked pending an authenticated resizable browser session.
