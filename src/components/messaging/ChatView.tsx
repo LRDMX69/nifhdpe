@@ -36,13 +36,14 @@ export const ChatView = ({ recipientId, recipientName, recipientAvatar, recipien
     queryKey: ["chat", user?.id, recipientId, orgId],
     queryFn: async () => {
       if (!user || !orgId) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("messages")
         .select("*")
         .eq("organization_id", orgId)
         .eq("message_type", "direct")
         .or(`and(sender_id.eq.${user.id},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${user.id})`)
         .order("created_at", { ascending: true });
+      if (error) throw error;
       return data ?? [];
     },
     enabled: !!user && !!orgId,
@@ -102,19 +103,22 @@ export const ChatView = ({ recipientId, recipientName, recipientAvatar, recipien
   const deleteMsg = useMutation({
     mutationFn: async (msgId: string) => {
       if (!user) throw new Error("You must be signed in to delete a message");
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("messages")
         .delete()
         .eq("id", msgId)
         .eq("organization_id", orgId)
         .eq("sender_id", user.id)
-        .in("message_type", ["direct", "context"]);
+        .in("message_type", ["direct", "context"])
+        .select("id");
       if (error) throw error;
+      if (!data || data.length === 0) throw new Error("The message was not deleted. Your permission policy may not be deployed yet.");
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Message deleted" });
-      refetch();
-      queryClient.invalidateQueries({ queryKey: ["messages", orgId, user?.id] });
+      await queryClient.invalidateQueries({ queryKey: ["chat", user?.id, recipientId, orgId] });
+      await refetch();
+      await queryClient.invalidateQueries({ queryKey: ["messages", orgId, user?.id] });
     },
     onError: (error: unknown) => {
       toast({ title: "Could not delete message", description: humanizeError(error as Error), variant: "destructive" });

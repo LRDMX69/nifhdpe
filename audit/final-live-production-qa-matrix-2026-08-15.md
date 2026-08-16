@@ -463,3 +463,15 @@ On the latest production navigation, the registry initially displayed `Loading n
 
 Evidence URL: https://nifhdpe.vercel.app/documents?qa=latest-hardening
 Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_documents_1786875180864.html
+
+
+## Live retest evidence — Messages deletion remains inconsistent (2026-08-16)
+
+The latest deployed Messages build exposes the sender-scoped `Delete` menu and returns a `Message deleted` success toast for the exact controlled QA message. However, the message text remains visible in the open thread after the toast and after the query settles. This is a confirmed production defect: the UI reports deletion success but does not remove the row from the active thread, or the backend mutation is not actually persisted despite the success path. The controlled message must remain under investigation until a hard refresh/list reload confirms disappearance and the source row is absent. Do not mark Messages deletion PASS.
+
+Evidence URL: https://nifhdpe.vercel.app/messages?qa=latest-hardening
+Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_messages_1786875253874.html
+
+## Messages deletion hardening — follow-up fix
+
+Live testing showed that the deployed delete mutation could return no database error and still affect zero rows when the sender-scoped DELETE policy was absent, causing a false `Message deleted` toast while the message remained visible. ChatView now checks the deleted-row payload, throws when zero rows are affected, surfaces the permission/deployment problem to the operator, surfaces chat-read errors, and invalidates/refetches the exact open thread before reporting the surrounding list state. The controlled QA message remains visible in production because the DELETE policy migration is still pending; it must be removed only after the migration is applied and this guard passes. TypeScript, strict typecheck, lint, the 26-test suite, and diff hygiene pass.
