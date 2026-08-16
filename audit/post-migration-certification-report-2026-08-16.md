@@ -3,8 +3,9 @@
 **System:** [NIF Technical Operations Suite](https://nifhdpe.vercel.app)  
 **Repository:** [LRDMX69/nifhdpe](https://github.com/LRDMX69/nifhdpe)  
 **Audit date:** 16 August 2026  
-**Latest repository commit:** `5599a5e` — `fix: constrain opportunity cards on mobile`
-**Latest CI run:** [31964777644](https://github.com/LRDMX69/nifhdpe/actions/runs/31964777644) — **success**
+**Latest audited code commit:** `5599a5e` — `fix: constrain opportunity cards on mobile`
+**Evidence-document commit:** `34b29eb` — `docs: update production certification evidence`
+**Latest CI run:** [31965211250](https://github.com/LRDMX69/nifhdpe/actions/runs/31965211250) — **success**
 **Execution basis:** Authenticated live maintenance-admin session, fresh mobile/tablet Playwright session, live UAT records, source inspection, PDF artifact inspection, local automated regression, and GitHub CI.
 
 ## Executive verdict
