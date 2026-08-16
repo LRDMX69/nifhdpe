@@ -475,3 +475,8 @@ Evidence capture: /home/ubuntu/browser_html/nifhdpe_vercel_app_messages_17868752
 ## Messages deletion hardening — follow-up fix
 
 Live testing showed that the deployed delete mutation could return no database error and still affect zero rows when the sender-scoped DELETE policy was absent, causing a false `Message deleted` toast while the message remained visible. ChatView now checks the deleted-row payload, throws when zero rows are affected, surfaces the permission/deployment problem to the operator, surfaces chat-read errors, and invalidates/refetches the exact open thread before reporting the surrounding list state. The controlled QA message remains visible in production because the DELETE policy migration is still pending; it must be removed only after the migration is applied and this guard passes. TypeScript, strict typecheck, lint, the 26-test suite, and diff hygiene pass.
+
+
+## Responsive QA gate — authenticated viewport limitation (2026-08-16)
+
+A dedicated browser session was navigated to the live Dashboard and then resized to tablet dimensions (1024×768). The session was unauthenticated and redirected to `/login`, with one console error recorded; therefore protected-route tablet/mobile checks cannot be treated as PASS from that session. The existing authenticated browser session remains suitable for live desktop/shell verification, but a fully authenticated viewport-specific U02/U03 retest requires a browser session with the maintenance-admin login or an equivalent authorized test session.
