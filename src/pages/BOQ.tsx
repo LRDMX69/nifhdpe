@@ -313,6 +313,7 @@ const BoqDetail = ({ boq, orgId, onBack, canEdit }: { boq: Boq; orgId: string; o
           summary: [{ label: "BOQ Total", value: formatCurrency(total) }],
         },
         stampType: status === "approved" ? "admin" : null,
+        paperSize: "a4",
         showSignature: true,
       });
       toast({ title: "BOQ PDF generated", description: "The BOQ title, line items, total, and approval block were included." });

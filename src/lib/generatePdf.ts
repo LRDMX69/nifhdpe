@@ -38,6 +38,8 @@ interface PdfOptions {
   watermark?: string | null;
   /** Use a small paper format for genuinely short documents such as receipts. */
   compact?: boolean;
+  /** Override adaptive sizing when a document’s table width requires a specific paper format. */
+  paperSize?: "a4" | "a5";
 }
 
 const stampLabels: Record<string, string> = {
@@ -227,10 +229,12 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
 
   const sections = contentSections || (content ? parseContentIntoSections(content) : []);
   const sectionTextLength = sections.reduce((total, section) => total + (section.body?.length ?? 0) + (section.bullets?.join(" ").length ?? 0), 0);
-  const isCompactDocument = Boolean(
-    options.compact ||
-    (tableData && tableData.rows.length <= 8 && sections.length <= 1 && sectionTextLength < 700),
-  );
+  const isCompactDocument = options.paperSize
+    ? options.paperSize === "a5"
+    : Boolean(
+      options.compact ||
+      (tableData && tableData.rows.length <= 8 && sections.length <= 1 && sectionTextLength < 700),
+    );
   // Short invoices and similar detailed records need an A4 canvas, but not the
   // generous spacing used by long reports. This keeps the table, totals, and
   // approvals together without shrinking a genuinely detailed document.
@@ -239,7 +243,7 @@ export async function generatePdf(options: PdfOptions): Promise<void> {
     sectionTextLength < 1200 && (tableData.summary?.length ?? 0) <= 10 &&
     !sections.some((section) => /attach|proof|verification/i.test(section.heading ?? "")),
   );
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: isCompactDocument ? "a5" : "a4" });
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: options.paperSize ?? (isCompactDocument ? "a5" : "a4") });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = isCompactDocument ? 12 : isDenseDocument ? 18 : 20;
