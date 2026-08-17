@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useGsapFadeUp } from "@/hooks/useGsapAnimation";
 import { CheckInWidget, getNigeriaBusinessDate } from "@/components/CheckInWidget";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -580,6 +581,18 @@ const HR = () => {
       />
 
       <CheckInWidget />
+
+      <PageTaskStart
+        title={isHrOrAdmin ? "Start with a people decision" : "Start with your HR request"}
+        description={isHrOrAdmin ? "Choose the people process that needs attention, then use the live summaries and detailed tabs below." : "Review your leave status or continue into the connected people workflows."}
+        tasks={[
+          { title: "Review leave", description: "Open pending requests and current leave status.", href: "/hr?tab=leaves", icon: CalendarDays },
+          ...(isHrOrAdmin ? [
+            { title: "Review payroll", description: "Open salary, statutory, and payment context.", href: "/hr?tab=payroll", icon: DollarSign },
+            { title: "Open procurement", description: "Review the connected vendor and purchase work.", href: "/procurement", icon: Briefcase },
+          ] : [{ title: "Open your dashboard", description: "Return to your role’s task-first work view.", href: "/dashboard", icon: Users }]),
+        ]}
+      />
 
       {isHrOrAdmin && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

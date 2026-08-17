@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Wrench, Clock, MapPin, AlertCircle, CheckCircle2, XCircle, Loader2, Send, MoreVertical, Pencil, Trash2, FileDown, Phone, MessageSquare, Users } from "lucide-react";
+import { Plus, Wrench, Clock, MapPin, AlertCircle, CheckCircle2, XCircle, Loader2, Send, MoreVertical, Pencil, Trash2, FileDown, Phone, MessageSquare, Users, Truck } from "lucide-react";
 import { useGsapAnimation } from "@/hooks/useGsapAnimation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -282,6 +283,16 @@ const Equipment = () => {
         </div>
       </PageHeader>
 
+      <PageTaskStart
+        title="Start with equipment control"
+        description="Find the asset you need, check the connected project, or move into logistics for dispatch and fleet context."
+        tasks={[
+          { title: "Open the equipment register", description: "Review status, usage hours, project, and maintenance dates.", href: undefined, onClick: () => document.getElementById("equipment-register")?.scrollIntoView({ behavior: "smooth", block: "start" }), icon: Wrench },
+          { title: "Review projects", description: "See where equipment is assigned and being used.", href: "/projects", icon: MapPin },
+          { title: "Open logistics", description: "Continue into fleet, delivery, and fuel workflows.", href: "/logistics", icon: Truck },
+        ]}
+      />
+
       <WorkflowBanner
         storageKey="equipment"
         summary="Register every machine, tool and vehicle so technicians can request what they need, and admins see usage, maintenance and request escalations in one place."
@@ -523,6 +534,7 @@ const Equipment = () => {
         </Card>
       )}
 
+      <div id="equipment-register">
       <AsyncBoundary
         loading={isLoading}
         error={error}
@@ -587,6 +599,7 @@ const Equipment = () => {
         ))}
       </div>
       </AsyncBoundary>
+      </div>
     </div>
   );
 };

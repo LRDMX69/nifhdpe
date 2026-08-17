@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
@@ -41,6 +42,7 @@ const Procurement = () => {
   const isAdmin = activeRole === "administrator";
   const isFinance = isFinanceCapable(activeRole);
   const isWarehouse = activeRole === "warehouse";
+  const [activeTab, setActiveTab] = useState("vendors");
 
   const [vendorOpen, setVendorOpen] = useState(false);
   const [poOpen, setPoOpen] = useState(false);
@@ -138,10 +140,11 @@ const Procurement = () => {
   });
 
   useEffect(() => {
-    setGrnLineItems(grnPoItems.map((item) => {
+    const nextLineItems = grnPoItems.map((item) => {
       const remaining = Math.max(0, Number(item.quantity) - Number(item.received_quantity ?? 0));
       return { id: item.id, itemName: item.item_name, remaining, accepted: String(remaining), rejected: "0", lotBatch: "" };
-    }));
+    });
+    setGrnLineItems((current) => JSON.stringify(current) === JSON.stringify(nextLineItems) ? current : nextLineItems);
   }, [grnPoItems]);
 
   const createVendor = useMutation({
@@ -269,6 +272,16 @@ const Procurement = () => {
         onRefresh={() => { refetchVendors(); refetchPos(); refetchMrs(); refetchGrns(); }}
       />
 
+      <PageTaskStart
+        title="Start with procurement"
+        description="Choose the part of the purchasing lifecycle you need: a requisition, an order, or receipt of goods."
+        tasks={[
+          { title: "Review requisitions", description: "See site requests waiting for procurement action.", href: undefined, onClick: () => setActiveTab("mrs"), icon: ClipboardList },
+          { title: "Review purchase orders", description: "Check vendor orders, status, and outstanding lines.", href: undefined, onClick: () => setActiveTab("pos"), icon: ShoppingCart },
+          { title: "Receive goods", description: "Post a GRN and update inventory from a purchase order.", href: undefined, onClick: () => setActiveTab("grns"), icon: PackageCheck },
+        ]}
+      />
+
       <WorkflowBanner
         storageKey="procurement"
         summary="The full procurement lifecycle: vendors are registered, requisitions come in from the field, Purchase Orders are issued, and Goods Received Notes (GRN) close the loop and update inventory."
@@ -300,7 +313,7 @@ const Procurement = () => {
         </DialogContent>
       </Dialog>
 
-      <Tabs defaultValue="vendors" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="overflow-x-auto pb-2">
           <TabsList className="inline-flex w-auto min-w-full sm:min-w-0">
             <TabsTrigger value="vendors" className="flex items-center gap-2">

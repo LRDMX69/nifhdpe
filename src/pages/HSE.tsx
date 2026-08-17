@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -153,6 +154,16 @@ const HSE = () => {
         executiveSummary={`${incidents.filter((i: any) => i.status !== "closed").length} open incidents · ${tbts.length} toolbox talks logged`}
         lastUpdated={incidentsUpdatedAt ? new Date(incidentsUpdatedAt) : null}
         onRefresh={() => { refetchIncidents(); refetchTbts(); }}
+      />
+
+      <PageTaskStart
+        title="Start with a safety action"
+        description="Report an incident or run a toolbox talk before reviewing the wider safety register."
+        tasks={[
+          ...(canReportIncident ? [{ title: "Report an incident", description: "Record what happened and the immediate response.", href: undefined, onClick: () => setIncidentOpen(true), icon: AlertTriangle }] : []),
+          { title: "Run a toolbox talk", description: "Log the briefing, topic, and attendees.", href: undefined, onClick: () => setTbtOpen(true), icon: BookOpen },
+          { title: "Review compliance", description: "Check certificates and inspection evidence.", href: "/compliance", icon: ShieldCheck },
+        ]}
       />
 
       <Tabs defaultValue="incidents" className="space-y-4">

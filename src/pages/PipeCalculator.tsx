@@ -5,8 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calculator, Droplets, Gauge, Ruler } from "lucide-react";
+import { Calculator, Droplets, Gauge, Ruler, FileSpreadsheet, ClipboardCheck } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
 import { useGsapFadeUp, useGsapStagger } from "@/hooks/useGsapAnimation";
 
 const pipeSpecs = {
@@ -67,6 +68,16 @@ const PipeCalculator = () => {
     <div className="p-4 sm:p-6 space-y-6">
       <PageHeader title="Pipe Calculator" description="Engineering calculations for pipe sizing" />
 
+      <PageTaskStart
+        title="Start an engineering calculation"
+        description="Enter the minimum pipe inputs first, then carry the result into the connected project estimate or safety review."
+        tasks={[
+          { title: "Enter pipe inputs", description: "Choose the pipe, diameter, length, and flow rate.", href: undefined, onClick: () => document.getElementById("pipe-length")?.focus(), icon: Calculator },
+          { title: "Open a BOQ", description: "Use the result in a project quantity estimate.", href: "/boq", icon: FileSpreadsheet },
+          { title: "Review HSE", description: "Check the safety context for the site work.", href: "/hse", icon: ClipboardCheck },
+        ]}
+      />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Input */}
         <Card className="border-border/50 lg:col-span-1">
@@ -88,7 +99,7 @@ const PipeCalculator = () => {
             </div>
             <div className="space-y-2">
               <Label>Length (meters)</Label>
-              <Input type="number" min="0.01" step="0.01" value={length} onChange={(e) => { setLength(Number(e.target.value)); setCalculated(false); setValidationError(""); }} aria-invalid={!!validationError} />
+              <Input id="pipe-length" type="number" min="0.01" step="0.01" value={length} onChange={(e) => { setLength(Number(e.target.value)); setCalculated(false); setValidationError(""); }} aria-invalid={!!validationError} />
             </div>
             <div className="space-y-2">
               <Label>Flow Rate (L/s)</Label>

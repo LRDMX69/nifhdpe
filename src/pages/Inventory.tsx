@@ -7,9 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Package, AlertTriangle, Loader2, Pencil, Trash2, MapPin, Download } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Loader2, Pencil, Trash2, MapPin, Download, Truck, ShoppingCart } from "lucide-react";
 import { exportCsv } from "@/lib/exportCsv";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
+import { PageSecondaryDisclosure } from "@/components/layout/PageSecondaryDisclosure";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
@@ -347,6 +349,16 @@ const Inventory = () => {
         ]}
       />
 
+      <PageTaskStart
+        title="Start with stock control"
+        description="Check availability first, then move stock into dispatch or raise the purchase work needed to replenish it."
+        tasks={[
+          { title: "Check stock", description: "Search items, suppliers, and current quantities.", href: undefined, onClick: () => document.getElementById("inventory-search")?.focus(), icon: Search },
+          { title: "Plan a delivery", description: "Use available stock in the dispatch workflow.", href: "/logistics", icon: Truck },
+          { title: "Review purchases", description: "Raise or follow a purchase for low-stock items.", href: "/procurement", icon: ShoppingCart },
+        ]}
+      />
+
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Card className="border-border/50"><CardContent className="pt-4 pb-3">
           <p className="text-xs text-muted-foreground">Total Items</p>
@@ -364,12 +376,14 @@ const Inventory = () => {
 
       <InventoryFinder />
 
-      <AiInsightPanel context="inventory" title="Inventory AI" suggestions={["Demand forecast for next month", "Detect abnormal usage", "Suggest reorder quantities", "Low stock risk analysis"]} data={inventory} />
+      <PageSecondaryDisclosure title="Inventory intelligence" description="Open AI demand and reorder suggestions after checking the live stock position and low-stock count.">
+        <AiInsightPanel context="inventory" title="Inventory AI" suggestions={["Demand forecast for next month", "Detect abnormal usage", "Suggest reorder quantities", "Low stock risk analysis"]} data={inventory} />
+      </PageSecondaryDisclosure>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search items or suppliers..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input id="inventory-search" placeholder="Search items or suppliers..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-full sm:w-[140px]"><SelectValue /></SelectTrigger>

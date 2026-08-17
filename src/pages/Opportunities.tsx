@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Target, Calendar, TrendingUp, Award, RefreshCw, Loader2, Brain, BarChart3, MapPin, Phone, Mail, Link, Printer, DollarSign, Sparkles, Download } from "lucide-react";
+import { Plus, Target, Calendar, TrendingUp, Award, RefreshCw, Loader2, Brain, BarChart3, MapPin, Phone, Mail, Link, Printer, DollarSign, Sparkles, Download, FileText, Users } from "lucide-react";
 import { exportCsv, csvDate } from "@/lib/exportCsv";
 import { formatCurrency } from "@/lib/constants";
 import { useGsapAnimation } from "@/hooks/useGsapAnimation";
@@ -322,6 +323,16 @@ const Opportunities = () => {
           </Dialog>
         </div>
       </PageHeader>
+
+      <PageTaskStart
+        title="Start with the sales pipeline"
+        description="Refresh the intelligence, prepare the next quotation, or open the client context before reviewing every opportunity card."
+        tasks={[
+          { title: "Refresh opportunity intelligence", description: "Pull the latest qualifying signals and ranking.", href: undefined, onClick: handleRefreshIntelligence, icon: RefreshCw, disabled: scanning },
+          { title: "Prepare a quotation", description: "Move a qualified opportunity into a priced offer.", href: "/quotations", icon: FileText },
+          { title: "Open client context", description: "Review contacts and relationship history.", href: "/clients", icon: Users },
+        ]}
+      />
 
       <WorkflowBanner
         storageKey="opportunities"

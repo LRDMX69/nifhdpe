@@ -10,6 +10,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Building2, Users, Shield, Check, X, Loader2, Camera, Trash2, Ban, UserX, MessageSquare, MapPin } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_LABELS, ALL_ROLES } from "@/lib/constants";
@@ -431,6 +432,7 @@ const AppSettings = () => {
       [userId]: { primary: "", secondary: "", ...(prev[userId] ?? {}), [slot]: value === "__none__" ? "" : value },
     }));
   const [uploading, setUploading] = useState(false);
+  const [activeSettingsTab, setActiveSettingsTab] = useState("team");
 
   const { data: org } = useQuery({
     queryKey: ["organization", orgId],
@@ -485,7 +487,17 @@ const AppSettings = () => {
         ]}
       />
 
-      <Tabs defaultValue="team" className="space-y-4">
+      <PageTaskStart
+        title="Start with the setting you need"
+        description="Choose the scope first, then make the smallest clearly explained change in that workspace."
+        tasks={[
+          { title: "Update organization", description: "Company details, logo, and document identity.", href: undefined, onClick: () => setActiveSettingsTab("organization"), icon: Building2 },
+          { title: "Manage the team", description: "Roles, access, and pending member requests.", href: undefined, onClick: () => setActiveSettingsTab("team"), icon: Users },
+          { title: "Open your profile", description: "Personal details, password, and avatar.", href: undefined, onClick: () => setActiveSettingsTab("profile"), icon: Shield },
+        ]}
+      />
+
+      <Tabs value={activeSettingsTab} onValueChange={setActiveSettingsTab} className="space-y-4">
         <div className="w-full overflow-x-auto pb-1 scrollbar-hide">
           <TabsList className="flex w-max min-w-full sm:w-auto sm:inline-flex bg-muted/50 p-1 gap-1">
             <TabsTrigger value="organization" className="gap-1 text-xs sm:text-sm whitespace-nowrap"><Building2 className="h-3 w-3 hidden sm:block" /> Organization</TabsTrigger>

@@ -3,6 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { InvoiceDialog } from "@/components/finance/InvoiceDialog";
 import { RecordPaymentDialog } from "@/components/finance/RecordPaymentDialog";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
+import { PageSecondaryDisclosure } from "@/components/layout/PageSecondaryDisclosure";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -686,6 +688,16 @@ const Finance = () => {
         ]}
       />
 
+      <PageTaskStart
+        title="Start with money in and money out"
+        description="Choose the finance task you came to complete before opening the broader tabs and intelligence."
+        tasks={[
+          { title: "Review invoices", description: "See balances, due dates, and invoice status.", href: "/finance?tab=invoices", icon: Receipt },
+          { title: "Review receipts and payments", description: "Match money received and worker payments.", href: "/finance?tab=receipts", icon: CreditCard },
+          { title: "Open bank analysis", description: "Review approved bank lines and reconciliation links.", href: "/finance?tab=bank-analysis", icon: Banknote },
+        ]}
+      />
+
       {/* Delete confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{deleteTarget?.type === "invoice" ? "Cancel this draft invoice?" : `Delete this ${deleteTarget?.type}?`}</AlertDialogTitle>
@@ -712,13 +724,15 @@ const Finance = () => {
       </div>
 
       {financeInsights && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Brain className="h-4 w-4 text-primary" />Finance AI Insights</CardTitle></CardHeader>
-          <CardContent>
-            <p className="text-sm whitespace-pre-wrap">{stripMarkdown(financeInsights.summary)}</p>
-            <p className="text-xs text-muted-foreground mt-2">Updated: {new Date(financeInsights.created_at).toLocaleString()}</p>
-          </CardContent>
-        </Card>
+        <PageSecondaryDisclosure title="Finance intelligence" description="Open AI guidance after you have reviewed the live finance position and selected the relevant tab.">
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Brain className="h-4 w-4 text-primary" />Finance AI Insights</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm whitespace-pre-wrap">{stripMarkdown(financeInsights.summary)}</p>
+              <p className="text-xs text-muted-foreground mt-2">Updated: {new Date(financeInsights.created_at).toLocaleString()}</p>
+            </CardContent>
+          </Card>
+        </PageSecondaryDisclosure>
       )}
 
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); const next = new URLSearchParams(searchParams); next.set("tab", v); setSearchParams(next, { replace: true }); }} className="space-y-4">

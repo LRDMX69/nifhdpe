@@ -14,8 +14,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileText, Search, Trash2, Loader2, MoreVertical, Pencil, Download, ShoppingCart, CheckCircle2, ReceiptText } from "lucide-react";
+import { Plus, FileText, Search, Trash2, Loader2, MoreVertical, Pencil, Download, ShoppingCart, CheckCircle2, ReceiptText, BarChart3 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
+import { PageSecondaryDisclosure } from "@/components/layout/PageSecondaryDisclosure";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
@@ -700,6 +702,16 @@ const Quotations = () => {
         )}
       </PageHeader>
 
+      <PageTaskStart
+        title="Start with a client offer"
+        description="Find the quote you need, follow the opportunity context, or continue the confirmed-order path."
+        tasks={[
+          { title: "Find a quotation", description: "Search by quote number or client name.", href: undefined, onClick: () => document.getElementById("quotations-search")?.focus(), icon: Search },
+          { title: "Review opportunities", description: "Start from a qualified lead or tender.", href: "/opportunities", icon: BarChart3 },
+          { title: "Review order handoff", description: "Move accepted work into delivery and finance.", href: "/logistics", icon: ShoppingCart },
+        ]}
+      />
+
       <WorkflowBanner
         storageKey="quotations"
         summary="Quotations are formal price offers to clients. Save as Draft while you fine-tune, Send when ready, create a controlled sales order after acceptance, and pass the confirmed order into delivery and finance without re-keying."
@@ -710,11 +722,13 @@ const Quotations = () => {
         ]}
       />
 
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-card p-3">
-        <div className="min-w-0"><p className="text-sm font-medium">Technical specifications</p><p className="text-xs text-muted-foreground">Select and maintain approved HDPE catalogue records inside the quotation workflow.</p></div>
-        <Button size="sm" variant="outline" onClick={() => setCatalogueOpen((open) => !open)}>{catalogueOpen ? "Hide catalogue" : "Open catalogue"}</Button>
-      </div>
-      {catalogueOpen && <ProductCataloguePanel orgId={orgId} canManage={canManageProductSpecifications} products={productSpecifications} onRefresh={() => { void refetchProductSpecifications(); }} />}
+      <PageSecondaryDisclosure title="Quotation specifications" description="Open the approved HDPE catalogue only when a quote needs a controlled product specification or catalogue maintenance.">
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-card p-3">
+          <div className="min-w-0"><p className="text-sm font-medium">Technical specifications</p><p className="text-xs text-muted-foreground">Select and maintain approved HDPE catalogue records inside the quotation workflow.</p></div>
+          <Button size="sm" variant="outline" onClick={() => setCatalogueOpen((open) => !open)}>{catalogueOpen ? "Hide catalogue" : "Open catalogue"}</Button>
+        </div>
+        {catalogueOpen && <ProductCataloguePanel orgId={orgId} canManage={canManageProductSpecifications} products={productSpecifications} onRefresh={() => { void refetchProductSpecifications(); }} />}
+      </PageSecondaryDisclosure>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete {deleteTarget?.quotation_number}?</AlertDialogTitle>
@@ -726,7 +740,8 @@ const Quotations = () => {
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search quotations..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+                  <Input id="quotations-search" placeholder="Search quotations..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+
       </div>
 
       {acceptedQuotations.length > 0 && <Card className="border-primary/20 bg-primary/5"><CardContent className="p-4 space-y-3"><div><p className="text-sm font-semibold">Commercial order lifecycle</p><p className="text-xs text-muted-foreground">Accepted quotations become controlled sales orders. Confirmation evaluates stock reservations and shortages; finance can then create the linked invoice.</p></div><div className="space-y-2">{acceptedQuotations.map((quotation) => { const order = salesOrders.find((candidate) => candidate.quotation_id === quotation.id); return <div key={quotation.id} className="flex flex-col gap-3 rounded-lg border bg-background/70 p-3 lg:flex-row lg:items-center lg:justify-between"><div className="min-w-0"><p className="text-sm font-medium">{quotation.quotation_number} · {quotation.clients?.name ?? "Client"}</p><p className="text-xs text-muted-foreground">{formatCurrency(Number(quotation.total_amount ?? 0))} · {order ? `${order.order_number} · ${order.status.replace("_", " ")}` : "No sales order yet"}</p></div><div className="flex flex-wrap gap-2">{!order && canEdit && <Button size="sm" variant="outline" onClick={() => createSalesOrder(quotation)} disabled={saving}><ShoppingCart className="h-3.5 w-3.5 mr-1" />Create sales order</Button>}{order && order.status === "draft" && canConfirmOrders && <Button size="sm" variant="outline" onClick={() => confirmSalesOrder(order)} disabled={saving}><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Confirm order</Button>}{order && ["confirmed", "partially_fulfilled", "fulfilled"].includes(order.status) && canCreateOrderInvoices && <Button size="sm" onClick={() => createInvoiceFromSalesOrder(order)} disabled={saving}><ReceiptText className="h-3.5 w-3.5 mr-1" />Create linked invoice</Button>}</div></div>; })}</div></CardContent></Card>}

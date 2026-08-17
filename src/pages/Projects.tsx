@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Search, Calendar, Loader2, MoreVertical, Pencil, Trash2, Users, MapPin, BarChart3, Download, ClipboardCheck } from "lucide-react";
 import { ProjectPnL } from "@/components/projects/ProjectPnL";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";
 import { supabase } from "@/integrations/supabase/client";
@@ -339,7 +340,6 @@ const Projects = () => {
         <Button size="sm" variant="outline" onClick={handleExport} disabled={projects.length === 0}>
           <Download className="h-3.5 w-3.5 mr-1" /> Export CSV
         </Button>
-        {canEdit && <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" /> New Project</Button>}
       </PageHeader>
 
       <WorkflowBanner
@@ -350,6 +350,16 @@ const Projects = () => {
           { actor: "Admin / Engineer", action: "Creates the project, sets client, budget, site GPS and assigns a head + team." },
           { actor: "Project Head", action: "Updates status & progress; team checks in on site and submits field reports." },
           { actor: "System", action: "Auto-links materials, deliveries and expenses; calculates project P&L on demand." },
+        ]}
+      />
+
+      <PageTaskStart
+        title="Start with project execution"
+        description="Find the site you need, create the next project, or review the evidence that keeps delivery moving."
+        tasks={[
+          { title: "Open a project", description: "Search active sites, clients, and current progress.", href: undefined, onClick: () => document.getElementById("projects-search")?.focus(), icon: Search },
+          ...(canEdit ? [{ title: "Create a project", description: "Set the client, budget, team, and site details.", href: undefined, onClick: openAdd, icon: Plus }] : []),
+          { title: "Review field reports", description: "Connect daily site evidence to project progress.", href: "/field-reports", icon: ClipboardCheck },
         ]}
       />
 
@@ -433,7 +443,7 @@ const Projects = () => {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search projects..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input id="projects-search" placeholder="Search projects..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-full sm:w-[160px]"><SelectValue /></SelectTrigger>

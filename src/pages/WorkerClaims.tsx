@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Clock, CheckCircle2, XCircle, Loader2, FileDown, Upload, AlertTriangle, Image as ImageIcon } from "lucide-react";
+import { Plus, Clock, CheckCircle2, XCircle, Loader2, FileDown, Upload, AlertTriangle, Image as ImageIcon, DollarSign, MessageSquare } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -459,6 +460,17 @@ const WorkerClaims = () => {
           </Dialog>
         )}
             </PageHeader>
+
+      <PageTaskStart
+        title={isReviewer ? "Start with claim review" : "Start with a claim or issue"}
+        description={isReviewer ? "Review the incoming queue, then follow approved claims into Finance." : "Submit a claim with proof, review your status, or contact the team when context is needed."}
+        tasks={[
+          ...(isReviewer ? [{ title: "Review pending claims", description: "Open the incoming review queue and flagged records.", href: undefined, onClick: () => document.querySelector('[role="tablist"]')?.scrollIntoView({ behavior: "smooth", block: "start" }), icon: FileText }] : [{ title: "Submit a claim", description: "Attach proof for an expense, overtime, or issue.", href: undefined, onClick: () => setOpen(true), icon: Plus }]),
+          { title: "Open Finance", description: "Follow approved claims into a linked payable.", href: "/finance", icon: DollarSign },
+          { title: "Open messages", description: "Ask for clarification without leaving the workflow.", href: "/messages", icon: MessageSquare },
+        ]}
+      />
+
       <Dialog open={!!paymentClaim} onOpenChange={(isOpen) => { if (!isOpen) setPaymentClaim(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Create payment from approved claim</DialogTitle></DialogHeader>

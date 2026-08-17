@@ -7,8 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Search, Phone, Mail, MapPin, User, MoreVertical, Loader2, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Phone, Mail, MapPin, User, MoreVertical, Loader2, Pencil, Trash2, FileText } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
+import { PageSecondaryDisclosure } from "@/components/layout/PageSecondaryDisclosure";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Users } from "lucide-react";
@@ -140,9 +142,6 @@ const Clients = () => {
         lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : null}
         onRefresh={() => refetch()}
       >
-        {canEdit && (
-          <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4 mr-1" /><span className="hidden sm:inline">Add Client</span><span className="sm:hidden">Add</span></Button>
-        )}
       </PageHeader>
 
       <WorkflowBanner
@@ -152,6 +151,16 @@ const Clients = () => {
           { actor: "Marketing / HR / Admin", action: "register the client with company name, contact person and address." },
           { actor: "Sales", action: "raises Quotations and Opportunities against the client record." },
           { actor: "Finance", action: "issues Invoices and Receipts that automatically pull the client's details." },
+        ]}
+      />
+
+      <PageTaskStart
+        title="Start with your client directory"
+        description="Find the company you need, add a new client, or move directly into the connected sales workflow."
+        tasks={[
+          ...(canEdit ? [{ title: "Add a client", description: "Create the record used by quotations and invoices.", href: undefined, onClick: openAdd, icon: Plus }] : []),
+          { title: "Find a client", description: "Search by company or contact person.", href: undefined, onClick: () => document.getElementById("clients-search")?.focus(), icon: Search },
+          { title: "Open quotations", description: "Continue from a client into a priced offer.", href: "/quotations", icon: FileText },
         ]}
       />
 
@@ -190,11 +199,13 @@ const Clients = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AiInsightPanel context="clients" title="CRM AI" suggestions={["Follow-up recommendations", "Client conversion prediction", "Revenue analysis by client", "Maintenance schedule review"]} data={clients} />
+      <PageSecondaryDisclosure title="CRM intelligence" description="Use AI suggestions only after the client list is clear and you know which record needs attention.">
+        <AiInsightPanel context="clients" title="CRM AI" suggestions={["Follow-up recommendations", "Client conversion prediction", "Revenue analysis by client", "Maintenance schedule review"]} data={clients} />
+      </PageSecondaryDisclosure>
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search clients..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Input id="clients-search" placeholder="Search clients..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       <AsyncBoundary

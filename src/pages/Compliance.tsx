@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
@@ -14,7 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, CheckCircle2, Clock, AlertTriangle, Loader2, Upload, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Plus, CheckCircle2, Clock, AlertTriangle, Loader2, Upload, MoreVertical, Pencil, Trash2, FileText } from "lucide-react";
 import { useGsapAnimation } from "@/hooks/useGsapAnimation";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -185,6 +186,16 @@ const Compliance = () => {
       >
         {canEdit && <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />Add Document</Button>}
       </PageHeader>
+
+      <PageTaskStart
+        title="Start with compliance evidence"
+        description="Add the record that is missing, review project-linked evidence, or open the central document registry."
+        tasks={[
+          { title: "Add compliance evidence", description: "Upload a certificate, inspection, or regulatory record.", href: undefined, onClick: openAdd, icon: Plus },
+          { title: "Review project evidence", description: "Open the site and project records connected to compliance.", href: "/projects", icon: ShieldCheck },
+          { title: "Open document registry", description: "Search approved and issued documents in one place.", href: "/documents", icon: FileText },
+        ]}
+      />
 
       <WorkflowBanner
         storageKey="compliance"

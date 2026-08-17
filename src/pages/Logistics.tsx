@@ -10,9 +10,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Truck, MapPin, Clock, Loader2, MoreVertical, Pencil, Trash2, CheckCircle2, Navigation, Fuel, Car, FileText, FileDown } from "lucide-react";
+import { Plus, Search, Truck, MapPin, Clock, Loader2, MoreVertical, Pencil, Trash2, CheckCircle2, Navigation, Fuel, Car, FileText, FileDown, Package } from "lucide-react";
 import { exportCsv } from "@/lib/exportCsv";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
@@ -410,6 +411,16 @@ const Logistics = () => {
       </PageHeader>
       <WaybillDialog open={waybillOpen} onOpenChange={setWaybillOpen} onCreated={() => { void refetch(); }} />
 
+      <PageTaskStart
+        title="Start with dispatch"
+        description="Find the delivery that needs attention, review the stock context, or move into the connected dispatch workflow."
+        tasks={[
+          { title: "Find a delivery", description: "Search by project, driver, destination, or status.", href: undefined, onClick: () => document.getElementById("logistics-search")?.focus(), icon: Search },
+          { title: "Review inventory", description: "Confirm stock availability before dispatch.", href: "/inventory", icon: Package },
+          { title: "Review documents", description: "Find issued waybills and reprint stored records.", href: "/documents", icon: FileText },
+        ]}
+      />
+
       <WorkflowBanner
         storageKey="logistics"
         summary="Confirmed orders enter the dispatch queue with their reserved stock and project lineage. Logistics creates the delivery, tracks fleet movement, and uses GPS to validate on-site completion."
@@ -440,7 +451,7 @@ const Logistics = () => {
             <div className="flex flex-col sm:flex-row gap-3 flex-1">
               <div className="relative flex-1 max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search deliveries..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+                <Input id="logistics-search" placeholder="Search deliveries..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full sm:w-[150px]"><SelectValue /></SelectTrigger>

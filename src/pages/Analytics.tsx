@@ -1,8 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts";
-import { TrendingUp, DollarSign, Percent, Package } from "lucide-react";
+import { TrendingUp, DollarSign, Percent, Package, BarChart3, BriefcaseBusiness, ReceiptText } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
+import { PageSecondaryDisclosure } from "@/components/layout/PageSecondaryDisclosure";
 import { useGsapStagger } from "@/hooks/useGsapAnimation";
 import { formatCurrency } from "@/lib/constants";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -230,6 +232,16 @@ const Analytics = () => {
         <div className="flex flex-wrap items-end gap-2"><div><p className="text-[11px] text-muted-foreground">From</p><Input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="h-8 w-[140px] text-xs" /></div><div><p className="text-[11px] text-muted-foreground">To</p><Input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="h-8 w-[140px] text-xs" /></div></div>
       </PageHeader>
 
+      <PageTaskStart
+        title="Start with a decision"
+        description="Choose the operating area you need to understand before opening the full chart set."
+        tasks={[
+          { title: "Review finance", description: "Open invoices, payments, expenses, and reconciliation.", href: "/finance", icon: ReceiptText },
+          { title: "Review projects", description: "See current delivery work and project execution signals.", href: "/projects", icon: BriefcaseBusiness },
+          { title: "Review the sales pipeline", description: "Connect accepted quotations and opportunities to the trend.", href: "/opportunities", icon: BarChart3 },
+        ]}
+      />
+
       <div ref={statsRef} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {operationalDashboard && <Card className="border-primary/20 bg-primary/5"><CardContent className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 lg:grid-cols-8"><div><p className="text-[10px] text-muted-foreground">Open demands</p><p className="text-lg font-semibold">{operationalDashboard.procurement?.open_demands ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Reserved stock</p><p className="text-lg font-semibold">{operationalDashboard.inventory?.reserved_stock_count ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Overdue invoices</p><p className="text-lg font-semibold">{operationalDashboard.receivables?.overdue_count ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Open service</p><p className="text-lg font-semibold">{operationalDashboard.service?.open_tickets ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">QA attention</p><p className="text-lg font-semibold">{operationalDashboard.quality?.qa_open ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Pending delivery</p><p className="text-lg font-semibold">{operationalDashboard.logistics?.pending_deliveries ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">Accepted quotes</p><p className="text-lg font-semibold">{operationalDashboard.pipeline?.quotations_accepted ?? 0}</p></div><div><p className="text-[10px] text-muted-foreground">In-progress projects</p><p className="text-lg font-semibold">{operationalDashboard.projects?.in_progress ?? 0}</p></div></CardContent></Card>}
 
@@ -249,6 +261,7 @@ const Analytics = () => {
         ))}
       </div>
 
+      <PageSecondaryDisclosure title="Detailed analytics" description="Open the chart set when you need to investigate a trend, compare periods, or prepare a management review.">
       <Card className="border-border/50">
         <CardHeader className="pb-2"><CardTitle className="text-sm">Cash Flow — Billed vs Collected</CardTitle></CardHeader>
         <CardContent>
@@ -349,6 +362,7 @@ const Analytics = () => {
           </CardContent>
         </Card>
       </div>
+      </PageSecondaryDisclosure>
     </div>
   );
 };

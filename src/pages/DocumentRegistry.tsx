@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
@@ -312,6 +313,16 @@ const DocumentRegistry = () => {
         </div>
       )}
 
+      <PageTaskStart
+        title="Start with the document you need"
+        description="Search the audit trail first, then return to the source module when you need to continue the work."
+        tasks={[
+          { title: "Find a document", description: "Search by reference, client, vendor, or date.", href: undefined, onClick: () => document.getElementById("document-registry-search")?.focus(), icon: Search },
+          { title: "Review finance documents", description: "Open invoices, receipts, and payment records.", href: "/finance", icon: ReceiptIcon },
+          { title: "Review waybills", description: "Return to logistics for delivery and reprint actions.", href: "/logistics", icon: Truck },
+        ]}
+      />
+
       <Card>
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center justify-between gap-3">
@@ -339,7 +350,7 @@ const DocumentRegistry = () => {
       <div className="flex flex-wrap items-end gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by reference, client, vendor…" className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input id="document-registry-search" placeholder="Search by reference, client, vendor…" className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <div className="flex flex-col">
           <label className="text-[10px] uppercase text-muted-foreground mb-1">From</label>

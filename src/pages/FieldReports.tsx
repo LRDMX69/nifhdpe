@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -577,6 +578,16 @@ const FieldReports = () => {
         )}
       </PageHeader>
 
+      <PageTaskStart
+        title={isAdmin ? "Start with report review" : "Start with today’s site report"}
+        description={isAdmin ? "Review the next submitted report, then open the connected project or safety context." : "Submit rough notes and photos, then use the connected project and HSE records to complete the site picture."}
+        tasks={[
+          ...(!isAdmin ? [{ title: "Submit a field report", description: "Write rough notes, add photos, and choose the recipient.", href: undefined, onClick: () => setOpen(true), icon: Plus }] : [{ title: "Review pending reports", description: "Open the report list and review incoming site evidence.", href: undefined, onClick: () => document.getElementById("field-reports-list")?.scrollIntoView({ behavior: "smooth", block: "start" }), icon: ClipboardList }]),
+          { title: "Open project context", description: "Connect the report to the work package and site progress.", href: "/projects", icon: FileText },
+          { title: "Review HSE", description: "Follow up incidents and safety observations.", href: "/hse", icon: AlertTriangle },
+        ]}
+      />
+
       <WorkflowBanner
         storageKey="field-reports-overview"
         title="How field reports flow"
@@ -834,6 +845,7 @@ const FieldReports = () => {
         ))}
       </div>
 
+      <div id="field-reports-list">
       <AsyncBoundary
         loading={reportsLoading}
         error={reportsError}
@@ -903,6 +915,7 @@ const FieldReports = () => {
         })}
         </div>
       </AsyncBoundary>
+      </div>
     </div>
   );
 };

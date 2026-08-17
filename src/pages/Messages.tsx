@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
 import { WorkflowBanner } from "@/components/ui/workflow-banner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Send, Megaphone, Loader2, Bell, Search, Trash2 } from "lucide-react";
+import { Send, Megaphone, Loader2, Bell, Search, Trash2, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -302,6 +303,7 @@ const Messages = () => {
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              id="messages-search"
               placeholder="Search conversations..."
               className="pl-8 w-48 sm:w-64"
               value={searchQuery}
@@ -352,6 +354,16 @@ const Messages = () => {
           )}
         </div>
       </PageHeader>
+
+      <PageTaskStart
+        title="Start with the conversation"
+        description="Find the thread that needs a reply, then move into the project or field-report context when the message belongs to active work."
+        tasks={[
+          { title: "Find a conversation", description: "Search people, subjects, and recent threads.", href: undefined, onClick: () => document.getElementById("messages-search")?.focus(), icon: Search },
+          { title: "Open project context", description: "Continue in the project group conversation.", href: "/projects", icon: Send },
+          { title: "Open field-report context", description: "Review site evidence and message the author.", href: "/field-reports", icon: FileText },
+        ]}
+      />
 
       <WorkflowBanner
         storageKey="messages"

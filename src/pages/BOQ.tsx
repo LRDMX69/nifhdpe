@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Loader2, ArrowLeft, FileSpreadsheet, FileDown } from "lucide-react";
+import { Plus, Trash2, Loader2, ArrowLeft, FileSpreadsheet, FileDown, Calculator, BriefcaseBusiness } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageTaskStart } from "@/components/layout/PageTaskStart";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { supabase as supa } from "@/integrations/supabase/client";
 const supabase = supa as any;
@@ -160,6 +161,16 @@ const BOQ = () => {
           </Dialog>
         )}
       </PageHeader>
+
+      <PageTaskStart
+        title="Start with quantity estimating"
+        description="Create the next bill of quantities, return to the project scope, or validate pipe inputs before building line items."
+        tasks={[
+          { title: "Create a BOQ", description: "Set the project, order context, and estimate title.", href: undefined, onClick: () => setDialogOpen(true), icon: Plus, disabled: !canEdit },
+          { title: "Review projects", description: "Open the site scope before estimating quantities.", href: "/projects", icon: BriefcaseBusiness },
+          { title: "Open pipe calculator", description: "Validate the engineering assumptions first.", href: "/calculator", icon: Calculator },
+        ]}
+      />
 
       <AsyncBoundary loading={isLoading} error={error} isEmpty={boqs.length === 0} emptyState={{ title: "No BOQs yet", description: "Create one to begin." }}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -331,6 +342,16 @@ const BoqDetail = ({ boq, orgId, onBack, canEdit }: { boq: Boq; orgId: string; o
         </div>
       </PageHeader>
 
+      <PageTaskStart
+        title="Start with this estimate"
+        description="Add the next measurable line item, return to the project context, or use the calculator to validate the engineering input."
+        tasks={[
+          { title: "Add a line item", description: "Enter the description, quantity, unit, and rate.", href: undefined, onClick: () => document.getElementById("boq-description")?.focus(), icon: Plus, disabled: !canEdit },
+          { title: "Review the project", description: "Open the site scope and execution context.", href: "/projects", icon: BriefcaseBusiness },
+          { title: "Open pipe calculator", description: "Validate sizing and hydraulic assumptions.", href: "/calculator", icon: Calculator },
+        ]}
+      />
+
       <Card>
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <div>
@@ -357,7 +378,7 @@ const BoqDetail = ({ boq, orgId, onBack, canEdit }: { boq: Boq; orgId: string; o
           <CardContent className="grid gap-2 sm:grid-cols-6">
             <Select value={row.product_specification_id} onValueChange={(value) => { const spec = productSpecifications.find((candidate) => candidate.id === value); setRow({ ...row, product_specification_id: value, item_code: spec?.product_code ?? row.item_code, description: spec?.product_name ?? row.description, unit: spec?.unit ?? row.unit }); }}><SelectTrigger className="sm:col-span-2"><SelectValue placeholder="Controlled product specification (optional)" /></SelectTrigger><SelectContent>{productSpecifications.map((spec) => <SelectItem key={spec.id} value={spec.id}>{spec.product_code} · {spec.product_name}</SelectItem>)}</SelectContent></Select>
             <Input placeholder="Code" value={row.item_code} onChange={(e) => setRow({ ...row, item_code: e.target.value })} className="sm:col-span-1" />
-            <Input placeholder="Description" value={row.description} onChange={(e) => setRow({ ...row, description: e.target.value })} className="sm:col-span-2" />
+            <Input id="boq-description" placeholder="Description" value={row.description} onChange={(e) => setRow({ ...row, description: e.target.value })} className="sm:col-span-2" />
             <Input placeholder="Unit (m, ea)" value={row.unit} onChange={(e) => setRow({ ...row, unit: e.target.value })} />
             <Input type="number" placeholder="Qty" value={row.quantity} onChange={(e) => setRow({ ...row, quantity: e.target.value })} />
             <Input type="number" placeholder="Rate (₦)" value={row.rate} onChange={(e) => setRow({ ...row, rate: e.target.value })} />
