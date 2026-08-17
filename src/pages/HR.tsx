@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { RecordActions } from "@/components/hr/RecordActions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { HolidayManager } from "@/components/HolidayManager";
 import { useAuth } from "@/contexts/AuthContext";
-import { CalendarDays, Award, Users, Clock, AlertTriangle, Plus, Loader2, TrendingDown, GraduationCap, ShieldAlert, Star, Briefcase, MoreVertical, Pencil, Trash2, CreditCard, DollarSign, BriefcaseBusiness, Landmark, Wallet, ChevronRight } from "lucide-react";
+import { CalendarDays, Award, Users, Clock, AlertTriangle, Plus, Loader2, TrendingDown, GraduationCap, ShieldAlert, Star, Briefcase, MoreVertical, Pencil, Trash2, CreditCard, DollarSign } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useGsapFadeUp } from "@/hooks/useGsapAnimation";
@@ -31,13 +32,11 @@ import type { Database } from "@/integrations/supabase/types";
 import { humanizeError } from "@/lib/humanizeError";
 import { industrialDb } from "@/lib/industrialDb";
 import { workerPaymentTypeLabel } from "@/lib/workerPaymentLabels";
-import { HRFinanceWorkspace } from "@/components/hr/HRFinanceWorkspace";
-import { HRCommercialOperationsPanel } from "@/components/hr/HRCommercialOperationsPanel";
-import { HRFinanceAuditWorkspace } from "@/components/hr/HRFinanceAuditWorkspace";
 
 const HR = () => {
   const { user, memberships, activeRole, isMaintenance } = useAuth();
   const headerRef = useGsapFadeUp();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const orgId = memberships[0]?.organization_id;
@@ -45,8 +44,6 @@ const HR = () => {
 
   // Leave request form
   const [leaveOpen, setLeaveOpen] = useState(false);
-  const [connectedOpen, setConnectedOpen] = useState(false);
-  const [connectedView, setConnectedView] = useState<"commercial" | "finance" | "audit">("commercial");
   const [leaveType, setLeaveType] = useState("annual");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -592,53 +589,6 @@ const HR = () => {
         </div>
       )}
 
-      {isHrOrAdmin && (
-        <>
-          <Card className="border-primary/15 bg-primary/[0.025]">
-            <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-              <div className="flex min-w-0 items-start gap-3">
-                <div className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary"><BriefcaseBusiness className="h-5 w-5" /></div>
-                <div className="min-w-0">
-                  <p className="font-semibold">Connected operations</p>
-                  <p className="mt-1 max-w-2xl text-sm leading-5 text-muted-foreground">See the records HR needs from Finance, commercial work, logistics, and bank review—without leaving this page or mixing ownership.</p>
-                </div>
-              </div>
-              <Button className="w-full shrink-0 sm:w-auto" onClick={() => setConnectedOpen(true)}><BriefcaseBusiness className="mr-2 h-4 w-4" />Open connected view</Button>
-            </CardContent>
-          </Card>
-
-          <Dialog open={connectedOpen} onOpenChange={setConnectedOpen}>
-            <DialogContent className="max-h-[92vh] w-[calc(100%-1rem)] max-w-6xl overflow-y-auto p-0 sm:w-[calc(100%-3rem)]">
-              <DialogHeader className="border-b px-5 py-5 pr-12 sm:px-6">
-                <DialogTitle>Connected operations</DialogTitle>
-                <DialogDescription>Choose one work area at a time. These are read-only connected views; the original Finance, Quotations, Logistics, and Bank Analysis records remain the source of truth.</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-                <nav aria-label="Connected operations areas" className="space-y-2">
-                  <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Work areas</p>
-                  {[
-                    { key: "commercial" as const, label: "Commercial & logistics", description: "Clients, quotations, invoices, deliveries", icon: BriefcaseBusiness },
-                    { key: "finance" as const, label: "HR finance", description: "Salary, loans, HMO, VAT, accounts", icon: Wallet },
-                    { key: "audit" as const, label: "Bank review", description: "Statements, reconciliation, director ledger", icon: Landmark },
-                  ].map((area) => {
-                    const Icon = area.icon;
-                    const selected = connectedView === area.key;
-                    return <Button key={area.key} type="button" variant={selected ? "secondary" : "ghost"} className={`h-auto w-full justify-between gap-3 px-3 py-3 text-left ${selected ? "border border-primary/20 bg-primary/10 text-foreground" : "text-muted-foreground"}`} onClick={() => setConnectedView(area.key)}>
-                      <span className="flex min-w-0 items-start gap-3"><Icon className={`mt-0.5 h-4 w-4 shrink-0 ${selected ? "text-primary" : ""}`} /><span className="min-w-0"><span className="block text-sm font-medium">{area.label}</span><span className="mt-0.5 block whitespace-normal text-[11px] font-normal leading-4 text-muted-foreground">{area.description}</span></span></span><ChevronRight className={`h-4 w-4 shrink-0 transition-transform ${selected ? "translate-x-0.5 text-primary" : "opacity-50"}`} />
-                    </Button>;
-                  })}
-                  <p className="px-2 pt-3 text-[11px] leading-4 text-muted-foreground">Use the owning module for full editing and detailed records.</p>
-                </nav>
-                <div className="min-w-0">
-                  {connectedView === "commercial" && <HRCommercialOperationsPanel orgId={orgId} />}
-                  {connectedView === "finance" && <HRFinanceWorkspace orgId={orgId} userId={user?.id} members={membersList} profileMap={profileMap} activeRole={activeRole ?? undefined} />}
-                  {connectedView === "audit" && <HRFinanceAuditWorkspace orgId={orgId} userId={user?.id} />}
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </>
-      )}
 
       {isHrOrAdmin && (attendancePatterns.lateArrivals.length > 3 || attendancePatterns.missingCheckouts.length > 0 || attendancePatterns.absentUsers.length > 0) && (
         <Card className="border-warning/30 bg-warning/5"><CardContent className="p-4 space-y-2">
@@ -703,7 +653,7 @@ const HR = () => {
         </DialogContent>
       </Dialog>
 
-      <Tabs defaultValue={isHrOrAdmin ? "attendance" : "leaves"} className="space-y-4">
+      <Tabs defaultValue={isHrOrAdmin && ["attendance", "leaves", "payroll", "idcards", "performance", "recruitment", "training", "skills", "disciplinary", "promotions"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab") ?? "attendance" : isHrOrAdmin ? "attendance" : "leaves"} className="space-y-4">
         <div className="w-full overflow-x-auto pb-2 scrollbar-hide">
           <TabsList className="flex w-max min-w-full h-auto justify-start bg-transparent p-0 gap-1">
             {isHrOrAdmin && <TabsTrigger value="attendance" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Attendance</TabsTrigger>}

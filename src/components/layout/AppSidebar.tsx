@@ -13,25 +13,25 @@ import { getNavItemsForRole, GROUP_ORDER, type NavGroup, type NavItem } from "@/
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 const tooltipData: Record<string, string> = {
-  "Dashboard": "Operational Command Center: View customized KPIs, active pipeline metrics, and department alerts tailored specifically to your active role.",
-  "Field Reports": "Field Logs: Submit, review, and track daily piping installation progress logs, supervisor daily records, and geolocations.",
-  "Finance": "Corporate Finance & Invoicing: Manage company accounts, review balance sheets, track invoice statuses, and generate CFO financial summaries.",
-  "Opportunities": "Sales Pipelines: Track commercial project leads, incoming bidding opportunities, and estimated contract values. Optimized for Sales teams.",
+  "Dashboard": "Your starting point: see what needs attention today, open your role’s main tasks, and review key business signals.",
+  "Field Reports": "Daily site reports: record work completed, attach evidence, and review installation progress.",
+  "Finance": "Money and invoices: record receipts, review expenses, manage payments, and see what is still owed.",
+  "Opportunities": "Sales leads: track possible projects, follow up with clients, and move opportunities toward quotations.",
   "Claims": "Incident & Hazard Claims: Log safety events, equipment damage, or hazard claims. Generates certified PDF claim sheets instantly.",
   "Messages": "Operations Real-Time Chat: Communicate instantly with project heads, field engineers, and departments. Autocreated when projects launch.",
-  "Procurement": "Material Requisitions & POs: Manage material requisitions, track pipeline supply vendor catalogs, and submit purchase orders for approval.",
+  "Procurement": "Buying and purchase orders: request materials, compare vendors, and send purchases for approval.",
   "HSE": "HSE Compliance: Log on-site health and safety checks, monitor risk indices, and ensure strict compliance with construction regulations.",
-  "HR": "Workforce & Site Check-Ins: Clock-in/out of job sites with automatic geofencing. Generates payroll worksheets and tracks team role lists.",
-  "Quotations": "Commercial Estimates: Build multi-item piping job quotes, calculate SDR pricing margins, and email project estimations to prospective clients.",
+  "HR": "People and attendance: review check-ins, leave, payroll, employee records, recruitment, and training.",
+  "Quotations": "Client estimates: prepare itemized prices, terms, and documents for a client’s proposed work.",
   "Clients": "Client Directories: Manage primary contact registers, corporate pipeline accounts, and active contract profiles.",
-  "Inventory": "Piping Warehouses: Track stock levels, SDR pipe dimensions, and fittings. Triggers real-time alerts when supply reaches threshold limits.",
+  "Inventory": "Stock on hand: see pipe and fitting quantities, reserved materials, and low-stock items.",
   "Projects": "Installation Portfolio: Manage active project phases, check geofenced coordinates, assign crew leaders, and calculate budget margins.",
-  "Logistics": "Fleet Logistics & Shipping: Plan material deliveries, track vehicle plates, assign certified drivers, and calculate travel distances.",
+  "Logistics": "Deliveries and fleet: plan dispatches, assign drivers, track delivery status, and print waybills.",
   "Equipment": "Machinery Assets: Track operations schedules, usage logs, maintenance intervals, and operator allocations for all heavy site tools.",
   "Compliance": "Regulatory Frameworks: Track state environmental approvals, safety standards, and pipeline regulatory checklists.",
   "Analytics": "Performance Metrics: Review pipeline performance, delivery speeds, warehouse trends, and financial growth charts.",
-  "Calculator": "Engineering Pipe Sizer: Hazen-Williams calculator that computes velocities, head losses, pressure bounds, and unit weights in real-time.",
-  "Settings": "Operations Settings: Manage multi-tenant workspaces, edit system profiles, and assign/approve team access permissions."
+  "Calculator": "Pipe sizing tool: compare pipe sizes and calculate flow, pressure, and head-loss values.",
+  "Settings": "Workspace settings: manage organization details, user access, roles, and system preferences."
 };
 
 export const AppSidebar = () => {

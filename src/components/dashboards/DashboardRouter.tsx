@@ -12,6 +12,7 @@ import SalesDashboard from "./SalesDashboard";
 import TraineeDashboard from "./TraineeDashboard";
 import KnowledgeManagerDashboard from "./KnowledgeManagerDashboard";
 import { NeedsAttentionPanel } from "./NeedsAttentionPanel";
+import { RoleQuickStart } from "./RoleQuickStart";
 
 const dashboardMap: Record<string, React.FC> = {
   administrator: AdminDashboard,
@@ -135,7 +136,7 @@ const DashboardRouter = () => {
 
   const showSwitcher = memberships.length > 1 || isMaintenance;
   const rolesList = isMaintenance
-    ? ["administrator", "engineer", "technician", "warehouse", "finance", "hr", "reception_sales", "knowledge_manager", "siwes_trainee", "it_student", "nysc_member"]
+    ? ["administrator", "technician", "warehouse", "finance", "hr", "reception_sales", "knowledge_manager", "siwes_trainee"]
     : [...new Set(memberships.map((m) => m.role))];
 
   const effectiveRole = activeRole ?? (isMaintenance ? "administrator" : undefined);
@@ -146,7 +147,10 @@ const DashboardRouter = () => {
       {/* Role switcher for multi-role users or maintenance/testing sessions */}
       {showSwitcher && (
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 pb-2">
-          <span className="text-xs sm:text-sm text-muted-foreground font-semibold">Operational Role Testing Switcher:</span>
+          <div className="min-w-0">
+            <span className="text-xs font-semibold text-foreground sm:text-sm">{isMaintenance ? "Maintenance role preview" : "Your workspaces"}</span>
+            <p className="text-[11px] leading-4 text-muted-foreground">{isMaintenance ? "Preview each role’s dashboard and navigation. This does not change account permissions." : "Choose the workspace that matches your current responsibility."}</p>
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {rolesList.map((r) => (
               <Button
@@ -166,12 +170,13 @@ const DashboardRouter = () => {
       {roleInfo && (
         <WorkflowBanner
           storageKey={`dashboard-${effectiveRole}`}
-          title="Your responsibilities"
+          title="Start here"
           summary={roleInfo.summary}
           steps={roleInfo.steps}
         />
       )}
 
+      {effectiveRole && !["hr", "it_student", "nysc_member"].includes(effectiveRole) && <RoleQuickStart role={effectiveRole} />}
       {effectiveRole && <NeedsAttentionPanel />}
 
       {DashboardComponent ? (
