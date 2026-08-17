@@ -2,7 +2,6 @@ import { Outlet } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { MobileNav } from "./MobileNav";
 import { BottomNav } from "./BottomNav";
-import { RoleBasedOnboarding } from "./RoleBasedOnboarding";
 import { CommandPalette } from "../CommandPalette";
 import { HelpSheetProvider } from "../HelpSheetProvider";
 import { GuidedTour } from "../GuidedTour";
@@ -23,7 +22,6 @@ export const AppLayout = () => {
           </main>
           {/* Mobile bottom nav */}
           <BottomNav />
-          <RoleBasedOnboarding />
           <CommandPalette />
           <GuidedTour />
           <FeedbackButton />

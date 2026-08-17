@@ -27,3 +27,29 @@ Using the live Operational Role Testing Switcher, the HR preset displayed a narr
 The HR role dashboard therefore confirms the information-architecture gap: the user’s role dashboard is too sparse to function as a reliable starting point, while the feature page carries the centralized cross-functional content in a cramped modal-triggered block. The redesign should bring the centralized view into the HR dashboard and add clear role-specific entry actions such as `Review attendance`, `Review leave requests`, `Open payroll`, `Manage employee records`, and `Open connected operations`.
 
 The role switcher is also visibly labeled `Operational Role Testing Switcher` in the live product and includes duplicate-looking role labels caused by multiple enum aliases. That wording is appropriate for maintenance QA but not for everyday users; the production-facing role context should be presented as `Viewing as HR` or `Your workspace`, while the testing control should be visually secondary or maintenance-only.
+
+## Post-deployment verification
+
+After commit `3bc9672` deployed, the live dashboard showed the revised `Maintenance role preview` wording, a single canonical button for each available preset (`Administrator`, `Technical Dept.`, `Logistics`, `Accounts`, `HR`, `Marketing`, `Knowledge Manager`, `Trainee Dept.`), and the `Start here` responsibility banner. The Administrator dashboard also displayed three beginner-oriented shortcuts: `Review action queue`, `Review financial position`, and `Manage people and access`.
+
+The live HR role dashboard now shows `Your HR workspace`, `Viewing as HR`, four clear first actions (`Review attendance`, `Review leave requests`, `Run payroll`, and `Manage people records`), current HR metrics, pending leave context, workforce intelligence, and an always-visible `Connected operations` section. The connected section is no longer a modal trigger inside the HR feature page; it is part of the role dashboard and presents `People & finance`, `Commercial & deliveries`, and `Bank review` as explicit work areas. The live HR dashboard loaded the Finance & Benefits Workspace by default and displayed the existing DMX salary and overtime records, confirming that the centralized view is connected to real data rather than a placeholder.
+
+## HR feature-page verification
+
+The live URL `https://nifhdpe.vercel.app/hr?tab=payroll` opened the Payroll tab directly, with the Payroll tab visibly selected and the real worker-payment records loaded. The HR feature page now remains focused on HR-owned tabs and actions. A live keyword search for the former `Connected operations` block returned no match, confirming that the centralized view was removed from the cramped feature-page surface after being relocated to the HR dashboard.
+
+## Logistics role verification
+
+The live Logistics preset displayed only the expected role-scoped modules and showed the new `Start with stock and dispatch` quick-start panel. Its three actions were clearly labeled `Check inventory`, `Plan a delivery`, and `Review purchases`, with descriptions matching the normal warehouse flow. The dashboard also retained the existing Needs Your Attention queue and live low-stock information, confirming that the beginner layer was added above real operational data rather than replacing it.
+
+## Mobile responsive verification
+
+A Playwright live session measured the deployed Dashboard redesign at `390×844`. The document width and body width were both exactly `390px`, with zero detected horizontal-overflow offenders. The Administrator quick-start panel rendered three visible `Open` links within the viewport. This confirms that the new beginner navigation layer preserves the previously certified mobile containment.
+
+The browser session reported two console errors: a browser restriction for requesting Notification permission outside a short user event, and a rejected Supabase realtime `__cf_bm` cookie due to domain handling. Neither error originated from the UX components or prevented the dashboard from rendering and being measured; they are recorded as environmental/pre-existing runtime noise for follow-up separately.
+
+## First-use onboarding collision and fix
+
+The mobile accessibility snapshot exposed two simultaneous first-use layers: the role guide dialog (`Hi Ola, Platform Administrator Guide`) and the interactive `Welcome to NIF Operations` guided-tour dialog. Two overlapping dialogs create competing focus, obscure the dashboard, and force an untrained user to decide which instruction layer to follow. This was a genuine first-use UX defect.
+
+The shared app shell was hardened so only the interactive guided tour auto-opens. The role guide component remains available in the codebase for future intentional use, while the dashboard’s `Start here` banner and the guided tour now provide the first-use explanation without overlapping modal layers. Local TypeScript, production build, 26 regression tests, and diff hygiene all passed after the fix.
