@@ -141,3 +141,7 @@ The `Open connected workspaces` disclosure was opened once on the live HR dashbo
 ## Final hierarchy adjustment
 
 The final review showed that even the compact version was clearer when the four everyday HR tasks appeared immediately after the page orientation, before the connected HR-Finance summary. The order is now: **Start your HR work → HR + Finance at a glance → People pulse and supporting context → detailed connected workspaces**. This keeps the centralized view on the HR dashboard while making the first click obvious for an untrained employee.
+
+## Final live task-first verification
+
+After commit `0a84bdf` and CI run `32031025038` completed successfully, the deployed HR preview now presents `Start your HR work` before `HR + Finance at a glance`. The first visible action links are `Review attendance`, `Review leave requests`, `Run payroll`, and `Manage people records`; the connected finance summary follows as a monitoring layer, and `Open connected workspaces` remains available at the bottom behind explicit disclosure. The cleared live data renders as `0` payroll, `0` receivables, `0` bank position, `0` income, and `0` supplier obligations without placeholder sample records, while the real organization-member count remains visible as `3`.
