@@ -214,27 +214,10 @@ export function NeedsAttentionPanel() {
   if (!items.length) return null;
 
   return (
-    <Card className="border-warning/30" data-tour="needs-attention">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-warning" /> Needs Your Attention
-          <Badge variant="warning" className="ml-auto text-[10px]">{items.length}</Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-1 p-2">
-        {items.map((it) => (
-          <Link
-            key={it.id}
-            to={it.to}
-            className="flex items-center justify-between gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors group"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium truncate">{it.label}</p>
-              <p className="text-xs text-muted-foreground truncate">{it.detail}</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground shrink-0" />
-          </Link>
-        ))}
+    <Card className="border-warning/30" data-tour="needs-attention" id="needs-attention">
+      <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-sm"><AlertCircle className="h-4 w-4 text-warning" /> Needs your attention <Badge variant="warning" className="ml-auto text-[10px]">{items.length}</Badge></CardTitle></CardHeader>
+      <CardContent className="grid gap-1 p-2 sm:grid-cols-2">
+        {items.slice(0, 6).map((it) => <Link key={it.id} to={it.to} className="group flex min-w-0 items-center justify-between gap-2 rounded-md border border-border/50 p-2.5 transition-colors hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40"><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{it.label}</p><p className="truncate text-xs text-muted-foreground">{it.detail}</p></div><ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground" /></Link>)}
       </CardContent>
     </Card>
   );

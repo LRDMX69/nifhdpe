@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -11,7 +12,7 @@ import { StatCard } from "./StatCard";
 import { 
   TrendingUp, TrendingDown, DollarSign, AlertCircle, AlertTriangle,
   Briefcase, Users, ShieldAlert, ArrowUpRight, 
-  Calendar, CheckCircle2, Clock, Loader2, Zap, Target, Wrench, Mail, RefreshCw, Printer, Bot, FileText, XCircle,
+  Calendar, CheckCircle2, Clock, Loader2, Zap, Target, Wrench, Mail, RefreshCw, Printer, Bot, FileText, XCircle, ChevronDown,
 } from "lucide-react";
 import { useGsapStagger, useGsapFadeUp } from "@/hooks/useGsapAnimation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -468,6 +469,9 @@ const AdminDashboard = () => {
         ))}
       </div>
 
+      <Collapsible defaultOpen={false} className="space-y-3">
+        <div className="flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/[0.02] p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold">Detailed administrator oversight</p><p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">Open this when you need charts, AI intelligence, overdue invoices, project risk, field reports, or the full executive digest.</p></div><CollapsibleTrigger asChild><Button variant="outline" size="sm" className="shrink-0">Open detailed oversight<ChevronDown className="ml-1 h-3.5 w-3.5" /></Button></CollapsibleTrigger></div>
+        <CollapsibleContent>
       <div ref={printRef} className="print-container">
         <div className="hidden print:block mb-6">
           <h1 className="text-2xl font-bold">NIF Technical — Executive Daily Digest</h1>
@@ -812,9 +816,10 @@ const AdminDashboard = () => {
             <IntelligenceFeed />
           </div>
         </div>
-      </div>
+            </div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 };
-
 export default AdminDashboard;

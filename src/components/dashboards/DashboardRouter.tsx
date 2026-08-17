@@ -176,8 +176,8 @@ const DashboardRouter = () => {
         />
       )}
 
-      {effectiveRole && !["hr", "it_student", "nysc_member"].includes(effectiveRole) && <RoleQuickStart role={effectiveRole} />}
-      {effectiveRole && <NeedsAttentionPanel />}
+      {effectiveRole && !["hr", "knowledge_manager", "siwes_trainee", "it_student", "nysc_member"].includes(effectiveRole) && <RoleQuickStart role={effectiveRole} />}
+      {effectiveRole && !["administrator", "hr", "knowledge_manager", "siwes_trainee", "it_student", "nysc_member"].includes(effectiveRole) && <NeedsAttentionPanel />}
 
       {DashboardComponent ? (
         <DashboardComponent />
@@ -187,6 +187,7 @@ const DashboardRouter = () => {
           <p className="text-sm mt-2">No role assigned yet. Please contact your administrator.</p>
         </div>
       )}
+
     </div>
   );
 };
