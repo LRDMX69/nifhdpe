@@ -54,10 +54,8 @@ The mobile accessibility snapshot exposed two simultaneous first-use layers: the
 
 The shared app shell was hardened so only the interactive guided tour auto-opens. The role guide component remains available in the codebase for future intentional use, while the dashboard’s `Start here` banner and the guided tour now provide the first-use explanation without overlapping modal layers. Local TypeScript, production build, 26 regression tests, and diff hygiene all passed after the fix.
 
-## Architecture correction: maintenance Administrator placement
+## Architecture clarification and rollback
 
-The previous implementation placed `Connected operations` inside the HR role dashboard. That was incorrect for the requested maintenance workflow. The intended surface is the maintenance Administrator dashboard, where the maintenance role previews how other roles work and needs a cross-role HR oversight view without switching into the HR role.
+A later implementation temporarily moved `Connected operations` into the maintenance Administrator dashboard. That was an architectural mistake. The governing pasted specification confirms that the centralized HR view belongs on the normal HR role dashboard; the maintenance Administrator is only an inspection and role-preview environment and must not contain another role’s operational dashboard.
 
-The correction moves the connected HR oversight into `AdminDashboard` through `MaintenanceHROversight`, which renders only when `isMaintenance` is true. The HR role dashboard keeps its own HR-specific first actions and live HR metrics but no longer renders the cross-functional connected-operations panel. The normal `/hr` feature page remains focused on HR-owned tabs and editing workflows.
-
-Local validation after the correction passed TypeScript, production build, all 26 regression tests, and diff hygiene.
+The mistaken Administrator placement has been removed and the HR dashboard implementation has been restored so the centralized view remains on the HR role dashboard. The maintenance role switcher remains available for inspecting the HR role experience without relocating HR content. Local validation after the rollback passed TypeScript, production build, all 26 regression tests, and diff hygiene.

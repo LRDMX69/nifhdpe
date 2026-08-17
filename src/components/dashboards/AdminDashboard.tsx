@@ -22,7 +22,6 @@ import { CheckInWidget } from "@/components/CheckInWidget";
 import { IntelligenceFeed } from "@/components/dashboards/IntelligenceFeed";
 import { useToast } from "@/hooks/use-toast";
 import { useExecutiveFinancials } from "@/hooks/useExecutiveFinancials";
-import { MaintenanceHROversight } from "@/components/dashboards/MaintenanceHROversight";
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, 
   ResponsiveContainer, CartesianGrid
@@ -455,7 +454,6 @@ const AdminDashboard = () => {
         </Card>
       )}
 
-      <MaintenanceHROversight />
 
       <div ref={statsRef} className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3">
         {stats.map((stat) => (

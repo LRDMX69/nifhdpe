@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { useGsapFadeUp, useGsapStagger } from "@/hooks/useGsapAnimation";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { HRConnectedOperationsView } from "@/components/hr/HRConnectedOperationsView";
 
 type Member = { user_id: string; role: string };
+type Profile = { full_name?: string | null; account_number?: string | null };
 
 const HRDashboard = () => {
-  const { profile, memberships, activeRole, isMaintenance } = useAuth();
+  const { user, profile, memberships, activeRole, isMaintenance } = useAuth();
   const headerRef = useGsapFadeUp();
   const cardsRef = useGsapStagger(".gsap-card", 0.08);
   const orgId = memberships[0]?.organization_id;
@@ -77,6 +79,17 @@ const HRDashboard = () => {
     enabled: !!orgId && isHrOrAdmin,
   });
 
+  const { data: profileMap = new Map<string, Profile>() } = useQuery({
+    queryKey: ["profiles-for-hr", orgId],
+    queryFn: async () => {
+      if (!orgId) return new Map<string, Profile>();
+      const { data, error } = await (supabase as any).rpc("get_org_payroll_profiles", { _org_id: orgId });
+      if (error) throw error;
+      return new Map< string, Profile >(((data as Array<Profile & { user_id: string }>) ?? []).map((item) => [item.user_id, item]));
+    },
+    enabled: !!orgId && isHrOrAdmin,
+  });
+
   const actionCards = [
     { title: "Review attendance", description: "Check today’s arrivals, missing check-outs, and attendance history.", href: "/hr?tab=attendance", icon: Clock },
     { title: "Review leave requests", description: "Approve, return, or follow up on staff leave requests.", href: "/hr?tab=leaves", icon: CalendarDays },
@@ -98,7 +111,7 @@ const HRDashboard = () => {
         </div>
       </div>
 
-      <div ref={cardsRef} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div ref={cardsRef} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {actionCards.map((action) => {
           const Icon = action.icon;
           return (
@@ -123,6 +136,7 @@ const HRDashboard = () => {
         <Card className="border-border/50"><CardContent className="p-4"><Clock className="mb-2 h-5 w-5 text-primary" /><p className="text-2xl font-bold">{todayAttendance?.length ?? 0}</p><p className="text-xs text-muted-foreground">Checked in today</p></CardContent></Card>
         <Card className="border-border/50"><CardContent className="p-4"><CalendarDays className="mb-2 h-5 w-5 text-warning" /><p className="text-2xl font-bold">{pendingLeaves?.length ?? 0}</p><p className="text-xs text-muted-foreground">Leave requests awaiting review</p></CardContent></Card>
         <Card className="border-border/50"><CardContent className="p-4"><IdCard className="mb-2 h-5 w-5 text-primary" /><p className="text-2xl font-bold">{members.length}</p><p className="text-xs text-muted-foreground">People in this workspace</p></CardContent></Card>
+        <Card className="border-border/50"><CardContent className="p-4"><BriefcaseBusiness className="mb-2 h-5 w-5 text-primary" /><p className="text-2xl font-bold">3</p><p className="text-xs text-muted-foreground">Connected work areas</p></CardContent></Card>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -141,6 +155,7 @@ const HRDashboard = () => {
         </Card>
       </div>
 
+      {isHrOrAdmin && <HRConnectedOperationsView orgId={orgId} userId={user?.id} members={members} profileMap={profileMap} activeRole={activeRole ?? undefined} />}
     </div>
   );
 };
