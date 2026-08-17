@@ -566,7 +566,7 @@ const Finance = () => {
       <PageHeader
         title="Finance"
         description="Revenue, expenses, payments, and profit tracking"
-        executiveSummary={`${invoices.filter((i: any) => i.status !== "paid").length} unpaid invoices · ${payments.length} recent payments tracked`}
+        executiveSummary={`${invoices.filter((invoice) => !["draft", "cancelled", "void"].includes(String(invoice.status ?? "").toLowerCase()) && Number(invoice.balance_due ?? 0) > 0).length} unpaid invoices · ${payments.length} recent payments tracked`}
         lastUpdated={Math.max(invoicesUpdatedAt || 0, paymentsUpdatedAt || 0) || null}
         onRefresh={() => { refetchInvoices(); refetchPayments(); refetchExpenses(); refetchReceipts(); refetchFinanceReport(); refetchBankTransactions(); refetchTransactionLinks(); refetchAdditionalBankLinkSources(); }}
       >

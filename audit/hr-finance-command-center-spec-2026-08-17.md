@@ -38,3 +38,9 @@ The dashboard must query the source records directly with organization scoping a
 ## Permission requirements
 
 The dashboard must render the command center only for `activeRole === "hr"`, Administrator, or the maintenance preview where the HR dashboard itself is being inspected. It must not expose HR-Finance records to roles that cannot legitimately view those modules. The maintenance Administrator’s own dashboard must remain separate from this HR command center.
+
+## Live cross-check finding
+
+The first live cross-check exposed one real synchronization defect outside the new command-center component: the Finance page header counted any invoice whose status was not `paid`, which included the cancelled UAT invoice `INVOICES/2026/0001B` even though its balance was excluded from receivables. The command center correctly reported `0` unpaid or part-paid invoices from positive operational `balance_due` values. Finance.tsx was corrected to use the same operational, positive-balance predicate, so the canonical Finance header and the HR command center now agree.
+
+The deployed pre-correction baseline also confirmed the command-center source values against the Finance and HR pages: payroll scheduled **₦433,975.33**, overtime **₦24,000.00**, staff loans **₦82,000.00**, total invoice value and income received **₦205,918.79**, total expenses **₦501,975.33**, receivables **₦0.00**, latest statement position **₦1,205,518.79**, supplier obligations **₦30,000.00**, and VAT payable **₦17,918.79**. The displayed payroll rows were the same two paid salary records shown in the HR workspace, and the displayed overtime row matched the paid DMX overtime record.
