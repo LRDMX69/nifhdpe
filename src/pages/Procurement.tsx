@@ -189,6 +189,7 @@ const Procurement = () => {
       setPoVendorId(""); setPoMode("local"); setPoVendorInvoice(""); setPoFolio(""); setPoSiteReference(""); setPoVat(""); setPoHaulage(""); setPoExchangeRate(""); setPoAmountPaid("");
       setPoItems([{ id: `po-item-${Date.now()}`, itemName: "", description: "", quantity: "1", unit: "", unitPrice: "0" }]);
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-dashboard-summary", orgId] });
     },
     onError: (err: Error) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
@@ -248,6 +249,7 @@ const Procurement = () => {
     onSuccess: () => {
       toast({ title: "Goods received", description: "GRN, inventory, lot, stock movement, remaining quantity, PO status, and audit records were updated." });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-dashboard-summary", orgId] });
       queryClient.invalidateQueries({ queryKey: ["goods-received-notes"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       queryClient.invalidateQueries({ queryKey: ["operations"] });

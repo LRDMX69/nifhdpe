@@ -30,6 +30,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
     onSuccess: () => {
       toast({ title: "Leave request submitted" });
       queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-dashboard-summary", orgId] });
     },
     onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
@@ -42,6 +43,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
     onSuccess: (_, { status }) => {
       toast({ title: `Leave ${status}` });
       queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-dashboard-summary", orgId] });
     },
   });
 
@@ -172,6 +174,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
     onSuccess: (_, values) => {
       toast({ title: values.editingDisc ? "Updated" : "Added" });
       queryClient.invalidateQueries({ queryKey: ["disciplinary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-dashboard-summary", orgId] });
     },
     onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),
   });
@@ -273,6 +276,7 @@ export const useHRMutations = ({ orgId, userId }: UseHRMutationsProps) => {
       queryClient.invalidateQueries({ queryKey: ["training-logs"] });
       queryClient.invalidateQueries({ queryKey: ["employee-skills"] });
       queryClient.invalidateQueries({ queryKey: ["disciplinary"] });
+      queryClient.invalidateQueries({ queryKey: ["hr-dashboard-summary", orgId] });
       queryClient.invalidateQueries({ queryKey: ["promotions"] });
     },
     onError: (err: { message: string }) => toast({ title: "Error", description: humanizeError(err), variant: "destructive" }),

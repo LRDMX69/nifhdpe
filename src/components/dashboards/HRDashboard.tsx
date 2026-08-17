@@ -7,6 +7,7 @@ import { useGsapFadeUp, useGsapStagger } from "@/hooks/useGsapAnimation";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { HRConnectedOperationsView } from "@/components/hr/HRConnectedOperationsView";
+import { HRFinanceCommandCenter } from "@/components/dashboards/HRFinanceCommandCenter";
 
 type Member = { user_id: string; role: string };
 type Profile = { full_name?: string | null; account_number?: string | null };
@@ -103,13 +104,15 @@ const HRDashboard = () => {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Your HR workspace</p>
           <h1 className="mt-1 text-xl font-bold sm:text-2xl">HR Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name?.split(" ")[0] ?? "HR"}. Start with today’s people tasks, then review connected operations below.</p>
+          <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name?.split(" ")[0] ?? "HR"}. Start with the live HR + Finance command center, then open the owning workspace when you need to act.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 font-medium text-foreground">Viewing as {activeRole === "hr" ? "HR" : "Administrator"}</span>
           <span>People records remain the source of truth in the HR workspace.</span>
         </div>
       </div>
+
+      <HRFinanceCommandCenter orgId={orgId} activeRole={activeRole ?? undefined} />
 
       <div ref={cardsRef} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {actionCards.map((action) => {

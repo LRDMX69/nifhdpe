@@ -109,3 +109,9 @@ The route smoke also confirms that each major page has a recognizable title or d
 ## Maintenance role-preview obstruction
 
 During a desktop role-matrix automation pass, the auto-opening Guided Tour overlay intercepted pointer events on the `Technical Dept.` role button. The role button was visible and enabled, but the tour overlay blocked the click for 30 seconds. This is a genuine usability defect for the maintenance workflow: the maintenance role exists specifically to inspect other role experiences, so a first-use tour must not prevent access to the role switcher. The fix should suppress automatic tour launch for maintenance sessions while retaining a replayable tour for normal users.
+
+## Role-dashboard and maintenance-preview audit
+
+After the guided-tour hardening deployed, the desktop role matrix successfully switched through all eight canonical presets: Administrator, Technical Dept., Logistics, Accounts, HR, Marketing, Knowledge Manager, and Trainee Dept. The previous click interception did not recur. Each role rendered a role-specific start banner or dashboard copy, role-scoped sidebar links, and `documentWidth === viewportWidth` at `1200×900`.
+
+The HR role exposed the centralized dashboard view and four direct workspace actions. Logistics exposed `Check inventory`, `Plan a delivery`, and `Review purchases`; Accounts exposed money-in/money-out actions; Marketing exposed sales-pipeline actions; Technical exposed site-work actions; Knowledge Manager exposed shared knowledge actions; and Trainee narrowed the surface to dashboard, calculator, and documents actions rather than exposing unrelated operational modules. The Administrator retained its own command-center and inspection controls without embedding the HR centralized workspace. This is consistent with the pasted architecture and materially improves first-use predictability.

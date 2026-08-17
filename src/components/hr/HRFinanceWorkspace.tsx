@@ -154,7 +154,10 @@ export function HRFinanceWorkspace({ orgId, userId, members, profileMap, activeR
     onError: (error) => toast({ title: "Could not save record", description: humanizeError(error), variant: "destructive" }),
   });
 
-  const refresh = (keys: string[]) => keys.forEach((key) => queryClient.invalidateQueries({ queryKey: [key, orgId] }));
+  const refresh = (keys: string[]) => {
+    keys.forEach((key) => queryClient.invalidateQueries({ queryKey: [key, orgId] }));
+    queryClient.invalidateQueries({ queryKey: ["hr-dashboard-summary", orgId] });
+  };
   const saveAccount = () => saveRecord.mutate({ table: "finance_accounts", payload: { account_name: account.name.trim(), account_type: account.type, account_number: account.number.trim() || null, currency: account.currency || "NGN", is_active: true, created_by: userId } }, { onSuccess: () => { toast({ title: "Finance account added" }); setAccountOpen(false); setAccount(blank({ name: "", type: "bank", number: "", currency: "NGN" })); refresh(["hr-finance-accounts"]); } });
   const payrollBreakdown = calculateNigerianSalary(Number(salary.gross || 0));
   const salaryNet = Math.max(0, payrollBreakdown.netPay - Number(salary.voluntary || 0) - Number(salary.deductions || 0) - Number(salary.loan || 0));

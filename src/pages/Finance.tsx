@@ -451,7 +451,7 @@ const Finance = () => {
           toast({ title: "Payment logged; anomaly scan unavailable", description: "The payment is saved, but the background anomaly check could not complete. Retry the scan from Finance later.", variant: "destructive" });
         }
       }
-      setPaymentOpen(false); resetPaymentForm(); refetchPayments();
+      setPaymentOpen(false); resetPaymentForm(); refetchPayments(); queryClient.invalidateQueries({ queryKey: ["hr-dashboard-summary", orgId] });
     } catch (err: unknown) {
       const error = err as Error;
       toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
@@ -484,7 +484,7 @@ const Finance = () => {
         if (error) throw error;
         toast({ title: "Expense logged" });
       }
-      setExpenseOpen(false); resetExpenseForm(); refetchExpenses();
+      setExpenseOpen(false); resetExpenseForm(); refetchExpenses(); queryClient.invalidateQueries({ queryKey: ["hr-dashboard-summary", orgId] });
     } catch (err: unknown) {
       const error = err as Error;
       toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
@@ -509,6 +509,7 @@ const Finance = () => {
         toast({ title: "Draft invoice cancelled" });
         setDeleteTarget(null);
         refetchInvoices();
+        queryClient.invalidateQueries({ queryKey: ["hr-dashboard-summary", orgId] });
         refetchFinanceReport();
         return;
       }
@@ -518,6 +519,7 @@ const Finance = () => {
       toast({ title: `${deleteTarget.type === "expense" ? "Expense" : "Payment"} deleted` });
       setDeleteTarget(null);
       if (deleteTarget.type === "expense") refetchExpenses(); else refetchPayments();
+      queryClient.invalidateQueries({ queryKey: ["hr-dashboard-summary", orgId] });
     } catch (err: unknown) {
       const error = err as Error;
       toast({ title: "Error", description: humanizeError(error), variant: "destructive" });
@@ -1028,7 +1030,7 @@ const Finance = () => {
         </TabsContent>
       </Tabs>
 
-      <InvoiceDialog open={invoiceOpen} onOpenChange={setInvoiceOpen} onCreated={() => refetchInvoices()} />
+      <InvoiceDialog open={invoiceOpen} onOpenChange={setInvoiceOpen} onCreated={() => { refetchInvoices(); queryClient.invalidateQueries({ queryKey: ["hr-dashboard-summary", orgId] }); }} />
       <RecordPaymentDialog
         open={!!paymentInvoice}
         onOpenChange={(o) => { if (!o) setPaymentInvoice(null); }}
@@ -1040,6 +1042,7 @@ const Finance = () => {
           refetchFinanceReport();
           queryClient.invalidateQueries({ queryKey: ["finance-period-report", orgId] });
           queryClient.invalidateQueries({ queryKey: ["analytics"] });
+          queryClient.invalidateQueries({ queryKey: ["hr-dashboard-summary", orgId] });
         }}
       />
 
