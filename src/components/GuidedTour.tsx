@@ -16,7 +16,11 @@ export function GuidedTour() {
   const driverRef = useRef<Driver | null>(null);
 
   useEffect(() => {
-    const role = activeRole ?? (isMaintenance ? "administrator" : undefined);
+    // Maintenance sessions are used to inspect role dashboards; an auto-open
+    // tour must not intercept the role-preview controls before inspection.
+    if (isMaintenance) return;
+
+    const role = activeRole ?? undefined;
     if (!role) return;
     if (!location.pathname.startsWith("/dashboard") && location.pathname !== "/index") return;
 

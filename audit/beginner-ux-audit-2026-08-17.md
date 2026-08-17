@@ -59,3 +59,53 @@ The shared app shell was hardened so only the interactive guided tour auto-opens
 A later implementation temporarily moved `Connected operations` into the maintenance Administrator dashboard. That was an architectural mistake. The governing pasted specification confirms that the centralized HR view belongs on the normal HR role dashboard; the maintenance Administrator is only an inspection and role-preview environment and must not contain another role’s operational dashboard.
 
 The mistaken Administrator placement has been removed and the HR dashboard implementation has been restored so the centralized view remains on the HR role dashboard. The maintenance role switcher remains available for inspecting the HR role experience without relocating HR content. Local validation after the rollback passed TypeScript, production build, all 26 regression tests, and diff hygiene.
+
+## Pasted-spec architecture verification
+
+After commit `bf1f259` deployed, the maintenance Administrator dashboard showed the Administrator-specific command center, role preview buttons, and Administrator quick-start cards, but no HR connected-operations section. Switching the maintenance preview to `HR` displayed the normal HR dashboard with its centralized `Connected operations` view, including `People & finance`, `Commercial & deliveries`, and `Bank review`, alongside HR-specific actions and live HR data. This matches the pasted specification: the maintenance role inspects other role experiences; it does not contain or replace them.
+
+## Finance guess-the-click audit
+
+The Finance page passed the first-use hierarchy test better than the Administrator dashboard. A beginner can see the page title, plain-language description, clear actions (`New Invoice`, `Log Payment`, `Log Expense`), a visible `How money moves through this page` workflow explanation, and tabs named `Overview`, `Invoices`, `Receipts`, `Expenses`, `Payments`, and `Bank Analysis`. The invoice action in HelpSheet also points to the Invoices tab.
+
+Opening `/finance?tab=invoices` selected the Invoices tab directly and showed the `Client Invoices` table with a second local `New Invoice` action. The table exposed real invoice number, client/reference, source/site, date/due, status, amount, balance, and bank-link context. The likely beginner friction is terminology: `Gross / net`, `Bank link`, `Source / site`, and `standard` are accounting/implementation terms that need helper text or column tooltips. The current table is also dense on desktop and will need mobile verification for horizontal containment and discoverability of row actions.
+
+## Quotations guess-the-click audit
+
+The Quotations page has a strong first-use structure. It presents a plain-language title, a `New Quotation` action, a `How this works` banner describing Draft → Send → accepted sales order → confirmed order → delivery and finance, and a visible commercial order lifecycle section. The path from quotation to linked sales order and invoice is discoverable without prior training, and the `Open catalogue` action clearly explains that approved HDPE catalogue records are maintained inside the workflow.
+
+The New Quotation dialog exposes Itemized/Lump Sum, Client, Opportunity, Pipe Type, Profit Margin, Line Items, Labor, Transport, Discount, Overhead/site cost, Tax, Site/project reference, Payment terms, Assumptions, Exclusions, and Terms and conditions. The main usability risk is that several numeric fields are displayed with dense abbreviations or units (`₦/m`, `₦`) and the dialog is vertically long on smaller screens. A first-time user may also click `Save & Send` without understanding that it is the customer-facing transition, although the page banner partially explains this. This surface should receive mobile dialog testing and stronger inline helper text for the two save actions.
+
+## Logistics guess-the-click audit
+
+Logistics presents a coherent sequence: `How this works` explains confirmed orders entering dispatch, the confirmed-order queue exposes `Create delivery`, and the delivery surface contains `Deliveries`, `Fleet`, and `Fuel Log` tabs plus search and status filtering. The linked live UAT delivery displayed its sales-order lineage and the actual conveyed item, which is strong connected-workflow evidence.
+
+The New Waybill dialog uses a clear title, `Issue and print waybill`, and an excellent lifecycle explanation: save the permanent record, render the PDF, mark it printed, and keep failed rendering retryable. The primary action `Generate, save & print waybill` is explicit. A first-time user may still need help distinguishing `Source delivery`, `Sales order`, `Client`, `Project`, and `Project label`, because the form initially defaults to `Standalone waybill` and presents implementation lineage before asking for the operational destination and driver details. The item row is understandable through its placeholder, but `pcs` and free-text quantity/unit inputs should have an explicit unit hint or select options for non-technical users.
+
+## Document Registry guess-the-click audit
+
+The Document Registry is one of the most intuitive surfaces. Its title states the purpose plainly, the helper banner explains that records are created in source modules and appear here for search/reference, and the page exposes search, date range filters, CSV export, and document-type tabs. Filtering to `Waybill (2)` displayed both issued waybills with their reference, date, destination, status, and visible `Reprint` action. This directly supports the intended document lifecycle and makes the reprint path guessable.
+
+One loading-state issue was observed during initial navigation: the type tabs briefly displayed zero counts while the page showed skeleton rows, then updated to the correct counts (`All (27)`, `Waybill (2)`, and so on). This is acceptable if the loading state is clearly perceived, but the tab labels could be disabled or marked loading to avoid a momentary false impression that the registry is empty.
+
+## Messages guess-the-click audit
+
+Messages has an intuitive page title, one-line purpose (`Internal communication`), search field, `New Chat`, `Broadcast`, and a `How this works` banner explaining that direct chats are private, broadcasts are admin-only read-only announcements, and project/report context chats live in their source modules. Opening `New Chat` produced a compact form with `To`, `Message`, `Send`, and `Close`; the interaction is easy to guess and the send action is explicit.
+
+The main usability gap is contextual rather than navigational: the new-message form offers only recipient and message body, with no subject, priority, attachment, project, delivery, or report context selector. Because the helper says project/report chats live elsewhere, a beginner may not know where to start a conversation about a specific operational record. This should be considered for a later workflow-context enhancement, but the basic direct-chat path is clear and safe.
+
+## HR feature-page guess-the-click audit
+
+The HR feature page is now appropriately scoped to HR-owned work. Its title and description explain the module, `Request Leave` and `Check In` are visible primary actions, the `How HR works here` banner describes the responsibility chain, and the tab row clearly names Attendance, Leaves, Payroll, ID Cards, Performance, Recruitment, Training, Skills, Disciplinary, and Promotions. The attendance empty state explains exactly why no records are present, who performs check-in, and what HR reviews. The page remains deep-linkable through `/hr?tab=attendance` and `/hr?tab=payroll`.
+
+A live keyword search for `Connected operations` returned no match on the feature page, confirming that the centralized view is not duplicated or cramped here. The normal HR dashboard remains the correct overview surface.
+
+## Complete route smoke audit
+
+A read-only Playwright smoke pass visited 21 major routes: Dashboard, Projects, Equipment, Field Reports, HSE, Compliance, Calculator, BOQ, Opportunities, Quotations, Clients, Inventory, Logistics, Finance, Procurement, Analytics, HR, Claims, Messages, Documents, and Settings. Every route rendered the expected product shell and route-specific content, no route exposed an application-error or failed-load message, and every route measured `documentWidth === viewportWidth` at the 500px test width with no horizontal overflow detected.
+
+The route smoke also confirms that each major page has a recognizable title or descriptive first content. The dashboard’s first DOM `h1` is the shell branding `NIF Technical` rather than the inner role-dashboard heading, so a future accessibility/semantic polish pass should ensure the page-level dashboard heading is the primary heading exposed to assistive technology.
+
+## Maintenance role-preview obstruction
+
+During a desktop role-matrix automation pass, the auto-opening Guided Tour overlay intercepted pointer events on the `Technical Dept.` role button. The role button was visible and enabled, but the tour overlay blocked the click for 30 seconds. This is a genuine usability defect for the maintenance workflow: the maintenance role exists specifically to inspect other role experiences, so a first-use tour must not prevent access to the role switcher. The fix should suppress automatic tour launch for maintenance sessions while retaining a replayable tour for normal users.
