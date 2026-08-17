@@ -53,3 +53,11 @@ The browser session reported two console errors: a browser restriction for reque
 The mobile accessibility snapshot exposed two simultaneous first-use layers: the role guide dialog (`Hi Ola, Platform Administrator Guide`) and the interactive `Welcome to NIF Operations` guided-tour dialog. Two overlapping dialogs create competing focus, obscure the dashboard, and force an untrained user to decide which instruction layer to follow. This was a genuine first-use UX defect.
 
 The shared app shell was hardened so only the interactive guided tour auto-opens. The role guide component remains available in the codebase for future intentional use, while the dashboard’s `Start here` banner and the guided tour now provide the first-use explanation without overlapping modal layers. Local TypeScript, production build, 26 regression tests, and diff hygiene all passed after the fix.
+
+## Architecture correction: maintenance Administrator placement
+
+The previous implementation placed `Connected operations` inside the HR role dashboard. That was incorrect for the requested maintenance workflow. The intended surface is the maintenance Administrator dashboard, where the maintenance role previews how other roles work and needs a cross-role HR oversight view without switching into the HR role.
+
+The correction moves the connected HR oversight into `AdminDashboard` through `MaintenanceHROversight`, which renders only when `isMaintenance` is true. The HR role dashboard keeps its own HR-specific first actions and live HR metrics but no longer renders the cross-functional connected-operations panel. The normal `/hr` feature page remains focused on HR-owned tabs and editing workflows.
+
+Local validation after the correction passed TypeScript, production build, all 26 regression tests, and diff hygiene.
