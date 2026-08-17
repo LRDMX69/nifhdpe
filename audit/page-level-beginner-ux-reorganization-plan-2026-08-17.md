@@ -97,3 +97,7 @@ The current source audit confirms the action section precedes the workflow banne
 ## Browser verification checkpoint — clarified Projects arrangement
 
 At `390×844`, Projects now renders the page orientation and live summary, then the compact project-execution actions, then the collapsed `How projects flow` explanation, followed by the actual project search/filter and empty state. The snapshot showed the primary actions and project content contained within the mobile page shell; no project record was created or changed.
+
+## Live production verification
+
+After GitHub reauthentication, commit `cf363dc` was pushed successfully and the associated CI run `32050335233` completed with `success`. The public alias `https://nifhdpe.vercel.app/clients` was then checked read-only. It contains the updated `Start with your client directory` section, the compact Add/Find/Open Quotations actions, and the collapsed `How this works` content in the intended order. No production record was created, edited, deleted, or otherwise mutated.
