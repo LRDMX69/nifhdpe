@@ -342,6 +342,16 @@ const Projects = () => {
         </Button>
       </PageHeader>
 
+      <PageTaskStart
+        title="Start with project execution"
+        description="Find the site you need, create the next project, or review the evidence that keeps delivery moving."
+        tasks={[
+          { title: "Open a project", description: "Search active sites, clients, and current progress.", href: undefined, onClick: () => document.getElementById("projects-search")?.focus(), icon: Search },
+          ...(canEdit ? [{ title: "Create a project", description: "Set the client, budget, team, and site details.", href: undefined, onClick: openAdd, icon: Plus }] : []),
+          { title: "Review field reports", description: "Connect daily site evidence to project progress.", href: "/field-reports", icon: ClipboardCheck },
+        ]}
+      />
+
       <WorkflowBanner
         storageKey="projects-overview"
         title="How projects flow"
@@ -350,16 +360,6 @@ const Projects = () => {
           { actor: "Admin / Engineer", action: "Creates the project, sets client, budget, site GPS and assigns a head + team." },
           { actor: "Project Head", action: "Updates status & progress; team checks in on site and submits field reports." },
           { actor: "System", action: "Auto-links materials, deliveries and expenses; calculates project P&L on demand." },
-        ]}
-      />
-
-      <PageTaskStart
-        title="Start with project execution"
-        description="Find the site you need, create the next project, or review the evidence that keeps delivery moving."
-        tasks={[
-          { title: "Open a project", description: "Search active sites, clients, and current progress.", href: undefined, onClick: () => document.getElementById("projects-search")?.focus(), icon: Search },
-          ...(canEdit ? [{ title: "Create a project", description: "Set the client, budget, team, and site details.", href: undefined, onClick: openAdd, icon: Plus }] : []),
-          { title: "Review field reports", description: "Connect daily site evidence to project progress.", href: "/field-reports", icon: ClipboardCheck },
         ]}
       />
 

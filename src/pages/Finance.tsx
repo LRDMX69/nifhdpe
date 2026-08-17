@@ -677,6 +677,16 @@ const Finance = () => {
         </DialogContent>
       </Dialog>
 
+      <PageTaskStart
+        title="Start with money in and money out"
+        description="Choose the finance task you came to complete before opening the broader tabs and intelligence."
+        tasks={[
+          { title: "Review invoices", description: "See balances, due dates, and invoice status.", href: "/finance?tab=invoices", icon: Receipt },
+          { title: "Review receipts and payments", description: "Match money received and worker payments.", href: "/finance?tab=receipts", icon: CreditCard },
+          { title: "Open bank analysis", description: "Review approved bank lines and reconciliation links.", href: "/finance?tab=bank-analysis", icon: Banknote },
+        ]}
+      />
+
       <WorkflowBanner
         storageKey="finance-overview"
         title="How money moves through this page"
@@ -685,16 +695,6 @@ const Finance = () => {
           { actor: "Sales / Reception", action: "Creates the quotation and converts it to an invoice once the client accepts." },
           { actor: "Finance (you)", action: "Issues invoice, records receipts, logs expenses & worker payments." },
           { actor: "System", action: "Auto-updates balance due, P&L per project, and flags unusual spending." },
-        ]}
-      />
-
-      <PageTaskStart
-        title="Start with money in and money out"
-        description="Choose the finance task you came to complete before opening the broader tabs and intelligence."
-        tasks={[
-          { title: "Review invoices", description: "See balances, due dates, and invoice status.", href: "/finance?tab=invoices", icon: Receipt },
-          { title: "Review receipts and payments", description: "Match money received and worker payments.", href: "/finance?tab=receipts", icon: CreditCard },
-          { title: "Open bank analysis", description: "Review approved bank lines and reconciliation links.", href: "/finance?tab=bank-analysis", icon: Banknote },
         ]}
       />
 

@@ -477,16 +477,6 @@ const AppSettings = () => {
         executiveSummary={`${teamMembers.length} active team members · ${pendingRoleRequests.length} pending role requests`}
       />
 
-      <WorkflowBanner
-        storageKey="settings"
-        summary="Manage the organization profile, the team roster and your own account from a single place. Role changes here flow through to every module's permissions instantly."
-        steps={[
-          { actor: "Administrator", action: "updates company details and the organization logo — both appear on every PDF, ID card and the splash screen." },
-          { actor: "Administrator", action: "assigns roles to team members (max 2 Admins). Pending users see the Awaiting Role screen until approved." },
-          { actor: "You", action: "manage your own profile, avatar and password in the Profile tab." },
-        ]}
-      />
-
       <PageTaskStart
         title="Start with the setting you need"
         description="Choose the scope first, then make the smallest clearly explained change in that workspace."
@@ -494,6 +484,16 @@ const AppSettings = () => {
           { title: "Update organization", description: "Company details, logo, and document identity.", href: undefined, onClick: () => setActiveSettingsTab("organization"), icon: Building2 },
           { title: "Manage the team", description: "Roles, access, and pending member requests.", href: undefined, onClick: () => setActiveSettingsTab("team"), icon: Users },
           { title: "Open your profile", description: "Personal details, password, and avatar.", href: undefined, onClick: () => setActiveSettingsTab("profile"), icon: Shield },
+        ]}
+      />
+
+      <WorkflowBanner
+        storageKey="settings"
+        summary="Manage the organization profile, the team roster and your own account from a single place. Role changes here flow through to every module's permissions instantly."
+        steps={[
+          { actor: "Administrator", action: "updates company details and the organization logo — both appear on every PDF, ID card and the splash screen." },
+          { actor: "Administrator", action: "assigns roles to team members (max 2 Admins). Pending users see the Awaiting Role screen until approved." },
+          { actor: "You", action: "manage your own profile, avatar and password in the Profile tab." },
         ]}
       />
 

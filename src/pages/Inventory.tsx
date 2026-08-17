@@ -339,16 +339,6 @@ const Inventory = () => {
         </div>
       </PageHeader>
 
-      <WorkflowBanner
-        storageKey="inventory"
-        summary="Track every pipe, fitting and accessory across racks and zones. Stock auto-deducts when goods leave the warehouse on a delivery."
-        steps={[
-          { actor: "Warehouse / Admin", action: "register the item with type, diameter, supplier and minimum stock level." },
-          { actor: "System", action: "deducts stock automatically when deliveries are dispatched and flags items that fall below the minimum." },
-          { actor: "Procurement / Finance", action: "raise a Purchase Order in the Procurement module when low-stock alerts appear." },
-        ]}
-      />
-
       <PageTaskStart
         title="Start with stock control"
         description="Check availability first, then move stock into dispatch or raise the purchase work needed to replenish it."
@@ -356,6 +346,16 @@ const Inventory = () => {
           { title: "Check stock", description: "Search items, suppliers, and current quantities.", href: undefined, onClick: () => document.getElementById("inventory-search")?.focus(), icon: Search },
           { title: "Plan a delivery", description: "Use available stock in the dispatch workflow.", href: "/logistics", icon: Truck },
           { title: "Review purchases", description: "Raise or follow a purchase for low-stock items.", href: "/procurement", icon: ShoppingCart },
+        ]}
+      />
+
+      <WorkflowBanner
+        storageKey="inventory"
+        summary="Track every pipe, fitting and accessory across racks and zones. Stock auto-deducts when goods leave the warehouse on a delivery."
+        steps={[
+          { actor: "Warehouse / Admin", action: "register the item with type, diameter, supplier and minimum stock level." },
+          { actor: "System", action: "deducts stock automatically when deliveries are dispatched and flags items that fall below the minimum." },
+          { actor: "Procurement / Finance", action: "raise a Purchase Order in the Procurement module when low-stock alerts appear." },
         ]}
       />
 

@@ -296,6 +296,16 @@ const DocumentRegistry = () => {
         onRefresh={() => refetch()}
       />
 
+      <PageTaskStart
+        title="Start with the document you need"
+        description="Search the audit trail first, then return to the source module when you need to continue the work."
+        tasks={[
+          { title: "Find a document", description: "Search by reference, client, vendor, or date.", href: undefined, onClick: () => document.getElementById("document-registry-search")?.focus(), icon: Search },
+          { title: "Review finance documents", description: "Open invoices, receipts, and payment records.", href: "/finance", icon: ReceiptIcon },
+          { title: "Review waybills", description: "Return to logistics for delivery and reprint actions.", href: "/logistics", icon: Truck },
+        ]}
+      />
+
       <WorkflowBanner
         storageKey="document-registry"
         summary="A read-only audit trail of every numbered document in the system. Documents are created in their source module (Finance, Quotations, Procurement, Logistics) and appear here for search and reference."
@@ -312,16 +322,6 @@ const DocumentRegistry = () => {
           <span>Some document sources could not be loaded ({partial.join(", ")}). Other documents are shown below — try refreshing.</span>
         </div>
       )}
-
-      <PageTaskStart
-        title="Start with the document you need"
-        description="Search the audit trail first, then return to the source module when you need to continue the work."
-        tasks={[
-          { title: "Find a document", description: "Search by reference, client, vendor, or date.", href: undefined, onClick: () => document.getElementById("document-registry-search")?.focus(), icon: Search },
-          { title: "Review finance documents", description: "Open invoices, receipts, and payment records.", href: "/finance", icon: ReceiptIcon },
-          { title: "Review waybills", description: "Return to logistics for delivery and reprint actions.", href: "/logistics", icon: Truck },
-        ]}
-      />
 
       <Card>
         <CardContent className="p-4 space-y-3">

@@ -557,6 +557,20 @@ const HR = () => {
       </PageHeader>
       </div>
 
+      <PageTaskStart
+        title={isHrOrAdmin ? "Start with a people decision" : "Start with your HR request"}
+        description={isHrOrAdmin ? "Choose the people process that needs attention, then use the live summaries and detailed tabs below." : "Review your leave status or continue into the connected people workflows."}
+        tasks={[
+          { title: "Review leave", description: "Open pending requests and current leave status.", href: "/hr?tab=leaves", icon: CalendarDays },
+          ...(isHrOrAdmin ? [
+            { title: "Review payroll", description: "Open salary, statutory, and payment context.", href: "/hr?tab=payroll", icon: DollarSign },
+            { title: "Open procurement", description: "Review the connected vendor and purchase work.", href: "/procurement", icon: Briefcase },
+          ] : [{ title: "Open your dashboard", description: "Return to your role’s task-first work view.", href: "/dashboard", icon: Users }]),
+        ]}
+      />
+
+      <CheckInWidget />
+
       <WorkflowBanner
         storageKey="hr-overview"
         title="How HR works here"
@@ -578,20 +592,6 @@ const HR = () => {
                 { actor: "You", action: "See the new status in the Leaves tab — no need to ask." },
               ]
         }
-      />
-
-      <CheckInWidget />
-
-      <PageTaskStart
-        title={isHrOrAdmin ? "Start with a people decision" : "Start with your HR request"}
-        description={isHrOrAdmin ? "Choose the people process that needs attention, then use the live summaries and detailed tabs below." : "Review your leave status or continue into the connected people workflows."}
-        tasks={[
-          { title: "Review leave", description: "Open pending requests and current leave status.", href: "/hr?tab=leaves", icon: CalendarDays },
-          ...(isHrOrAdmin ? [
-            { title: "Review payroll", description: "Open salary, statutory, and payment context.", href: "/hr?tab=payroll", icon: DollarSign },
-            { title: "Open procurement", description: "Review the connected vendor and purchase work.", href: "/procurement", icon: Briefcase },
-          ] : [{ title: "Open your dashboard", description: "Return to your role’s task-first work view.", href: "/dashboard", icon: Users }]),
-        ]}
       />
 
       {isHrOrAdmin && (

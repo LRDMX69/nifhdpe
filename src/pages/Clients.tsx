@@ -144,16 +144,6 @@ const Clients = () => {
       >
       </PageHeader>
 
-      <WorkflowBanner
-        storageKey="clients"
-        summary="The client master powers every quotation, invoice, opportunity and project. Keep the company name and contact details accurate — they print on every document."
-        steps={[
-          { actor: "Marketing / HR / Admin", action: "register the client with company name, contact person and address." },
-          { actor: "Sales", action: "raises Quotations and Opportunities against the client record." },
-          { actor: "Finance", action: "issues Invoices and Receipts that automatically pull the client's details." },
-        ]}
-      />
-
       <PageTaskStart
         title="Start with your client directory"
         description="Find the company you need, add a new client, or move directly into the connected sales workflow."
@@ -161,6 +151,16 @@ const Clients = () => {
           ...(canEdit ? [{ title: "Add a client", description: "Create the record used by quotations and invoices.", href: undefined, onClick: openAdd, icon: Plus }] : []),
           { title: "Find a client", description: "Search by company or contact person.", href: undefined, onClick: () => document.getElementById("clients-search")?.focus(), icon: Search },
           { title: "Open quotations", description: "Continue from a client into a priced offer.", href: "/quotations", icon: FileText },
+        ]}
+      />
+
+      <WorkflowBanner
+        storageKey="clients"
+        summary="The client master powers every quotation, invoice, opportunity and project. Keep the company name and contact details accurate — they print on every document."
+        steps={[
+          { actor: "Marketing / HR / Admin", action: "register the client with company name, contact person and address." },
+          { actor: "Sales", action: "raises Quotations and Opportunities against the client record." },
+          { actor: "Finance", action: "issues Invoices and Receipts that automatically pull the client's details." },
         ]}
       />
 
