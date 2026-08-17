@@ -96,14 +96,14 @@ const HRDashboard = () => {
         </div>
       </div>
 
-      <HRFinanceCommandCenter orgId={orgId} activeRole={activeRole ?? undefined} />
-
       <Card>
         <CardHeader className="pb-3"><CardTitle className="text-base">Start your HR work</CardTitle><CardDescription>Choose the task you came to complete. The labels use everyday HR language.</CardDescription></CardHeader>
         <CardContent className="grid gap-2 sm:grid-cols-2">
           {actionCards.map((action) => { const Icon = action.icon; return <Link key={action.href} to={action.href} className="group flex min-w-0 items-center gap-3 rounded-lg border border-border/60 p-3 transition-colors hover:border-primary/40 hover:bg-primary/[0.03] focus:outline-none focus:ring-2 focus:ring-primary/40"><span className="rounded-lg bg-primary/10 p-2 text-primary"><Icon className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{action.title}</span><span className="mt-0.5 block truncate text-xs text-muted-foreground">{action.description}</span></span><ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" /></Link>; })}
         </CardContent>
       </Card>
+
+      <HRFinanceCommandCenter orgId={orgId} activeRole={activeRole ?? undefined} />
 
       <Card>
         <CardHeader className="pb-3"><CardTitle className="text-base">People pulse</CardTitle><CardDescription>A small workforce snapshot. Open the related HR tab for detail.</CardDescription></CardHeader>

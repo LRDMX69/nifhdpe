@@ -121,3 +121,23 @@ The HR role exposed the centralized dashboard view and four direct workspace act
 The live database was cleared for operational use, so no further UAT mutations will be performed. The empty HR dashboard was inspected in the maintenance role’s HR preview at the live deployment. The current composition is visually clean in color and typography but structurally overloaded: the command center appears as a large standalone block, followed immediately by four repeated action cards, four repeated KPI cards, a pending-leave panel, workforce intelligence, connected-work-area controls, the detailed Finance & Benefits workspace, and the legacy HR content below. The page asks a first-time employee to process too many layers before reaching a clear next action.
 
 The empty-state screenshot also shows a loading command-center card while the rest of HR already renders, which creates an unstable first impression. The repeated “Open workspace” cards and the later “Choose a work area” controls overlap conceptually, while the command center’s large set of individual finance metrics creates a second dashboard inside the HR dashboard. The layout needs a single primary “Today” area, a compact people snapshot, and a clearly secondary connected-finance summary that is collapsed or visually grouped rather than displayed as a long uninterrupted wall of cards. No data was created, edited, approved, or deleted during this re-audit.
+
+## Post-refactor empty-state verification
+
+After the rebased layout commit `4e12b3b` and CI run `32030647795` passed, the live HR preview was retested after the database reset. The page now follows one visible sequence: HR orientation, `HR + Finance at a glance`, a compact `What needs attention` strip, `Today’s picture` with four people/HR metrics and four finance metrics, a quiet financial-movement panel, collapsed `More finance details`, `Start your HR work`, `People pulse`, leave requests, workforce notes, and a collapsed `Detailed connected workspaces` section. The former four large action cards and the hardcoded `Connected areas 3` KPI were removed. The empty state reads as intentionally quiet rather than as a wall of repeated cards, and detailed payroll/commercial/bank workspaces remain available behind an explicit `Open connected workspaces` control.
+
+## Post-refactor mobile verification
+
+At `390×844`, the deployed HR dashboard measured `documentWidth = 390` and `bodyWidth = 390`, with no horizontal overflow and no visible application-error boundary. The command center remained visible, while the intentionally collapsed `More finance details` area exposed `View details` without forcing the full secondary metric set into the first viewport. The mobile action surface retained visible `Review attendance`, `Review leave requests`, `Run payroll`, `Manage people records`, and `Open connected workspaces` controls. The role preview session reported two console errors from the existing browser session, but no visible runtime failure in the refactored HR layout.
+
+## Post-refactor tablet verification
+
+At `768×1024`, the live HR dashboard measured `documentWidth = 768` and `bodyWidth = 768`, with no horizontal overflow, no visible application-error boundary, visible HR headings, visible daily action links, and the secondary detail controls still collapsed. The tablet layout therefore preserves the intended order without forcing the user into a wide table or a dense multi-column wall.
+
+## Detail disclosure verification
+
+The `Open connected workspaces` disclosure was opened once on the live HR dashboard. It expanded successfully and exposed the existing `People & finance`, `Commercial & deliveries`, and `Bank review` work areas, including the Finance & Benefits workspace. This confirms the layout correction reduced first-view density without removing the centralized HR role capability.
+
+## Final hierarchy adjustment
+
+The final review showed that even the compact version was clearer when the four everyday HR tasks appeared immediately after the page orientation, before the connected HR-Finance summary. The order is now: **Start your HR work → HR + Finance at a glance → People pulse and supporting context → detailed connected workspaces**. This keeps the centralized view on the HR dashboard while making the first click obvious for an untrained employee.
